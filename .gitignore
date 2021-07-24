@@ -18,4 +18,5 @@ SynthSeg/predict_*
 # Ignore from photos-project
 data/SynthSeg*
 data/instructions.txt
-
+misc/*
+!misc/.gitkeep
