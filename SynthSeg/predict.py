@@ -1,17 +1,15 @@
 # python imports
-import os
 import csv
+import os
+
 import numpy as np
 from keras.models import Model
 
+# third-party imports
+from ext.lab2im import edit_volumes, layers, utils
+from ext.neuron import models as nrn_models
 # project imports
 from SynthSeg import evaluate
-
-# third-party imports
-from ext.lab2im import utils
-from ext.lab2im import layers
-from ext.lab2im import edit_volumes
-from ext.neuron import models as nrn_models
 
 
 def predict(path_images,
@@ -96,18 +94,24 @@ def predict(path_images,
         prepare_output_files(path_images, path_segmentations, path_posteriors, path_volumes, path_resampled, recompute)
 
     # build correspondance table between contralateral structures
-    label_list, n_neutral = utils.get_list_labels(label_list=segmentation_label_list, FS_sort=True)
+    label_list, n_neutral = utils.get_list_labels(
+        label_list=segmentation_label_list, FS_sort=True)
     n_labels = len(label_list)
     n_side_labels = int((n_labels - n_neutral) / 2)
-    lr_corresp = np.stack([label_list[n_neutral:n_neutral + n_side_labels], label_list[n_neutral + n_side_labels:]])
+    lr_corresp = np.stack([
+        label_list[n_neutral:n_neutral + n_side_labels],
+        label_list[n_neutral + n_side_labels:]
+    ])
 
     # get final version of label list
-    label_list, _ = utils.get_list_labels(label_list=segmentation_label_list, FS_sort=False)
+    label_list, _ = utils.get_list_labels(label_list=segmentation_label_list,
+                                          FS_sort=False)
     label_list, indices = np.unique(label_list, return_index=True)
 
     # prepare topology classes
     if topology_classes is not None:
-        topology_classes = utils.load_array_if_path(topology_classes, load_as_numpy=True)[indices]
+        topology_classes = utils.load_array_if_path(
+            topology_classes, load_as_numpy=True)[indices]
 
     # get correspondance for labels with different right/left values
     lr_indices = np.zeros_like(lr_corresp)
@@ -118,7 +122,8 @@ def predict(path_images,
     # prepare volume file if needed
     if path_volumes is not None:
         if segmentation_names_list is not None:
-            segmentation_names_list = utils.load_array_if_path(segmentation_names_list)[indices]
+            segmentation_names_list = utils.load_array_if_path(
+                segmentation_names_list)[indices]
             csv_header = [[''] + segmentation_names_list[1:].tolist()]
             csv_header += [[''] + [str(lab) for lab in label_list[1:]]]
         else:
@@ -144,16 +149,22 @@ def predict(path_images,
             model_input_shape = list(image.shape[1:])
 
             # prepare net for first image or if input's size has changed
-            if (net is None) | (previous_model_input_shape != model_input_shape):
+            if (net is None) | (previous_model_input_shape !=
+                                model_input_shape):
 
                 # check for image size compatibility
-                if (net is not None) & (previous_model_input_shape != model_input_shape) & verbose:
-                    print('image of different shape as previous ones, redefining network')
+                if (net is not None) & (previous_model_input_shape !=
+                                        model_input_shape) & verbose:
+                    print(
+                        'image of different shape as previous ones, redefining network'
+                    )
                 previous_model_input_shape = model_input_shape
 
                 # build network
-                net = build_model(path_model, model_input_shape, n_levels, len(label_list), conv_size,
-                                  nb_conv_per_level, unet_feat_count, feat_multiplier, activation, sigma_smoothing)
+                net = build_model(path_model, model_input_shape, n_levels,
+                                  len(label_list), conv_size,
+                                  nb_conv_per_level, unet_feat_count,
+                                  feat_multiplier, activation, sigma_smoothing)
 
             if verbose:
                 loop_info.update(idx)
@@ -163,9 +174,18 @@ def predict(path_images,
             prediction_patch_flip = net.predict(im_flipped) if flip else None
 
             # get posteriors and segmentation
-            seg, posteriors = postprocess(prediction_patch, pad_shape, shape, crop_idx, n_dims, label_list, lr_indices,
-                                          keep_biggest_component, aff,
-                                          topology_classes=topology_classes, post_patch_flip=prediction_patch_flip)
+            seg, posteriors = postprocess(
+                prediction_patch,
+                pad_shape,
+                shape,
+                crop_idx,
+                n_dims,
+                label_list,
+                lr_indices,
+                keep_biggest_component,
+                aff,
+                topology_classes=topology_classes,
+                post_patch_flip=prediction_patch_flip)
 
             # write results to disk
             if path_segmentation is not None:
@@ -173,19 +193,24 @@ def predict(path_images,
             if path_posterior is not None:
                 if n_channels > 1:
                     posteriors = utils.add_axis(posteriors, axis=[0, -1])
-                utils.save_volume(posteriors.astype('float'), aff, h, path_posterior)
+                utils.save_volume(posteriors.astype('float'), aff, h,
+                                  path_posterior)
 
         else:
             if path_volumes is not None:
-                posteriors, _, _, _, _, _, im_res = utils.get_volume_info(path_posterior, True, aff_ref=np.eye(4))
+                posteriors, _, _, _, _, _, im_res = utils.get_volume_info(
+                    path_posterior, True, aff_ref=np.eye(4))
             else:
                 posteriors = im_res = None
 
         # compute volumes
         if path_volumes is not None:
-            volumes = np.sum(posteriors[..., 1:], axis=tuple(range(0, len(posteriors.shape) - 1)))
+            volumes = np.sum(posteriors[..., 1:],
+                             axis=tuple(range(0,
+                                              len(posteriors.shape) - 1)))
             volumes = np.around(volumes * np.prod(im_res), 3)
-            row = [os.path.basename(path_image).replace('.nii.gz', '')] + [str(vol) for vol in volumes]
+            row = [os.path.basename(path_image).replace('.nii.gz', '')
+                   ] + [str(vol) for vol in volumes]
             with open(path_volumes, 'a') as csvFile:
                 writer = csv.writer(csvFile)
                 writer.writerow(row)
@@ -225,7 +250,8 @@ def predict(path_images,
                             verbose=verbose)
 
 
-def prepare_output_files(path_images, out_seg, out_posteriors, out_volumes, out_resampled, recompute):
+def prepare_output_files(path_images, out_seg, out_posteriors, out_volumes,
+                         out_resampled, recompute):
 
     assert out_seg or out_posteriors, "output segmentation (or posteriors) is required"
 
@@ -233,54 +259,93 @@ def prepare_output_files(path_images, out_seg, out_posteriors, out_volumes, out_
     path_images = os.path.abspath(path_images)
     basename = os.path.basename(path_images)
     out_seg = os.path.abspath(out_seg) if (out_seg is not None) else out_seg
-    out_posteriors = os.path.abspath(out_posteriors) if (out_posteriors is not None) else out_posteriors
-    out_volumes = os.path.abspath(out_volumes) if (out_volumes is not None) else out_volumes
-    out_resampled = os.path.abspath(out_resampled) if (out_resampled is not None) else out_resampled
+    out_posteriors = os.path.abspath(out_posteriors) if (
+        out_posteriors is not None) else out_posteriors
+    out_volumes = os.path.abspath(out_volumes) if (
+        out_volumes is not None) else out_volumes
+    out_resampled = os.path.abspath(out_resampled) if (
+        out_resampled is not None) else out_resampled
 
     # prepare input/output volumes
-    if ('.nii.gz' not in basename) & ('.nii' not in basename) & ('.mgz' not in basename) & ('.npz' not in basename):
+    if ('.nii.gz' not in basename) & ('.nii' not in basename) & (
+            '.mgz' not in basename) & ('.npz' not in basename):
         if os.path.isfile(path_images):
-            raise Exception('extension not supported for %s, only use: nii.gz, .nii, .mgz, or .npz' % path_images)
+            raise Exception(
+                'extension not supported for %s, only use: nii.gz, .nii, .mgz, or .npz'
+                % path_images)
         images_to_segment = utils.list_images_in_folder(path_images)
         if out_seg is not None:
             utils.mkdir(out_seg)
-            out_seg = [os.path.join(out_seg, os.path.basename(image)).replace('.nii', '_synthseg.nii') for image in
-                       images_to_segment]
-            out_seg = [seg_path.replace('.mgz', '_synthseg.mgz') for seg_path in out_seg]
-            out_seg = [seg_path.replace('.npz', '_synthseg.npz') for seg_path in out_seg]
-            recompute_seg = [not os.path.isfile(path_seg) for path_seg in out_seg]
+            out_seg = [
+                os.path.join(out_seg, os.path.basename(image)).replace(
+                    '.nii', '_synthseg.nii') for image in images_to_segment
+            ]
+            out_seg = [
+                seg_path.replace('.mgz', '_synthseg.mgz')
+                for seg_path in out_seg
+            ]
+            out_seg = [
+                seg_path.replace('.npz', '_synthseg.npz')
+                for seg_path in out_seg
+            ]
+            recompute_seg = [
+                not os.path.isfile(path_seg) for path_seg in out_seg
+            ]
         else:
             out_seg = [out_seg] * len(images_to_segment)
             recompute_seg = [False] * len(images_to_segment)
         if out_posteriors is not None:
             utils.mkdir(out_posteriors)
-            out_posteriors = [os.path.join(out_posteriors, os.path.basename(image)).replace('.nii',
-                              '_posteriors.nii') for image in images_to_segment]
-            out_posteriors = [posteriors_path.replace('.mgz', '_posteriors.mgz') for posteriors_path in out_posteriors]
-            out_posteriors = [posteriors_path.replace('.npz', '_posteriors.npz') for posteriors_path in out_posteriors]
-            recompute_post = [not os.path.isfile(path_post) for path_post in out_posteriors]
+            out_posteriors = [
+                os.path.join(out_posteriors, os.path.basename(image)).replace(
+                    '.nii', '_posteriors.nii') for image in images_to_segment
+            ]
+            out_posteriors = [
+                posteriors_path.replace('.mgz', '_posteriors.mgz')
+                for posteriors_path in out_posteriors
+            ]
+            out_posteriors = [
+                posteriors_path.replace('.npz', '_posteriors.npz')
+                for posteriors_path in out_posteriors
+            ]
+            recompute_post = [
+                not os.path.isfile(path_post) for path_post in out_posteriors
+            ]
         else:
             out_posteriors = [out_posteriors] * len(images_to_segment)
             recompute_post = [out_volumes is not None] * len(images_to_segment)
         if out_resampled is not None:
             utils.mkdir(out_resampled)
-            out_resampled = [os.path.join(out_resampled, os.path.basename(image)).replace('.nii',
-                             '_resampled.nii') for image in images_to_segment]
-            out_resampled = [resampled_path.replace('.mgz', '_resampled.mgz') for resampled_path in out_resampled]
-            out_resampled = [resampled_path.replace('.npz', '_resampled.npz') for resampled_path in out_resampled]
-            recompute_resampled = [not os.path.isfile(path_post) for path_post in out_resampled]
+            out_resampled = [
+                os.path.join(out_resampled, os.path.basename(image)).replace(
+                    '.nii', '_resampled.nii') for image in images_to_segment
+            ]
+            out_resampled = [
+                resampled_path.replace('.mgz', '_resampled.mgz')
+                for resampled_path in out_resampled
+            ]
+            out_resampled = [
+                resampled_path.replace('.npz', '_resampled.npz')
+                for resampled_path in out_resampled
+            ]
+            recompute_resampled = [
+                not os.path.isfile(path_post) for path_post in out_resampled
+            ]
         else:
             out_resampled = [out_resampled] * len(images_to_segment)
-            recompute_resampled = [out_volumes is not None] * len(images_to_segment)
+            recompute_resampled = [out_volumes is not None
+                                   ] * len(images_to_segment)
 
     else:
         assert os.path.isfile(path_images), "files does not exist: %s " \
                                             "\nplease make sure the path and the extension are correct" % path_images
         images_to_segment = [path_images]
         if out_seg is not None:
-            if ('.nii.gz' not in out_seg) & ('.nii' not in out_seg) & ('.mgz' not in out_seg) & ('.npz' not in out_seg):
+            if ('.nii.gz' not in out_seg) & ('.nii' not in out_seg) & (
+                    '.mgz' not in out_seg) & ('.npz' not in out_seg):
                 utils.mkdir(out_seg)
-                filename = os.path.basename(path_images).replace('.nii', '_synthseg.nii')
+                filename = os.path.basename(path_images).replace(
+                    '.nii', '_synthseg.nii')
                 filename = filename.replace('.mgz', '_synthseg.mgz')
                 filename = filename.replace('.npz', '_synthseg.npz')
                 out_seg = [os.path.join(out_seg, filename)]
@@ -295,7 +360,8 @@ def prepare_output_files(path_images, out_seg, out_posteriors, out_volumes, out_
             if ('.nii.gz' not in out_posteriors) & ('.nii' not in out_posteriors) & ('.mgz' not in out_posteriors) & \
                     ('.npz' not in out_posteriors):
                 utils.mkdir(out_posteriors)
-                filename = os.path.basename(path_images).replace('.nii', '_posteriors.nii')
+                filename = os.path.basename(path_images).replace(
+                    '.nii', '_posteriors.nii')
                 filename = filename.replace('.mgz', '_posteriors.mgz')
                 filename = filename.replace('.npz', '_posteriors.npz')
                 out_posteriors = [os.path.join(out_posteriors, filename)]
@@ -310,7 +376,8 @@ def prepare_output_files(path_images, out_seg, out_posteriors, out_volumes, out_
             if ('.nii.gz' not in out_resampled) & ('.nii' not in out_resampled) & ('.mgz' not in out_resampled) & \
                     ('.npz' not in out_resampled):
                 utils.mkdir(out_resampled)
-                filename = os.path.basename(path_images).replace('.nii', '_resampled.nii')
+                filename = os.path.basename(path_images).replace(
+                    '.nii', '_resampled.nii')
                 filename = filename.replace('.mgz', '_resampled.mgz')
                 filename = filename.replace('.npz', '_resampled.npz')
                 out_resampled = [os.path.join(out_resampled, filename)]
@@ -322,26 +389,37 @@ def prepare_output_files(path_images, out_seg, out_posteriors, out_volumes, out_
             out_resampled = [out_resampled]
             recompute_resampled = [out_volumes is not None]
 
-    recompute_list = [recompute | re_seg | re_post | re_res
-                      for (re_seg, re_post, re_res) in zip(recompute_seg, recompute_post, recompute_resampled)]
+    recompute_list = [
+        recompute | re_seg | re_post | re_res
+        for (re_seg, re_post,
+             re_res) in zip(recompute_seg, recompute_post, recompute_resampled)
+    ]
 
     if out_volumes is not None:
         if out_volumes[-4:] != '.csv':
-            print('out_volumes provided without csv extension. Adding csv extension to output_volumes.')
+            print(
+                'out_volumes provided without csv extension. Adding csv extension to output_volumes.'
+            )
             out_volumes += '.csv'
             utils.mkdir(os.path.dirname(out_volumes))
 
     return images_to_segment, out_seg, out_posteriors, out_volumes, out_resampled, recompute_list
 
 
-def preprocess_image(im_path, n_levels, crop_shape=None, padding=None, flip=False, path_resample=None):
+def preprocess_image(im_path,
+                     n_levels,
+                     crop_shape=None,
+                     padding=None,
+                     flip=False,
+                     path_resample=None):
 
     # read image and corresponding info
-    im, shape, aff, n_dims, n_channels, header, im_res = utils.get_volume_info(im_path, return_volume=True)
+    im, shape, aff, n_dims, n_channels, header, im_res = utils.get_volume_info(
+        im_path, return_volume=True)
 
     # resample image if necessary
     if np.any((np.array(im_res) > 1.05) | (np.array(im_res) < 0.95)):
-        im_res = np.array([1.]*3)
+        im_res = np.array([1.] * 3)
         im, aff = edit_volumes.resample_volume(im, aff, im_res)
         shape = list(im.shape)
         if path_resample is not None:
@@ -356,50 +434,81 @@ def preprocess_image(im_path, n_levels, crop_shape=None, padding=None, flip=Fals
 
     # check that patch_shape or im_shape are divisible by 2**n_levels
     if crop_shape is not None:
-        crop_shape = utils.reformat_to_list(crop_shape, length=n_dims, dtype='int')
-        if not all([pad_shape[i] >= crop_shape[i] for i in range(len(pad_shape))]):
-            crop_shape = [min(pad_shape[i], crop_shape[i]) for i in range(n_dims)]
+        crop_shape = utils.reformat_to_list(crop_shape,
+                                            length=n_dims,
+                                            dtype='int')
+        if not all(
+            [pad_shape[i] >= crop_shape[i] for i in range(len(pad_shape))]):
+            crop_shape = [
+                min(pad_shape[i], crop_shape[i]) for i in range(n_dims)
+            ]
         if not all([size % (2**n_levels) == 0 for size in crop_shape]):
-            crop_shape = [utils.find_closest_number_divisible_by_m(size, 2 ** n_levels) for size in crop_shape]
+            crop_shape = [
+                utils.find_closest_number_divisible_by_m(size, 2**n_levels)
+                for size in crop_shape
+            ]
     else:
         if not all([size % (2**n_levels) == 0 for size in pad_shape]):
-            crop_shape = [utils.find_closest_number_divisible_by_m(size, 2 ** n_levels) for size in pad_shape]
+            crop_shape = [
+                utils.find_closest_number_divisible_by_m(size, 2**n_levels)
+                for size in pad_shape
+            ]
 
     # crop image if necessary
     if crop_shape is not None:
-        im, crop_idx = edit_volumes.crop_volume(im, cropping_shape=crop_shape, return_crop_idx=True)
+        im, crop_idx = edit_volumes.crop_volume(im,
+                                                cropping_shape=crop_shape,
+                                                return_crop_idx=True)
     else:
         crop_idx = None
 
     # align image to training axes and directions
     if n_dims > 2:
-        im = edit_volumes.align_volume_to_ref(im, aff, aff_ref=np.eye(4), return_aff=False, n_dims=n_dims)
+        im = edit_volumes.align_volume_to_ref(im,
+                                              aff,
+                                              aff_ref=np.eye(4),
+                                              return_aff=False,
+                                              n_dims=n_dims)
 
     # normalise image
     if n_channels == 1:
-        im = edit_volumes.rescale_volume(im, new_min=0., new_max=1., min_percentile=0.5, max_percentile=99.5)
+        im = edit_volumes.rescale_volume(im,
+                                         new_min=0.,
+                                         new_max=1.,
+                                         min_percentile=0.5,
+                                         max_percentile=99.5)
     else:
         for i in range(im.shape[-1]):
-            im[..., i] = edit_volumes.rescale_volume(im[..., i], new_min=0., new_max=1.,
-                                                     min_percentile=0.5, max_percentile=99.5)
+            im[..., i] = edit_volumes.rescale_volume(im[..., i],
+                                                     new_min=0.,
+                                                     new_max=1.,
+                                                     min_percentile=0.5,
+                                                     max_percentile=99.5)
 
     # flip image along right/left axis
     if flip & (n_dims > 2):
-        im_flipped = edit_volumes.flip_volume(im, direction='rl', aff=np.eye(4))
-        im_flipped = utils.add_axis(im_flipped) if n_channels > 1 else utils.add_axis(im_flipped, axis=[0, -1])
+        im_flipped = edit_volumes.flip_volume(im,
+                                              direction='rl',
+                                              aff=np.eye(4))
+        im_flipped = utils.add_axis(
+            im_flipped) if n_channels > 1 else utils.add_axis(im_flipped,
+                                                              axis=[0, -1])
     else:
         im_flipped = None
 
     # add batch and channel axes
-    im = utils.add_axis(im) if n_channels > 1 else utils.add_axis(im, axis=[0, -1])
+    im = utils.add_axis(im) if n_channels > 1 else utils.add_axis(im,
+                                                                  axis=[0, -1])
 
     return im, aff, header, im_res, n_channels, n_dims, shape, pad_shape, crop_idx, im_flipped
 
 
-def build_model(model_file, input_shape, n_levels, n_lab, conv_size, nb_conv_per_level, unet_feat_count,
-                feat_multiplier, activation, sigma_smoothing):
+def build_model(model_file, input_shape, n_levels, n_lab, conv_size,
+                nb_conv_per_level, unet_feat_count, feat_multiplier,
+                activation, sigma_smoothing):
 
-    assert os.path.isfile(model_file), "The provided model path does not exist."
+    assert os.path.isfile(
+        model_file), "The provided model path does not exist."
 
     # build UNet
     net = nrn_models.unet(nb_features=unet_feat_count,
@@ -423,65 +532,94 @@ def build_model(model_file, input_shape, n_levels, n_lab, conv_size, nb_conv_per
     return net
 
 
-def postprocess(post_patch, pad_shape, im_shape, crop, n_dims, labels, left_right_indices, keep_biggest_component, aff,
-                topology_classes=True, post_patch_flip=None):
+def postprocess(post_patch,
+                pad_shape,
+                im_shape,
+                crop,
+                n_dims,
+                labels,
+                left_right_indices,
+                keep_biggest_component,
+                aff,
+                topology_classes=True,
+                post_patch_flip=None):
 
     # get posteriors and segmentation
     post_patch = np.squeeze(post_patch)
     if post_patch_flip is not None:
-        post_patch_flip = edit_volumes.flip_volume(np.squeeze(post_patch_flip), direction='rl', aff=np.eye(4))
-        post_patch_flip[..., left_right_indices.flatten()] = post_patch_flip[..., left_right_indices[::-1].flatten()]
+        post_patch_flip = edit_volumes.flip_volume(np.squeeze(post_patch_flip),
+                                                   direction='rl',
+                                                   aff=np.eye(4))
+        post_patch_flip[..., left_right_indices.flatten()] = post_patch_flip[
+            ..., left_right_indices[::-1].flatten()]
         post_patch = 0.5 * (post_patch + post_patch_flip)
 
     # keep biggest connected component (use it with smoothing!)
     if keep_biggest_component:
         tmp_post_patch = post_patch[..., 1:]
         post_patch_mask = np.sum(tmp_post_patch, axis=-1) > 0.25
-        post_patch_mask = edit_volumes.get_largest_connected_component(post_patch_mask)
-        post_patch_mask = np.stack([post_patch_mask]*tmp_post_patch.shape[-1], axis=-1)
-        tmp_post_patch = edit_volumes.mask_volume(tmp_post_patch, mask=post_patch_mask)
+        post_patch_mask = edit_volumes.get_largest_connected_component(
+            post_patch_mask)
+        post_patch_mask = np.stack([post_patch_mask] *
+                                   tmp_post_patch.shape[-1],
+                                   axis=-1)
+        tmp_post_patch = edit_volumes.mask_volume(tmp_post_patch,
+                                                  mask=post_patch_mask)
         post_patch[..., 1:] = tmp_post_patch
 
     # reset posteriors to zero outside the largest connected component of each topological class
     if topology_classes is not None:
         post_patch_mask = post_patch > 0.25
         for topology_class in np.unique(topology_classes)[1:]:
-            tmp_topology_indices = np.where(topology_classes == topology_class)[0]
-            tmp_mask = np.any(post_patch_mask[..., tmp_topology_indices], axis=-1)
+            tmp_topology_indices = np.where(
+                topology_classes == topology_class)[0]
+            tmp_mask = np.any(post_patch_mask[..., tmp_topology_indices],
+                              axis=-1)
             tmp_mask = edit_volumes.get_largest_connected_component(tmp_mask)
             for idx in tmp_topology_indices:
                 post_patch[..., idx] *= tmp_mask
 
     # renormalise posteriors and get hard segmentation
-    if (post_patch_flip is not None) | keep_biggest_component | (topology_classes is not None):
+    if (post_patch_flip is not None) | keep_biggest_component | (
+            topology_classes is not None):
         post_patch /= np.sum(post_patch, axis=-1)[..., np.newaxis]
     seg_patch = post_patch.argmax(-1)
 
     # align prediction back to first orientation
     if n_dims > 2:
-        seg_patch = edit_volumes.align_volume_to_ref(seg_patch, aff=np.eye(4), aff_ref=aff, return_aff=False)
-        post_patch = edit_volumes.align_volume_to_ref(post_patch, aff=np.eye(4), aff_ref=aff, n_dims=n_dims)
+        seg_patch = edit_volumes.align_volume_to_ref(seg_patch,
+                                                     aff=np.eye(4),
+                                                     aff_ref=aff,
+                                                     return_aff=False)
+        post_patch = edit_volumes.align_volume_to_ref(post_patch,
+                                                      aff=np.eye(4),
+                                                      aff_ref=aff,
+                                                      n_dims=n_dims)
 
     # paste patches back to matrix of original image size
     if crop is not None:
         seg = np.zeros(shape=pad_shape, dtype='int32')
         posteriors = np.zeros(shape=[*pad_shape, labels.shape[0]])
-        posteriors[..., 0] = np.ones(pad_shape)  # place background around patch
+        posteriors[...,
+                   0] = np.ones(pad_shape)  # place background around patch
         if n_dims == 2:
             seg[crop[0]:crop[2], crop[1]:crop[3]] = seg_patch
             posteriors[crop[0]:crop[2], crop[1]:crop[3], :] = post_patch
         elif n_dims == 3:
             seg[crop[0]:crop[3], crop[1]:crop[4], crop[2]:crop[5]] = seg_patch
-            posteriors[crop[0]:crop[3], crop[1]:crop[4], crop[2]:crop[5], :] = post_patch
+            posteriors[crop[0]:crop[3], crop[1]:crop[4],
+                       crop[2]:crop[5], :] = post_patch
     else:
         seg = seg_patch
         posteriors = post_patch
     seg = labels[seg.astype('int')].astype('int')
 
     if im_shape != pad_shape:
-        bounds = [int((p-i)/2) for (p, i) in zip(pad_shape, im_shape)]
+        bounds = [int((p - i) / 2) for (p, i) in zip(pad_shape, im_shape)]
         bounds += [p + i for (p, i) in zip(bounds, im_shape)]
         seg = edit_volumes.crop_volume_with_idx(seg, bounds)
-        posteriors = edit_volumes.crop_volume_with_idx(posteriors, bounds, n_dims=n_dims)
+        posteriors = edit_volumes.crop_volume_with_idx(posteriors,
+                                                       bounds,
+                                                       n_dims=n_dims)
 
     return seg, posteriors

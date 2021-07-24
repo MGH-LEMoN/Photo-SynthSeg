@@ -75,16 +75,25 @@ def build_model_inputs(path_label_maps,
         for idx in indices:
 
             # load input label map
-            lab = utils.load_volume(path_label_maps[idx], dtype='int', aff_ref=np.eye(4))
-            if (npr.uniform() > 0.7) & ('seg_cerebral' in path_label_maps[idx]):
+            lab = utils.load_volume(path_label_maps[idx],
+                                    dtype='int',
+                                    aff_ref=np.eye(4))
+            if (npr.uniform() > 0.7) & ('seg_cerebral'
+                                        in path_label_maps[idx]):
                 lab[lab == 24] = 0
 
             # add noise patch if necessary
             if path_patches is not None:
                 idx_517 = np.where(lab == 517)
                 if np.any(idx_517) & (npr.uniform() > 0.5):
-                    noise_patch = utils.load_volume(path_patches[npr.randint(len(path_patches))], dtype='int')
-                    noise_patch = np.flip(noise_patch, tuple([i for i in range(n_dims) if np.random.normal() > 0]))
+                    noise_patch = utils.load_volume(path_patches[npr.randint(
+                        len(path_patches))],
+                                                    dtype='int')
+                    noise_patch = np.flip(
+                        noise_patch,
+                        tuple([
+                            i for i in range(n_dims) if np.random.normal() > 0
+                        ]))
                     lab[idx_517] = noise_patch[idx_517]
 
             # add label map to inputs
@@ -97,35 +106,55 @@ def build_model_inputs(path_label_maps,
 
                 # retrieve channel specific stats if necessary
                 if isinstance(prior_means, np.ndarray):
-                    if (prior_means.shape[0] > 2) & use_specific_stats_for_channel:
+                    if (prior_means.shape[0] >
+                            2) & use_specific_stats_for_channel:
                         if prior_means.shape[0] / 2 != n_channels:
-                            raise ValueError("the number of blocks in prior_means does not match n_channels. This "
-                                             "message is printed because use_specific_stats_for_channel is True.")
-                        tmp_prior_means = prior_means[2 * channel:2 * channel + 2, :]
+                            raise ValueError(
+                                "the number of blocks in prior_means does not match n_channels. This "
+                                "message is printed because use_specific_stats_for_channel is True."
+                            )
+                        tmp_prior_means = prior_means[2 * channel:2 * channel +
+                                                      2, :]
                     else:
                         tmp_prior_means = prior_means
                 else:
                     tmp_prior_means = prior_means
-                if (prior_means is not None) & mix_prior_and_random & (npr.uniform() > 0.5):
+                if (prior_means is not None) & mix_prior_and_random & (
+                        npr.uniform() > 0.5):
                     tmp_prior_means = None
                 if isinstance(prior_stds, np.ndarray):
-                    if (prior_stds.shape[0] > 2) & use_specific_stats_for_channel:
+                    if (prior_stds.shape[0] >
+                            2) & use_specific_stats_for_channel:
                         if prior_stds.shape[0] / 2 != n_channels:
-                            raise ValueError("the number of blocks in prior_stds does not match n_channels. This "
-                                             "message is printed because use_specific_stats_for_channel is True.")
-                        tmp_prior_stds = prior_stds[2 * channel:2 * channel + 2, :]
+                            raise ValueError(
+                                "the number of blocks in prior_stds does not match n_channels. This "
+                                "message is printed because use_specific_stats_for_channel is True."
+                            )
+                        tmp_prior_stds = prior_stds[2 * channel:2 * channel +
+                                                    2, :]
                     else:
                         tmp_prior_stds = prior_stds
                 else:
                     tmp_prior_stds = prior_stds
-                if (prior_stds is not None) & mix_prior_and_random & (npr.uniform() > 0.5):
+                if (prior_stds is not None) & mix_prior_and_random & (
+                        npr.uniform() > 0.5):
                     tmp_prior_stds = None
 
                 # draw means and std devs from priors
-                tmp_classes_means = utils.draw_value_from_distribution(tmp_prior_means, n_labels, prior_distributions,
-                                                                       125., 100., positive_only=True)
-                tmp_classes_stds = utils.draw_value_from_distribution(tmp_prior_stds, n_labels, prior_distributions,
-                                                                      15., 10., positive_only=True)
+                tmp_classes_means = utils.draw_value_from_distribution(
+                    tmp_prior_means,
+                    n_labels,
+                    prior_distributions,
+                    125.,
+                    100.,
+                    positive_only=True)
+                tmp_classes_stds = utils.draw_value_from_distribution(
+                    tmp_prior_stds,
+                    n_labels,
+                    prior_distributions,
+                    15.,
+                    10.,
+                    positive_only=True)
                 random_coef = npr.uniform()
                 if random_coef > 0.95:  # reset the background to 0 in 5% of cases
                     tmp_classes_means[0] = 0
@@ -133,8 +162,10 @@ def build_model_inputs(path_label_maps,
                 elif random_coef > 0.7:  # reset the background to low Gaussian in 25% of cases
                     tmp_classes_means[0] = npr.uniform(0, 15)
                     tmp_classes_stds[0] = npr.uniform(0, 5)
-                tmp_means = utils.add_axis(tmp_classes_means[generation_classes], axis=[0, -1])
-                tmp_stds = utils.add_axis(tmp_classes_stds[generation_classes], axis=[0, -1])
+                tmp_means = utils.add_axis(
+                    tmp_classes_means[generation_classes], axis=[0, -1])
+                tmp_stds = utils.add_axis(tmp_classes_stds[generation_classes],
+                                          axis=[0, -1])
                 means = np.concatenate([means, tmp_means], axis=-1)
                 stds = np.concatenate([stds, tmp_stds], axis=-1)
             list_means.append(means)

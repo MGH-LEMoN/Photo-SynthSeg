@@ -1,16 +1,15 @@
 # python imports
 import numpy as np
 
+# third-party imports
+from ext.lab2im import edit_volumes, utils
+
+from .labels_to_image_model import labels_to_image_model
 # project imports
 from .model_inputs import build_model_inputs
-from .labels_to_image_model import labels_to_image_model
-
-# third-party imports
-from ext.lab2im import utils, edit_volumes
 
 
 class BrainGenerator:
-
     def __init__(self,
                  labels_dir,
                  generation_labels=None,
@@ -168,16 +167,19 @@ class BrainGenerator:
 
         # prepare data files
         self.labels_paths = utils.list_images_in_folder(labels_dir)
-        self.path_patches = utils.list_images_in_folder(patch_dir) if (patch_dir is not None) else None
+        self.path_patches = utils.list_images_in_folder(patch_dir) if (
+            patch_dir is not None) else None
 
         # generation parameters
         self.labels_shape, self.aff, self.n_dims, _, self.header, self.atlas_res = \
             utils.get_volume_info(self.labels_paths[0], aff_ref=np.eye(4))
         self.n_channels = n_channels
         if generation_labels is not None:
-            self.generation_labels = utils.load_array_if_path(generation_labels)
+            self.generation_labels = utils.load_array_if_path(
+                generation_labels)
         else:
-            self.generation_labels, _ = utils.get_list_labels(labels_dir=labels_dir)
+            self.generation_labels, _ = utils.get_list_labels(
+                labels_dir=labels_dir)
         if output_labels is not None:
             self.output_labels = utils.load_array_if_path(output_labels)
         else:
@@ -195,14 +197,16 @@ class BrainGenerator:
         # GMM parameters
         self.prior_distributions = prior_distributions
         if generation_classes is not None:
-            self.generation_classes = utils.load_array_if_path(generation_classes)
+            self.generation_classes = utils.load_array_if_path(
+                generation_classes)
             assert self.generation_classes.shape == self.generation_labels.shape, \
                 'if provided, generation_classes should have the same shape as generation_labels'
             unique_classes = np.unique(self.generation_classes)
             assert np.array_equal(unique_classes, np.arange(np.max(unique_classes)+1)), \
                 'generation_classes should a linear range between 0 and its maximum value.'
         else:
-            self.generation_classes = np.arange(self.generation_labels.shape[0])
+            self.generation_classes = np.arange(
+                self.generation_labels.shape[0])
         self.prior_means = utils.load_array_if_path(prior_means)
         self.prior_stds = utils.load_array_if_path(prior_stds)
         self.use_specific_stats_for_channel = use_specific_stats_for_channel
@@ -227,56 +231,60 @@ class BrainGenerator:
         self.bias_shape_factor = bias_shape_factor
 
         # build transformation model
-        self.labels_to_image_model, self.model_output_shape = self._build_labels_to_image_model()
+        self.labels_to_image_model, self.model_output_shape = self._build_labels_to_image_model(
+        )
 
         # build generator for model inputs
-        self.model_inputs_generator = self._build_model_inputs_generator(mix_prior_and_random)
+        self.model_inputs_generator = self._build_model_inputs_generator(
+            mix_prior_and_random)
 
         # build brain generator
         self.brain_generator = self._build_brain_generator()
 
     def _build_labels_to_image_model(self):
         # build_model
-        lab_to_im_model = labels_to_image_model(labels_shape=self.labels_shape,
-                                                n_channels=self.n_channels,
-                                                generation_labels=self.generation_labels,
-                                                output_labels=self.output_labels,
-                                                n_neutral_labels=self.n_neutral_labels,
-                                                atlas_res=self.atlas_res,
-                                                target_res=self.target_res,
-                                                output_shape=self.output_shape,
-                                                output_div_by_n=self.output_div_by_n,
-                                                flipping=self.flipping,
-                                                aff=np.eye(4),
-                                                scaling_bounds=self.scaling_bounds,
-                                                rotation_bounds=self.rotation_bounds,
-                                                shearing_bounds=self.shearing_bounds,
-                                                translation_bounds=self.translation_bounds,
-                                                nonlin_std=self.nonlin_std,
-                                                nonlin_shape_factor=self.nonlin_shape_factor,
-                                                randomise_res=self.randomise_res,
-                                                data_res=self.data_res,
-                                                thickness=self.thickness,
-                                                downsample=self.downsample,
-                                                blur_range=self.blur_range,
-                                                bias_field_std=self.bias_field_std,
-                                                bias_shape_factor=self.bias_shape_factor)
+        lab_to_im_model = labels_to_image_model(
+            labels_shape=self.labels_shape,
+            n_channels=self.n_channels,
+            generation_labels=self.generation_labels,
+            output_labels=self.output_labels,
+            n_neutral_labels=self.n_neutral_labels,
+            atlas_res=self.atlas_res,
+            target_res=self.target_res,
+            output_shape=self.output_shape,
+            output_div_by_n=self.output_div_by_n,
+            flipping=self.flipping,
+            aff=np.eye(4),
+            scaling_bounds=self.scaling_bounds,
+            rotation_bounds=self.rotation_bounds,
+            shearing_bounds=self.shearing_bounds,
+            translation_bounds=self.translation_bounds,
+            nonlin_std=self.nonlin_std,
+            nonlin_shape_factor=self.nonlin_shape_factor,
+            randomise_res=self.randomise_res,
+            data_res=self.data_res,
+            thickness=self.thickness,
+            downsample=self.downsample,
+            blur_range=self.blur_range,
+            bias_field_std=self.bias_field_std,
+            bias_shape_factor=self.bias_shape_factor)
         out_shape = lab_to_im_model.output[0].get_shape().as_list()[1:]
         return lab_to_im_model, out_shape
 
     def _build_model_inputs_generator(self, mix_prior_and_random):
         # build model's inputs generator
-        model_inputs_generator = build_model_inputs(path_label_maps=self.labels_paths,
-                                                    n_labels=len(self.generation_labels),
-                                                    batchsize=self.batchsize,
-                                                    n_channels=self.n_channels,
-                                                    generation_classes=self.generation_classes,
-                                                    prior_means=self.prior_means,
-                                                    prior_stds=self.prior_stds,
-                                                    prior_distributions=self.prior_distributions,
-                                                    use_specific_stats_for_channel=self.use_specific_stats_for_channel,
-                                                    mix_prior_and_random=mix_prior_and_random,
-                                                    path_patches=self.path_patches)
+        model_inputs_generator = build_model_inputs(
+            path_label_maps=self.labels_paths,
+            n_labels=len(self.generation_labels),
+            batchsize=self.batchsize,
+            n_channels=self.n_channels,
+            generation_classes=self.generation_classes,
+            prior_means=self.prior_means,
+            prior_stds=self.prior_stds,
+            prior_distributions=self.prior_distributions,
+            use_specific_stats_for_channel=self.use_specific_stats_for_channel,
+            mix_prior_and_random=mix_prior_and_random,
+            path_patches=self.path_patches)
         return model_inputs_generator
 
     def _build_brain_generator(self):
@@ -292,10 +300,16 @@ class BrainGenerator:
         list_images = list()
         list_labels = list()
         for i in range(self.batchsize):
-            list_images.append(edit_volumes.align_volume_to_ref(image[i], np.eye(4),
-                                                                aff_ref=self.aff, n_dims=self.n_dims))
-            list_labels.append(edit_volumes.align_volume_to_ref(labels[i], np.eye(4),
-                                                                aff_ref=self.aff, n_dims=self.n_dims))
+            list_images.append(
+                edit_volumes.align_volume_to_ref(image[i],
+                                                 np.eye(4),
+                                                 aff_ref=self.aff,
+                                                 n_dims=self.n_dims))
+            list_labels.append(
+                edit_volumes.align_volume_to_ref(labels[i],
+                                                 np.eye(4),
+                                                 aff_ref=self.aff,
+                                                 n_dims=self.n_dims))
         image = np.squeeze(np.stack(list_images, axis=0))
         labels = np.squeeze(np.stack(list_labels, axis=0))
         return image, labels

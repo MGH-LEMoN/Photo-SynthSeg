@@ -1,13 +1,12 @@
 # python imports
+import keras.layers as KL
 import numpy as np
 import tensorflow as tf
-import keras.layers as KL
 from keras.models import Model
 
 # third-party imports
-from ext.lab2im import utils
-from ext.lab2im import layers
 from ext.lab2im import edit_tensors as l2i_et
+from ext.lab2im import layers, utils
 
 
 def metrics_model(input_model, label_list, metrics='dice'):
@@ -19,12 +18,14 @@ def metrics_model(input_model, label_list, metrics='dice'):
     # check shapes
     n_labels = input_shape[-1]
     label_list = np.unique(label_list)
-    assert n_labels == len(label_list), 'label_list should be as long as the posteriors channels'
+    assert n_labels == len(
+        label_list), 'label_list should be as long as the posteriors channels'
 
     # get GT and convert it to probabilistic values
     labels_gt = input_model.get_layer('labels_out').output
     labels_gt = layers.ConvertLabels(label_list)(labels_gt)
-    labels_gt = KL.Lambda(lambda x: tf.one_hot(tf.cast(x, dtype='int32'), depth=n_labels, axis=-1))(labels_gt)
+    labels_gt = KL.Lambda(lambda x: tf.one_hot(
+        tf.cast(x, dtype='int32'), depth=n_labels, axis=-1))(labels_gt)
     labels_gt = KL.Reshape(input_shape)(labels_gt)
 
     # make sure the tensors have the right keras shape
@@ -35,10 +36,12 @@ def metrics_model(input_model, label_list, metrics='dice'):
         last_tensor = layers.DiceLoss()([labels_gt, last_tensor])
 
     elif metrics == 'wl2':
-        last_tensor = layers.WeightedL2Loss(target_value=5)([labels_gt, last_tensor])
+        last_tensor = layers.WeightedL2Loss(target_value=5)(
+            [labels_gt, last_tensor])
 
     else:
-        raise Exception('metrics should either be "dice or "wl2, got {}'.format(metrics))
+        raise Exception(
+            'metrics should either be "dice or "wl2, got {}'.format(metrics))
 
     # create the model and return
     model = Model(inputs=input_model.inputs, outputs=last_tensor)

@@ -1,15 +1,14 @@
 # python imports
+import keras.layers as KL
 import numpy as np
 import tensorflow as tf
-import keras.layers as KL
 from keras.models import Model
 
 # third-party imports
-from ext.lab2im import utils
-from ext.lab2im import layers
-from ext.neuron import layers as nrn_layers
 from ext.lab2im import edit_tensors as l2i_et
+from ext.lab2im import layers, utils
 from ext.lab2im.edit_volumes import get_ras_axes
+from ext.neuron import layers as nrn_layers
 
 
 def labels_to_image_model(labels_shape,
@@ -129,29 +128,45 @@ def labels_to_image_model(labels_shape,
     # reformat resolutions
     labels_shape = utils.reformat_to_list(labels_shape)
     n_dims, _ = utils.get_dims(labels_shape)
-    atlas_res = utils.reformat_to_n_channels_array(atlas_res, n_dims, n_channels)
-    data_res = atlas_res if (data_res is None) else utils.reformat_to_n_channels_array(data_res, n_dims, n_channels)
-    thickness = data_res if (thickness is None) else utils.reformat_to_n_channels_array(thickness, n_dims, n_channels)
-    downsample = utils.reformat_to_list(downsample, n_channels) if downsample else (np.min(thickness - data_res, 1) < 0)
+    atlas_res = utils.reformat_to_n_channels_array(atlas_res, n_dims,
+                                                   n_channels)
+    data_res = atlas_res if (
+        data_res is None) else utils.reformat_to_n_channels_array(
+            data_res, n_dims, n_channels)
+    thickness = data_res if (
+        thickness is None) else utils.reformat_to_n_channels_array(
+            thickness, n_dims, n_channels)
+    downsample = utils.reformat_to_list(
+        downsample,
+        n_channels) if downsample else (np.min(thickness - data_res, 1) < 0)
     atlas_res = atlas_res[0]
-    target_res = atlas_res if (target_res is None) else utils.reformat_to_n_channels_array(target_res, n_dims)[0]
+    target_res = atlas_res if (
+        target_res is None) else utils.reformat_to_n_channels_array(
+            target_res, n_dims)[0]
 
     # get shapes
-    crop_shape, output_shape = get_shapes(labels_shape, output_shape, atlas_res, target_res, output_div_by_n)
+    crop_shape, output_shape = get_shapes(labels_shape, output_shape,
+                                          atlas_res, target_res,
+                                          output_div_by_n)
 
     # define model inputs
-    labels_input = KL.Input(shape=labels_shape + [1], name='labels_input', dtype='int32')
-    means_input = KL.Input(shape=list(generation_labels.shape) + [n_channels], name='means_input')
-    stds_input = KL.Input(shape=list(generation_labels.shape) + [n_channels], name='std_devs_input')
+    labels_input = KL.Input(shape=labels_shape + [1],
+                            name='labels_input',
+                            dtype='int32')
+    means_input = KL.Input(shape=list(generation_labels.shape) + [n_channels],
+                           name='means_input')
+    stds_input = KL.Input(shape=list(generation_labels.shape) + [n_channels],
+                          name='std_devs_input')
 
     # deform labels
-    labels = layers.RandomSpatialDeformation(scaling_bounds=scaling_bounds,
-                                             rotation_bounds=rotation_bounds,
-                                             shearing_bounds=shearing_bounds,
-                                             translation_bounds=translation_bounds,
-                                             nonlin_std=nonlin_std,
-                                             nonlin_shape_factor=nonlin_shape_factor,
-                                             inter_method='nearest')(labels_input)
+    labels = layers.RandomSpatialDeformation(
+        scaling_bounds=scaling_bounds,
+        rotation_bounds=rotation_bounds,
+        shearing_bounds=shearing_bounds,
+        translation_bounds=translation_bounds,
+        nonlin_std=nonlin_std,
+        nonlin_shape_factor=nonlin_shape_factor,
+        inter_method='nearest')(labels_input)
 
     # cropping
     if crop_shape != labels_shape:
@@ -162,24 +177,32 @@ def labels_to_image_model(labels_shape,
     if flipping:
         assert aff is not None, 'aff should not be None if flipping is True'
         labels._keras_shape = tuple(labels.get_shape().as_list())
-        labels = layers.RandomFlip(get_ras_axes(aff, n_dims)[0], True, generation_labels, n_neutral_labels)(labels)
+        labels = layers.RandomFlip(
+            get_ras_axes(aff, n_dims)[0], True, generation_labels,
+            n_neutral_labels)(labels)
 
     # build synthetic image
     labels._keras_shape = tuple(labels.get_shape().as_list())
-    image = layers.SampleConditionalGMM(generation_labels)([labels, means_input, stds_input])
+    image = layers.SampleConditionalGMM(generation_labels)(
+        [labels, means_input, stds_input])
 
     # apply bias field
     if bias_field_std > 0:
         image._keras_shape = tuple(image.get_shape().as_list())
-        image = layers.BiasFieldCorruption(bias_field_std, bias_shape_factor, False)(image)
+        image = layers.BiasFieldCorruption(bias_field_std, bias_shape_factor,
+                                           False)(image)
 
     # intensity augmentation
     image._keras_shape = tuple(image.get_shape().as_list())
-    image = layers.IntensityAugmentation(clip=300, normalise=True, gamma_std=.4, separate_channels=True)(image)
+    image = layers.IntensityAugmentation(clip=300,
+                                         normalise=True,
+                                         gamma_std=.4,
+                                         separate_channels=True)(image)
 
     # loop over channels
     channels = list()
-    split = KL.Lambda(lambda x: tf.split(x, [1] * n_channels, axis=-1))(image) if (n_channels > 1) else [image]
+    split = KL.Lambda(lambda x: tf.split(x, [1] * n_channels, axis=-1))(
+        image) if (n_channels > 1) else [image]
     for i, channel in enumerate(split):
 
         channel._keras_shape = tuple(channel.get_shape().as_list())
@@ -188,40 +211,58 @@ def labels_to_image_model(labels_shape,
             max_res_iso = np.array([4.] * 3)
             max_res_aniso = np.array([8.] * 3)
             max_res = np.maximum(max_res_iso, max_res_aniso)
-            resolution, blur_res = layers.SampleResolution(atlas_res, max_res_iso, max_res_aniso)(means_input)
-            sigma = l2i_et.blurring_sigma_for_downsampling(atlas_res, resolution, thickness=blur_res)
-            channel = layers.DynamicGaussianBlur(0.75 * max_res / np.array(atlas_res), blur_range)([channel, sigma])
-            channel = layers.MimicAcquisition(atlas_res, atlas_res, output_shape, False)([channel, resolution])
+            resolution, blur_res = layers.SampleResolution(
+                atlas_res, max_res_iso, max_res_aniso)(means_input)
+            sigma = l2i_et.blurring_sigma_for_downsampling(atlas_res,
+                                                           resolution,
+                                                           thickness=blur_res)
+            channel = layers.DynamicGaussianBlur(
+                0.75 * max_res / np.array(atlas_res),
+                blur_range)([channel, sigma])
+            channel = layers.MimicAcquisition(atlas_res, atlas_res,
+                                              output_shape,
+                                              False)([channel, resolution])
             channels.append(channel)
 
         else:
-            sigma = l2i_et.blurring_sigma_for_downsampling(atlas_res, data_res[i], thickness=thickness[i])
+            sigma = l2i_et.blurring_sigma_for_downsampling(
+                atlas_res, data_res[i], thickness=thickness[i])
             channel = layers.GaussianBlur(sigma, blur_range)(channel)
             if downsample[i]:
-                resolution = KL.Lambda(lambda x: tf.convert_to_tensor(data_res[i], dtype='float32'))([])
-                channel = layers.MimicAcquisition(atlas_res, data_res[i], output_shape)([channel, resolution])
+                resolution = KL.Lambda(lambda x: tf.convert_to_tensor(
+                    data_res[i], dtype='float32'))([])
+                channel = layers.MimicAcquisition(atlas_res, data_res[i],
+                                                  output_shape)(
+                                                      [channel, resolution])
             elif output_shape != crop_shape:
                 channel = nrn_layers.Resize(size=output_shape)(channel)
             channels.append(channel)
 
     # concatenate all channels back
-    image = KL.Lambda(lambda x: tf.concat(x, -1))(channels) if len(channels) > 1 else channels[0]
+    image = KL.Lambda(lambda x: tf.concat(x, -1))(
+        channels) if len(channels) > 1 else channels[0]
 
     # resample labels at target resolution
     if crop_shape != output_shape:
-        labels = l2i_et.resample_tensor(labels, output_shape, interp_method='nearest')
+        labels = l2i_et.resample_tensor(labels,
+                                        output_shape,
+                                        interp_method='nearest')
 
     # convert labels back to original values (i.e. in generation_labels) and map them to segmentation values
-    labels = layers.ConvertLabels(generation_labels, dest_values=output_labels, name='labels_out')(labels)
+    labels = layers.ConvertLabels(generation_labels,
+                                  dest_values=output_labels,
+                                  name='labels_out')(labels)
 
     # build model (dummy layer enables to keep the labels when plugging this model to other models)
     image = KL.Lambda(lambda x: x[0], name='image_out')([image, labels])
-    brain_model = Model(inputs=[labels_input, means_input, stds_input], outputs=[image, labels])
+    brain_model = Model(inputs=[labels_input, means_input, stds_input],
+                        outputs=[image, labels])
 
     return brain_model
 
 
-def get_shapes(labels_shape, output_shape, atlas_res, target_res, output_div_by_n):
+def get_shapes(labels_shape, output_shape, atlas_res, target_res,
+               output_div_by_n):
 
     # reformat resolutions to lists
     atlas_res = utils.reformat_to_list(atlas_res)
@@ -230,32 +271,48 @@ def get_shapes(labels_shape, output_shape, atlas_res, target_res, output_div_by_
 
     # get resampling factor
     if atlas_res != target_res:
-        resample_factor = [atlas_res[i] / float(target_res[i]) for i in range(n_dims)]
+        resample_factor = [
+            atlas_res[i] / float(target_res[i]) for i in range(n_dims)
+        ]
     else:
         resample_factor = None
 
     # output shape specified, need to get cropping shape, and resample shape if necessary
     if output_shape is not None:
-        output_shape = utils.reformat_to_list(output_shape, length=n_dims, dtype='int')
+        output_shape = utils.reformat_to_list(output_shape,
+                                              length=n_dims,
+                                              dtype='int')
 
         # make sure that output shape is smaller or equal to label shape
         if resample_factor is not None:
-            output_shape = [min(int(labels_shape[i] * resample_factor[i]), output_shape[i]) for i in range(n_dims)]
+            output_shape = [
+                min(int(labels_shape[i] * resample_factor[i]), output_shape[i])
+                for i in range(n_dims)
+            ]
         else:
-            output_shape = [min(labels_shape[i], output_shape[i]) for i in range(n_dims)]
+            output_shape = [
+                min(labels_shape[i], output_shape[i]) for i in range(n_dims)
+            ]
 
         # make sure output shape is divisible by output_div_by_n
         if output_div_by_n is not None:
-            tmp_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n, smaller_ans=True)
-                         for s in output_shape]
+            tmp_shape = [
+                utils.find_closest_number_divisible_by_m(s,
+                                                         output_div_by_n,
+                                                         smaller_ans=True)
+                for s in output_shape
+            ]
             if output_shape != tmp_shape:
-                print('output shape {0} not divisible by {1}, changed to {2}'.format(output_shape, output_div_by_n,
-                                                                                     tmp_shape))
+                print('output shape {0} not divisible by {1}, changed to {2}'.
+                      format(output_shape, output_div_by_n, tmp_shape))
                 output_shape = tmp_shape
 
         # get cropping and resample shape
         if resample_factor is not None:
-            cropping_shape = [int(np.around(output_shape[i]/resample_factor[i], 0)) for i in range(n_dims)]
+            cropping_shape = [
+                int(np.around(output_shape[i] / resample_factor[i], 0))
+                for i in range(n_dims)
+            ]
         else:
             cropping_shape = output_shape
 
@@ -267,21 +324,38 @@ def get_shapes(labels_shape, output_shape, atlas_res, target_res, output_div_by_
 
             # if resampling, get the potential output_shape and check if it is divisible by n
             if resample_factor is not None:
-                output_shape = [int(labels_shape[i] * resample_factor[i]) for i in range(n_dims)]
-                output_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n, smaller_ans=True)
-                                for s in output_shape]
-                cropping_shape = [int(np.around(output_shape[i] / resample_factor[i], 0)) for i in range(n_dims)]
+                output_shape = [
+                    int(labels_shape[i] * resample_factor[i])
+                    for i in range(n_dims)
+                ]
+                output_shape = [
+                    utils.find_closest_number_divisible_by_m(s,
+                                                             output_div_by_n,
+                                                             smaller_ans=True)
+                    for s in output_shape
+                ]
+                cropping_shape = [
+                    int(np.around(output_shape[i] / resample_factor[i], 0))
+                    for i in range(n_dims)
+                ]
             # if no resampling, simply check if image_shape is divisible by n
             else:
-                cropping_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n, smaller_ans=True)
-                                  for s in labels_shape]
+                cropping_shape = [
+                    utils.find_closest_number_divisible_by_m(s,
+                                                             output_div_by_n,
+                                                             smaller_ans=True)
+                    for s in labels_shape
+                ]
                 output_shape = cropping_shape
 
         # if no need to be divisible by n, simply take cropping_shape as image_shape, and build output_shape
         else:
             cropping_shape = labels_shape
             if resample_factor is not None:
-                output_shape = [int(cropping_shape[i] * resample_factor[i]) for i in range(n_dims)]
+                output_shape = [
+                    int(cropping_shape[i] * resample_factor[i])
+                    for i in range(n_dims)
+                ]
             else:
                 output_shape = cropping_shape
 

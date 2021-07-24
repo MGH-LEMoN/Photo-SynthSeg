@@ -1,12 +1,12 @@
 # python imports
 import os
+
 import numpy as np
-from scipy.stats import wilcoxon
 from scipy.ndimage.morphology import distance_transform_edt
+from scipy.stats import wilcoxon
 
 # third-party imports
-from ext.lab2im import utils
-from ext.lab2im import edit_volumes
+from ext.lab2im import edit_volumes, utils
 
 
 def fast_dice(x, y, labels):
@@ -17,20 +17,25 @@ def fast_dice(x, y, labels):
     :return: numpy array with Dice scores in the same order as labels.
     """
 
-    assert x.shape == y.shape, 'both inputs should have same size, had {} and {}'.format(x.shape, y.shape)
+    assert x.shape == y.shape, 'both inputs should have same size, had {} and {}'.format(
+        x.shape, y.shape)
 
     if len(labels) > 1:
         # sort labels
         labels_sorted = np.sort(labels)
 
         # build bins for histograms
-        label_edges = np.sort(np.concatenate([labels_sorted - 0.1, labels_sorted + 0.1]))
-        label_edges = np.insert(label_edges, [0, len(label_edges)], [labels_sorted[0] - 100, labels_sorted[-1] + 100])
+        label_edges = np.sort(
+            np.concatenate([labels_sorted - 0.1, labels_sorted + 0.1]))
+        label_edges = np.insert(
+            label_edges, [0, len(label_edges)],
+            [labels_sorted[0] - 100, labels_sorted[-1] + 100])
 
         # compute Dice and re-arange scores in initial order
         hst = np.histogram2d(x.flatten(), y.flatten(), bins=label_edges)[0]
         idx = np.arange(start=1, stop=2 * len(labels_sorted), step=2)
-        dice_score = 2 * np.diag(hst)[idx] / (np.sum(hst, 0)[idx] + np.sum(hst, 1)[idx] + 1e-5)
+        dice_score = 2 * np.diag(hst)[idx] / (np.sum(hst, 0)[idx] +
+                                              np.sum(hst, 1)[idx] + 1e-5)
         dice_score = dice_score[np.searchsorted(labels_sorted, labels)]
 
     else:
@@ -44,7 +49,10 @@ def dice(x, y):
     return 2 * np.sum(x * y) / (np.sum(x) + np.sum(y))
 
 
-def surface_distances(x, y, hausdorff_percentile=None, return_coordinate_max_distance=False):
+def surface_distances(x,
+                      y,
+                      hausdorff_percentile=None,
+                      return_coordinate_max_distance=False):
     """Computes the maximum boundary distance (Haussdorff distance), and the average boundary distance of two masks.
     :param x: numpy array (boolean or 0/1)
     :param y: numpy array (boolean or 0/1)
@@ -58,7 +66,8 @@ def surface_distances(x, y, hausdorff_percentile=None, return_coordinate_max_dis
     mean_dist: scalar with average surface distance
     coordinate_max_distance: only returned return_coordinate_max_distance is True."""
 
-    assert x.shape == y.shape, 'both inputs should have same size, had {} and {}'.format(x.shape, y.shape)
+    assert x.shape == y.shape, 'both inputs should have same size, had {} and {}'.format(
+        x.shape, y.shape)
     n_dims = len(x.shape)
 
     hausdorff_percentile = 100 if hausdorff_percentile is None else hausdorff_percentile
@@ -72,7 +81,10 @@ def surface_distances(x, y, hausdorff_percentile=None, return_coordinate_max_dis
     if (crop_x is None) | (crop_y is None):
         return max(x.shape), max(x.shape)
 
-    crop = np.concatenate([np.minimum(crop_x, crop_y)[:n_dims], np.maximum(crop_x, crop_y)[n_dims:]])
+    crop = np.concatenate([
+        np.minimum(crop_x, crop_y)[:n_dims],
+        np.maximum(crop_x, crop_y)[n_dims:]
+    ])
     x = edit_volumes.crop_volume_with_idx(x, crop)
     y = edit_volumes.crop_volume_with_idx(y, crop)
 
@@ -96,21 +108,26 @@ def surface_distances(x, y, hausdorff_percentile=None, return_coordinate_max_dis
 
         # find max distance from the 2 surfaces
         if hd_percentile == 100:
-            max_dist.append(np.max(np.concatenate([x_dists_to_y, y_dists_to_x])))
+            max_dist.append(
+                np.max(np.concatenate([x_dists_to_y, y_dists_to_x])))
 
             if return_coordinate_max_distance:
                 indices_x_surface = np.where(x_edge == 1)
                 idx_max_distance_x = np.where(x_dists_to_y == max_dist)[0]
                 if idx_max_distance_x.size != 0:
-                    coordinate_max_distance = np.stack(indices_x_surface).transpose()[idx_max_distance_x]
+                    coordinate_max_distance = np.stack(
+                        indices_x_surface).transpose()[idx_max_distance_x]
                 else:
                     indices_y_surface = np.where(y_edge == 1)
                     idx_max_distance_y = np.where(y_dists_to_x == max_dist)[0]
-                    coordinate_max_distance = np.stack(indices_y_surface).transpose()[idx_max_distance_y]
+                    coordinate_max_distance = np.stack(
+                        indices_y_surface).transpose()[idx_max_distance_y]
 
         # find percentile of max distance
         else:
-            max_dist.append(np.percentile(np.concatenate([x_dists_to_y, y_dists_to_x]), hd_percentile))
+            max_dist.append(
+                np.percentile(np.concatenate([x_dists_to_y, y_dists_to_x]),
+                              hd_percentile))
 
     # find average distance between 2 surfaces
     if x_dists_to_y.shape[0] > 0:
@@ -134,7 +151,10 @@ def surface_distances(x, y, hausdorff_percentile=None, return_coordinate_max_dis
         return max_dist, mean_dist
 
 
-def compute_non_parametric_paired_test(dice_ref, dice_compare, eval_indices=None, alternative='two-sided'):
+def compute_non_parametric_paired_test(dice_ref,
+                                       dice_compare,
+                                       eval_indices=None,
+                                       alternative='two-sided'):
     """Compute non-parametric paired t-tests between two sets of Dice scores.
     :param dice_ref: numpy array with Dice scores, rows represent structures, and columns represent subjects.
     Taken as reference for one-sided tests.
@@ -188,7 +208,7 @@ def cohens_d(volumes_x, volumes_y):
     n_x = np.shape(volumes_x)[0]
     n_y = np.shape(volumes_y)[0]
 
-    std = np.sqrt(((n_x-1)*var_x + (n_y-1)*var_y) / (n_x + n_y - 2))
+    std = np.sqrt(((n_x - 1) * var_x + (n_y - 1) * var_y) / (n_x + n_y - 2))
     cohensd = (means_x - means_y) / std
 
     return cohensd
@@ -235,21 +255,31 @@ def evaluation(gt_dir,
     """
 
     # check whether to recompute
-    compute_dice = not os.path.isfile(path_dice) if (path_dice is not None) else True
-    compute_hausdorff = not os.path.isfile(path_hausdorff) if (path_hausdorff is not None) else False
-    compute_hausdorff_99 = not os.path.isfile(path_hausdorff_99) if (path_hausdorff_99 is not None) else False
-    compute_hausdorff_95 = not os.path.isfile(path_hausdorff_95) if (path_hausdorff_95 is not None) else False
-    compute_mean_dist = not os.path.isfile(path_mean_distance) if (path_mean_distance is not None) else False
-    compute_hd = [compute_hausdorff, compute_hausdorff_99, compute_hausdorff_95]
+    compute_dice = not os.path.isfile(path_dice) if (path_dice
+                                                     is not None) else True
+    compute_hausdorff = not os.path.isfile(path_hausdorff) if (
+        path_hausdorff is not None) else False
+    compute_hausdorff_99 = not os.path.isfile(path_hausdorff_99) if (
+        path_hausdorff_99 is not None) else False
+    compute_hausdorff_95 = not os.path.isfile(path_hausdorff_95) if (
+        path_hausdorff_95 is not None) else False
+    compute_mean_dist = not os.path.isfile(path_mean_distance) if (
+        path_mean_distance is not None) else False
+    compute_hd = [
+        compute_hausdorff, compute_hausdorff_99, compute_hausdorff_95
+    ]
 
     if compute_dice | any(compute_hd) | compute_mean_dist | recompute:
 
         # get list label maps to compare
         path_gt_labels = utils.list_images_in_folder(gt_dir)
         path_segs = utils.list_images_in_folder(seg_dir)
-        path_gt_labels = utils.reformat_to_list(path_gt_labels, length=len(path_segs))
+        path_gt_labels = utils.reformat_to_list(path_gt_labels,
+                                                length=len(path_segs))
         if len(path_gt_labels) != len(path_segs):
-            print('gt and segmentation folders must have the same amount of label maps.')
+            print(
+                'gt and segmentation folders must have the same amount of label maps.'
+            )
         if mask_dir is not None:
             path_masks = utils.list_images_in_folder(mask_dir)
             if len(path_masks) != len(path_segs):
@@ -258,7 +288,9 @@ def evaluation(gt_dir,
             path_masks = [None] * len(path_segs)
 
         # load labels list
-        label_list, _ = utils.get_list_labels(label_list=label_list, FS_sort=True, labels_dir=gt_dir)
+        label_list, _ = utils.get_list_labels(label_list=label_list,
+                                              FS_sort=True,
+                                              labels_dir=gt_dir)
         n_labels = len(label_list)
         max_label = np.max(label_list) + 1
 
@@ -273,8 +305,12 @@ def evaluation(gt_dir,
             dice_coefs = np.zeros((n_labels, len(path_segs)))
 
         # loop over segmentations
-        loop_info = utils.LoopInfo(len(path_segs), 10, 'evaluating', print_time=True)
-        for idx, (path_gt, path_seg, path_mask) in enumerate(zip(path_gt_labels, path_segs, path_masks)):
+        loop_info = utils.LoopInfo(len(path_segs),
+                                   10,
+                                   'evaluating',
+                                   print_time=True)
+        for idx, (path_gt, path_seg, path_mask) in enumerate(
+                zip(path_gt_labels, path_segs, path_masks)):
             if verbose:
                 loop_info.update(idx)
 
@@ -288,11 +324,15 @@ def evaluation(gt_dir,
 
             # crop images
             if crop_margin_around_gt is not None:
-                gt_labels, cropping = edit_volumes.crop_volume_around_region(gt_labels, margin=crop_margin_around_gt)
+                gt_labels, cropping = edit_volumes.crop_volume_around_region(
+                    gt_labels, margin=crop_margin_around_gt)
                 seg = edit_volumes.crop_volume_with_idx(seg, cropping)
 
             if list_incorrect_labels is not None:
-                seg = edit_volumes.correct_label_map(seg, list_incorrect_labels, list_correct_labels, use_nearest_label)
+                seg = edit_volumes.correct_label_map(seg,
+                                                     list_incorrect_labels,
+                                                     list_correct_labels,
+                                                     use_nearest_label)
 
             # compute Dice scores
             dice_coefs[:n_labels, idx] = fast_dice(gt_labels, seg, label_list)
@@ -314,18 +354,24 @@ def evaluation(gt_dir,
 
                 # compute max/mean surface distances for all labels
                 for index, label in enumerate(label_list):
-                    if (label in unique_gt_labels) & (label in unique_seg_labels):
+                    if (label in unique_gt_labels) & (label
+                                                      in unique_seg_labels):
                         mask_gt = np.where(gt_labels == label, True, False)
                         mask_seg = np.where(seg == label, True, False)
-                        tmp_max_dists, mean_dists[index, idx] = surface_distances(mask_gt, mask_seg, [100, 99, 95])
+                        tmp_max_dists, mean_dists[index,
+                                                  idx] = surface_distances(
+                                                      mask_gt, mask_seg,
+                                                      [100, 99, 95])
                         max_dists[index, idx, :] = np.array(tmp_max_dists)
                     else:
                         mean_dists[index, idx] = max(gt_labels.shape)
-                        max_dists[index, idx, :] = np.array([max(gt_labels.shape)] * 3)
+                        max_dists[index, idx, :] = np.array(
+                            [max(gt_labels.shape)] * 3)
 
                 # compute max/mean distances for whole structure
                 if compute_score_whole_structure:
-                    tmp_max_dists, mean_dists[-1, idx] = surface_distances(temp_gt, temp_seg, [100, 99, 95])
+                    tmp_max_dists, mean_dists[-1, idx] = surface_distances(
+                        temp_gt, temp_seg, [100, 99, 95])
                     max_dists[-1, idx, :] = np.array(tmp_max_dists)
 
         # write results

@@ -1,16 +1,17 @@
 # python imports
+import logging
 import os
 import re
-import logging
-import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.python.summary.summary_iterator import summary_iterator
 
-# project imports
-from .predict import predict
+import matplotlib.pyplot as plt
+import numpy as np
+from tensorflow.python.summary.summary_iterator import summary_iterator
 
 # third-party imports
 from ext.lab2im import utils
+
+# project imports
+from .predict import predict
 
 
 def validate_training(image_dir,
@@ -70,12 +71,16 @@ def validate_training(image_dir,
     utils.mkdir(validation_main_dir)
 
     # loop over models
-    list_models = utils.list_files(models_dir, expr=['dice', '0.h5'], cond_type='and')[::step_eval]
+    list_models = utils.list_files(models_dir,
+                                   expr=['dice', '0.h5'],
+                                   cond_type='and')[::step_eval]
     loop_info = utils.LoopInfo(len(list_models), 1, 'validating', True)
     for model_idx, path_model in enumerate(list_models):
 
         # build names and create folders
-        model_val_dir = os.path.join(validation_main_dir, os.path.basename(path_model).replace('.h5', ''))
+        model_val_dir = os.path.join(
+            validation_main_dir,
+            os.path.basename(path_model).replace('.h5', ''))
         dice_path = os.path.join(model_val_dir, 'dice.npy')
         utils.mkdir(model_val_dir)
 
@@ -107,9 +112,17 @@ def validate_training(image_dir,
                     flip=flip)
 
 
-def plot_validation_curves(list_validation_dirs, architecture_names=None, eval_indices=None,
-                           skip_first_dice_row=True, size_max_circle=100, figsize=(11, 6), y_lim=None, fontsize=18,
-                           list_linestyles=None, list_colours=None, plot_legend=False):
+def plot_validation_curves(list_validation_dirs,
+                           architecture_names=None,
+                           eval_indices=None,
+                           skip_first_dice_row=True,
+                           size_max_circle=100,
+                           figsize=(11, 6),
+                           y_lim=None,
+                           fontsize=18,
+                           list_linestyles=None,
+                           list_colours=None,
+                           plot_legend=False):
     """This function plots the validation curves of several networks, based on the results of validate_training().
     It takes as input a list of validation folders (one for each network), each containing subfolders with dice scores
     for the corresponding validated epoch.
@@ -128,9 +141,12 @@ def plot_validation_curves(list_validation_dirs, architecture_names=None, eval_i
 
     # reformat model names
     if architecture_names is None:
-        architecture_names = [os.path.basename(os.path.dirname(d)) for d in list_validation_dirs]
+        architecture_names = [
+            os.path.basename(os.path.dirname(d)) for d in list_validation_dirs
+        ]
     else:
-        architecture_names = utils.reformat_to_list(architecture_names, len(list_validation_dirs))
+        architecture_names = utils.reformat_to_list(architecture_names,
+                                                    len(list_validation_dirs))
 
     # prepare legend labels
     if plot_legend is False:
@@ -139,7 +155,10 @@ def plot_validation_curves(list_validation_dirs, architecture_names=None, eval_i
         list_legend_labels = architecture_names
     else:
         list_legend_labels = architecture_names
-        list_legend_labels = ['_nolegend_' if i >= plot_legend else list_legend_labels[i] for i in range(n_curves)]
+        list_legend_labels = [
+            '_nolegend_' if i >= plot_legend else list_legend_labels[i]
+            for i in range(n_curves)
+        ]
 
     # prepare linestyles
     if list_linestyles is not None:
@@ -155,11 +174,10 @@ def plot_validation_curves(list_validation_dirs, architecture_names=None, eval_i
 
     # loop over architectures
     plt.figure(figsize=figsize)
-    for idx, (net_val_dir, net_name, linestyle, colour, legend_label) in enumerate(zip(list_validation_dirs,
-                                                                                       architecture_names,
-                                                                                       list_linestyles,
-                                                                                       list_colours,
-                                                                                       list_legend_labels)):
+    for idx, (net_val_dir, net_name, linestyle, colour,
+              legend_label) in enumerate(
+                  zip(list_validation_dirs, architecture_names,
+                      list_linestyles, list_colours, list_legend_labels)):
 
         list_epochs_dir = utils.list_subfolders(net_val_dir, whole_path=False)
 
@@ -172,12 +190,15 @@ def plot_validation_curves(list_validation_dirs, architecture_names=None, eval_i
             path_epoch_dice = os.path.join(net_val_dir, epoch_dir, 'dice.npy')
             if os.path.isfile(path_epoch_dice):
                 if eval_indices is not None:
-                    list_net_dice_scores.append(np.mean(np.load(path_epoch_dice)[eval_indices, :]))
+                    list_net_dice_scores.append(
+                        np.mean(np.load(path_epoch_dice)[eval_indices, :]))
                 else:
                     if skip_first_dice_row:
-                        list_net_dice_scores.append(np.mean(np.load(path_epoch_dice)[1:, :]))
+                        list_net_dice_scores.append(
+                            np.mean(np.load(path_epoch_dice)[1:, :]))
                     else:
-                        list_net_dice_scores.append(np.mean(np.load(path_epoch_dice)))
+                        list_net_dice_scores.append(
+                            np.mean(np.load(path_epoch_dice)))
                 list_epochs.append(int(re.sub('[^0-9]', '', epoch_dir)))
 
         # plot validation scores for current architecture
@@ -186,11 +207,18 @@ def plot_validation_curves(list_validation_dirs, architecture_names=None, eval_i
             list_epochs = np.array(list_epochs)
             max_score = np.max(list_net_dice_scores)
             epoch_max_score = list_epochs[np.argmax(list_net_dice_scores)]
-            print('\n'+net_name)
+            print('\n' + net_name)
             print('epoch max score: %d' % epoch_max_score)
             print('max score: %0.3f' % max_score)
-            plt.plot(list_epochs, list_net_dice_scores, label=legend_label, linestyle=linestyle, color=colour)
-            plt.scatter(epoch_max_score, max_score, s=size_max_circle, color=colour)
+            plt.plot(list_epochs,
+                     list_net_dice_scores,
+                     label=legend_label,
+                     linestyle=linestyle,
+                     color=colour)
+            plt.scatter(epoch_max_score,
+                        max_score,
+                        s=size_max_circle,
+                        color=colour)
 
     # finalise plot
     plt.grid()
@@ -206,8 +234,12 @@ def plot_validation_curves(list_validation_dirs, architecture_names=None, eval_i
     plt.show()
 
 
-def draw_learning_curve(path_tensorboard_files, architecture_names, figsize=(11, 6), fontsize=18,
-                        y_lim=None, remove_legend=False):
+def draw_learning_curve(path_tensorboard_files,
+                        architecture_names,
+                        figsize=(11, 6),
+                        fontsize=18,
+                        y_lim=None,
+                        remove_legend=False):
     """This function draws the learning curve of several trainings on the same graph.
     :param path_tensorboard_files: list of tensorboard files corresponding to the models to plot.
     :param architecture_names: list of the names of the models
@@ -218,11 +250,14 @@ def draw_learning_curve(path_tensorboard_files, architecture_names, figsize=(11,
     # reformat inputs
     path_tensorboard_files = utils.reformat_to_list(path_tensorboard_files)
     architecture_names = utils.reformat_to_list(architecture_names)
-    assert len(path_tensorboard_files) == len(architecture_names), 'names and tensorboard lists should have same length'
+    assert len(path_tensorboard_files) == len(
+        architecture_names
+    ), 'names and tensorboard lists should have same length'
 
     # loop over architectures
     plt.figure(figsize=figsize)
-    for path_tensorboard_file, name in zip(path_tensorboard_files, architecture_names):
+    for path_tensorboard_file, name in zip(path_tensorboard_files,
+                                           architecture_names):
 
         path_tensorboard_file = utils.reformat_to_list(path_tensorboard_file)
 
@@ -236,7 +271,10 @@ def draw_learning_curve(path_tensorboard_files, architecture_names, figsize=(11,
                     if v.tag == 'loss' or v.tag == 'accuracy' or v.tag == 'epoch_loss':
                         list_losses.append(v.simple_value)
                         list_epochs.append(e.step)
-        plt.plot(np.array(list_epochs), 1-np.array(list_losses), label=name, linewidth=2)
+        plt.plot(np.array(list_epochs),
+                 1 - np.array(list_losses),
+                 label=name,
+                 linewidth=2)
 
     # finalise plot
     plt.grid()

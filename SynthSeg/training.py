@@ -1,22 +1,23 @@
 # python imports
 import os
+from inspect import getmembers, isclass
+
 import keras
+import keras.callbacks as KC
 import numpy as np
 import tensorflow as tf
 from keras import models
-import keras.callbacks as KC
 from keras.optimizers import Adam
-from inspect import getmembers, isclass
+
+# third-party imports
+from ext.lab2im import layers as l2i_layers
+from ext.lab2im import utils
+from ext.neuron import layers as nrn_layers
+from ext.neuron import models as nrn_models
 
 # project imports
 from . import metrics_model as metrics
 from .brain_generator import BrainGenerator
-
-# third-party imports
-from ext.lab2im import utils
-from ext.lab2im import layers as l2i_layers
-from ext.neuron import layers as nrn_layers
-from ext.neuron import models as nrn_models
 
 
 def training(labels_dir,
@@ -195,46 +196,47 @@ def training(labels_dir,
         'either wl2_epochs or dice_epochs must be positive, had {0} and {1}'.format(wl2_epochs, dice_epochs)
 
     # get label lists
-    generation_labels, n_neutral_labels = utils.get_list_labels(label_list=generation_labels,
-                                                                labels_dir=labels_dir,
-                                                                FS_sort=True)
+    generation_labels, n_neutral_labels = utils.get_list_labels(
+        label_list=generation_labels, labels_dir=labels_dir, FS_sort=True)
     if segmentation_labels is not None:
-        segmentation_labels, _ = utils.get_list_labels(label_list=segmentation_labels)
+        segmentation_labels, _ = utils.get_list_labels(
+            label_list=segmentation_labels)
     else:
         segmentation_labels = generation_labels
     n_segmentation_labels = len(np.unique(segmentation_labels))
 
     # instantiate BrainGenerator object
-    brain_generator = BrainGenerator(labels_dir=labels_dir,
-                                     generation_labels=generation_labels,
-                                     output_labels=segmentation_labels,
-                                     patch_dir=patch_dir,
-                                     n_neutral_labels=n_neutral_labels,
-                                     batchsize=batchsize,
-                                     n_channels=n_channels,
-                                     target_res=target_res,
-                                     output_shape=output_shape,
-                                     output_div_by_n=2 ** n_levels,
-                                     generation_classes=generation_classes,
-                                     prior_distributions=prior_distributions,
-                                     prior_means=prior_means,
-                                     prior_stds=prior_stds,
-                                     use_specific_stats_for_channel=use_specific_stats_for_channel,
-                                     mix_prior_and_random=mix_prior_and_random,
-                                     flipping=flipping,
-                                     scaling_bounds=scaling_bounds,
-                                     rotation_bounds=rotation_bounds,
-                                     shearing_bounds=shearing_bounds,
-                                     translation_bounds=translation_bounds,
-                                     nonlin_std=nonlin_std,
-                                     nonlin_shape_factor=nonlin_shape_factor,
-                                     randomise_res=randomise_res,
-                                     data_res=data_res,
-                                     thickness=thickness,
-                                     downsample=downsample,
-                                     blur_range=blur_range,
-                                     bias_field_std=bias_field_std,
-                                     bias_shape_factor=bias_shape_factor)
+    brain_generator = BrainGenerator(
+        labels_dir=labels_dir,
+        generation_labels=generation_labels,
+        output_labels=segmentation_labels,
+        patch_dir=patch_dir,
+        n_neutral_labels=n_neutral_labels,
+        batchsize=batchsize,
+        n_channels=n_channels,
+        target_res=target_res,
+        output_shape=output_shape,
+        output_div_by_n=2**n_levels,
+        generation_classes=generation_classes,
+        prior_distributions=prior_distributions,
+        prior_means=prior_means,
+        prior_stds=prior_stds,
+        use_specific_stats_for_channel=use_specific_stats_for_channel,
+        mix_prior_and_random=mix_prior_and_random,
+        flipping=flipping,
+        scaling_bounds=scaling_bounds,
+        rotation_bounds=rotation_bounds,
+        shearing_bounds=shearing_bounds,
+        translation_bounds=translation_bounds,
+        nonlin_std=nonlin_std,
+        nonlin_shape_factor=nonlin_shape_factor,
+        randomise_res=randomise_res,
+        data_res=data_res,
+        thickness=thickness,
+        downsample=downsample,
+        blur_range=blur_range,
+        bias_field_std=bias_field_std,
+        bias_shape_factor=bias_shape_factor)
 
     # generation model
     labels_to_image_model = brain_generator.labels_to_image_model
@@ -253,18 +255,24 @@ def training(labels_dir,
                                  input_model=labels_to_image_model)
 
     # input generator
-    input_generator = utils.build_training_generator(brain_generator.model_inputs_generator, batchsize)
+    input_generator = utils.build_training_generator(
+        brain_generator.model_inputs_generator, batchsize)
 
     # pre-training with weighted L2, input is fit to the softmax rather than the probabilities
     if wl2_epochs > 0:
-        wl2_model = models.Model(unet_model.inputs, [unet_model.get_layer('unet_likelihood').output])
-        wl2_model = metrics.metrics_model(wl2_model, segmentation_labels, 'wl2')
-        train_model(wl2_model, input_generator, lr, lr_decay, wl2_epochs, steps_per_epoch, model_dir, 'wl2', checkpoint)
+        wl2_model = models.Model(
+            unet_model.inputs,
+            [unet_model.get_layer('unet_likelihood').output])
+        wl2_model = metrics.metrics_model(wl2_model, segmentation_labels,
+                                          'wl2')
+        train_model(wl2_model, input_generator, lr, lr_decay, wl2_epochs,
+                    steps_per_epoch, model_dir, 'wl2', checkpoint)
         checkpoint = os.path.join(model_dir, 'wl2_%03d.h5' % wl2_epochs)
 
     # fine-tuning with dice metric
     dice_model = metrics.metrics_model(unet_model, segmentation_labels, 'dice')
-    train_model(dice_model, input_generator, lr, lr_decay, dice_epochs, steps_per_epoch, model_dir, 'dice', checkpoint)
+    train_model(dice_model, input_generator, lr, lr_decay, dice_epochs,
+                steps_per_epoch, model_dir, 'dice', checkpoint)
 
 
 def train_model(model,
@@ -289,18 +297,37 @@ def train_model(model,
 
     # TensorBoard callback
     if metric_type == 'dice':
-        callbacks.append(KC.TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=True, write_images=False))
+        callbacks.append(
+            KC.TensorBoard(log_dir=log_dir,
+                           histogram_freq=0,
+                           write_graph=True,
+                           write_images=False))
 
     compile_model = True
     init_epoch = 0
     if path_checkpoint is not None:
         if metric_type in path_checkpoint:
-            init_epoch = int(os.path.basename(path_checkpoint).split(metric_type)[1][1:-3])
+            init_epoch = int(
+                os.path.basename(path_checkpoint).split(metric_type)[1][1:-3])
         if (not reinitialise_momentum) & (metric_type in path_checkpoint):
-            custom_l2i = {key: value for (key, value) in getmembers(l2i_layers, isclass) if key != 'Layer'}
-            custom_nrn = {key: value for (key, value) in getmembers(nrn_layers, isclass) if key != 'Layer'}
-            custom_objects = {**custom_l2i, **custom_nrn, 'tf': tf, 'keras': keras, 'loss': metrics.IdentityLoss().loss}
-            model = models.load_model(path_checkpoint, custom_objects=custom_objects)
+            custom_l2i = {
+                key: value
+                for (key, value) in getmembers(l2i_layers, isclass)
+                if key != 'Layer'
+            }
+            custom_nrn = {
+                key: value
+                for (key, value) in getmembers(nrn_layers, isclass)
+                if key != 'Layer'
+            }
+            custom_objects = {
+                **custom_l2i,
+                **custom_nrn, 'tf': tf,
+                'keras': keras,
+                'loss': metrics.IdentityLoss().loss
+            }
+            model = models.load_model(path_checkpoint,
+                                      custom_objects=custom_objects)
             compile_model = False
         else:
             model.load_weights(path_checkpoint, by_name=True)

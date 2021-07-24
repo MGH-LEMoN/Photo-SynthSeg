@@ -17,6 +17,7 @@ idna==2.9
 imageio==2.8.0
 ipython==7.13.0
 ipython-genutils==0.2.0
+isort==5.9.1
 jedi==0.17.0
 joblib==0.14.1
 Keras==2.3.1
@@ -65,3 +66,4 @@ urllib3==1.25.9
 wcwidth==0.1.9
 Werkzeug==1.0.1
 wrapt==1.12.1
+yapf==0.31.0
