@@ -49,6 +49,7 @@ def training(labels_dir,
              blur_range=1.03,
              bias_field_std=.5,
              bias_shape_factor=.025,
+             same_bias_for_all_channels=False,
              n_levels=5,
              nb_conv_per_level=2,
              conv_size=3,
@@ -171,6 +172,8 @@ def training(labels_dir,
     distribution from which we sample the first tensor. Set to 0 to completely deactivate biad field corruption.
     :param bias_shape_factor: (optional) If bias_field_std is not False, this designates the ratio between the size of
     the input label maps and the size of the first sampled tensor for synthesising the bias field.
+    :param same_bias_for_all_channels: (optional) If same_bias_for_all_channels is not False, this applies the same bias
+    in all channels.
 
     # ------------------------------------------ UNet architecture parameters ------------------------------------------
     :param n_levels: (optional) number of level for the Unet. Default is 5.

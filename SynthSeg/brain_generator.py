@@ -40,7 +40,8 @@ class BrainGenerator:
                  downsample=False,
                  blur_range=1.03,
                  bias_field_std=.5,
-                 bias_shape_factor=.025):
+                 bias_shape_factor=.025,
+                 same_bias_for_all_channels=False):
         """
         This class is wrapper around the labels_to_image_model model. It contains the GPU model that generates images
         from labels maps, and a python generator that suplies the input data for this model.
@@ -163,6 +164,8 @@ class BrainGenerator:
         std dev of the normal distribution from which we sample the first tensor. Set to 0 to deactivate bias field.
         :param bias_shape_factor: (optional) If bias_field_std is strictly positive, this designates the ratio between
         the size of the input label maps and the size of the first sampled tensor for synthesising the bias field.
+        :param same_bias_for_all_channels: (optional) If same_bias_for_all_channels is not False, this applies the same bias
+        in all channels.
         """
 
         # prepare data files
