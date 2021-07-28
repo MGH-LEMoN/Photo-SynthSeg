@@ -1,7 +1,12 @@
 import glob
+import json
 import os
 
-import scripts.config as config
+import nibabel as nib
+import numpy as np
+
+import scripts.photos_config as config
+from ext.lab2im import utils
 
 NUM_COPIES = 50
 
@@ -39,7 +44,7 @@ def create_symlink(source, num_copies=10):
     return
 
 
-def main():
+def make_data_copy():
     subject_files = sorted(
         glob.glob(os.path.join(config.LABEL_MAPS_DIR, 'subject*.nii.gz')))
 
@@ -50,5 +55,69 @@ def main():
     return
 
 
+def write_config(dictionary):
+    """Write configuration to a file
+    Args:
+        CONFIG (dict): configuration
+    """
+    json_object = json.dumps(dictionary, sort_keys=True, indent=4)
+
+    utils.mkdir(dictionary['model_dir'])
+
+    config_file = os.path.join(dictionary['model_dir'], 'config.json')
+
+    with open(config_file, "w") as outfile:
+        outfile.write(json_object)
+
+
+#TODO: Improve this function and add doc strings
+def find_label_differences():
+    output_file = 'label_comparison'
+    file_list = [
+        file for file in sorted(
+            glob.glob(os.path.join(config.LABEL_MAPS_DIR, '*.nii.gz')))
+        if 'copy' not in file
+    ]
+
+    with open('label_comparison', 'a+') as f:
+        generation_labels = np.load(config.GENERATION_LABELS)
+        print(f'generation_labels\n{generation_labels}', file=f)
+
+        segmentation_labels = np.load(config.SEGMENTATION_LABELS)
+        print(f'segmentation_labels\n{segmentation_labels}', file=f)
+
+        generation_classes = np.load(config.GENERATION_CLASSES)
+        print(f'generation_classes\n{generation_classes}', file=f)
+
+    with open('label_comparison', 'a+') as f:
+        for file in file_list:
+            _, subject = os.path.split(file)
+
+            img = nib.load(file)
+            img_data = img.get_fdata()
+
+            uniq_labels = np.unique(img_data)
+            extra_labels = set(uniq_labels) - set(generation_labels)
+            extra_labels1 = set(generation_labels) - set(uniq_labels)
+
+            print(f'{subject:60s}\t{extra_labels}\t{extra_labels1}', file=f)
+
+    uniq = []
+    for file in file_list:
+        _, subject = os.path.split(file)
+
+        img = nib.load(file)
+        img_data = img.get_fdata()
+
+        uniq.extend(np.unique(img_data))
+
+    final_uniq = np.unique(uniq)
+
+    extra_labels = set(final_uniq) - set(generation_labels)
+    extra_labels1 = set(generation_labels) - set(final_uniq)
+
+    print(f'{extra_labels}\t{extra_labels1}')
+
+
 if __name__ == '__main__':
-    main()
+    make_data_copy()
