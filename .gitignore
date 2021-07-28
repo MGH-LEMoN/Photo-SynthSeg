@@ -20,3 +20,8 @@ data/SynthSeg*
 data/instructions.txt
 misc/*
 !misc/.gitkeep
+logs/*
+!logs/.gitkeep
+models/*
+!models/.gitkeep
+.vscode
