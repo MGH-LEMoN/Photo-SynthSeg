@@ -11,7 +11,7 @@ DT := $(shell date +"%Y%m%d-%H%M")
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
 CMD = python
-# {echo | python | sbatch submit1.sh}
+# {echo | python | sbatch submit.sh}
 
 ACTIVATE_ENV = source /space/calico/1/users/Harsha/synthseg-venv/bin/activate
 
@@ -22,28 +22,28 @@ model_dir = /cluster/scratch/friday/for_hg824/$(DT)
 ## label maps parameters ##
 generation_labels = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_charm_choroid_lesions.npy
 segmentation_labels = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/segmentation_new_charm_choroid_lesions.npy
-noisy_patches = ''
+noisy_patches =
 
 ## output-related parameters ##
 batch_size = 1
-channels = 3
-# target_res = 'None'
+channels = 1
+target_res =
 output_shape = 96
 
 # GMM-sampling parameters
 generation_classes = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_classes_charm_choroid_lesions_gm.npy
 prior_type = 'uniform'
-prior_means = None
-prior_std = None
+prior_means =
+prior_std =
 # specific_stats = --specific_stats
 # mix_prior_and_random = --mix_prior_and_random
 
 ## spatial deformation parameters ##
 no_flipping = --no_flipping
-scaling = 0.15
-rotation = 15
-shearing = 0.012
-TRANSLATION_BOUNDS = False
+scaling =
+rotation =
+shearing =
+translation = 
 nonlin_std = (4, 0, 4)
 nonlin_shape_factor = (0.0625, 0.25, 0.0625)
 
@@ -70,7 +70,7 @@ feat_mult = 2    # if feat_multiplier is set to 1, we will keep the number of fe
 #                        3 will triple them, etc.
 
 ## Training parameters ##
-lr = 1e-4               # learning rate
+lr = 1e-3               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
 dice_epochs = 100       # number of training epochs
@@ -97,16 +97,17 @@ training:
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 	
-	sbatch submit1.sh $(PROJ_DIR)/scripts/commands/training.py \
+	$(CMD) $(PROJ_DIR)/scripts/commands/training.py \
 		$(labels_dir) \
 		$(model_dir) \
 		\
 		--generation_labels $(generation_labels) \
 		--segmentation_labels $(segmentation_labels) \
+		--noisy_patches $(noisy_patches) \
 		\
 		--batch_size $(batch_size) \
 		--channels $(channels) \
-		\
+		--target_res $(target_res) \
 		--output_shape $(output_shape) \
 		\
 		--generation_classes $(generation_classes) \
@@ -120,6 +121,7 @@ training:
 		--scaling $(scaling) \
 		--rotation $(rotation) \
 		--shearing $(shearing) \
+		--translation $(translation) \
 		--nonlin_std '$(nonlin_std)' \
 		--nonlin_shape_factor '$(nonlin_shape_factor)' \
 		\
@@ -145,5 +147,4 @@ training:
 		--wl2_epochs $(wl2_epochs) \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		$(same_bias_for_all_channels) \
 		;
