@@ -123,8 +123,8 @@ class RandomSpatialDeformation(Layer):
         self.apply_affine_trans = (self.scaling_bounds is not False) | (self.rotation_bounds is not False) | \
                                   (self.shearing_bounds is not False) | (self.translation_bounds is not False) | \
                                   self.enable_90_rotations
-        self.apply_elastic_trans = self.nonlin_std > 0
-        assert (self.apply_affine_trans is not None) | self.apply_elastic_trans, \
+        self.apply_elastic_trans = self.nonlin_std is not None # > 0
+        assert self.apply_affine_trans | self.apply_elastic_trans, \
             'affine_trans or elastic_trans should be provided'
 
         if self.apply_elastic_trans:
@@ -971,6 +971,7 @@ class BiasFieldCorruption(Layer):
         # sampling shapes
         self.std_shape = [1] * (self.n_dims + 1)
         self.small_bias_shape = utils.get_resample_shape(self.inshape[0][1:self.n_dims + 1], self.bias_shape_factor, 1)
+
         if not self.same_bias_for_all_channels:
             self.std_shape[-1] = self.n_channels
             self.small_bias_shape[-1] = self.n_channels
@@ -1200,7 +1201,7 @@ class WeightedL2Loss(Layer):
         gt = inputs[0]
         pred = inputs[1]
         weights = tf.expand_dims(1 - gt[..., 0] + self.background_weight, -1)
-        return K.sum(weights * K.square(pred - self.target_value * (2 * gt - 1))) / (K.sum(weights) * self.n_labels)
+        return K.sum(weights * K.square(pred - self.target_value * (2 * gt - 1))) / (K.sum(weights) * self.n_labels + 1e-6)
 
     def compute_output_shape(self, input_shape):
         return [[]]

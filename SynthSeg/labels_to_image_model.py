@@ -193,7 +193,7 @@ def labels_to_image_model(labels_shape,
     if bias_field_std > 0:
         image._keras_shape = tuple(image.get_shape().as_list())
         image = layers.BiasFieldCorruption(bias_field_std, bias_shape_factor,
-                                           False)(image)
+                                           same_bias_for_all_channels)(image)
 
     # intensity augmentation
     image._keras_shape = tuple(image.get_shape().as_list())

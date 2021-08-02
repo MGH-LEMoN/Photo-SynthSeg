@@ -232,6 +232,7 @@ class BrainGenerator:
         # bias field parameters
         self.bias_field_std = bias_field_std
         self.bias_shape_factor = bias_shape_factor
+        self.same_bias_for_all_channels = same_bias_for_all_channels
 
         # build transformation model
         self.labels_to_image_model, self.model_output_shape = self._build_labels_to_image_model(
@@ -270,7 +271,8 @@ class BrainGenerator:
             downsample=self.downsample,
             blur_range=self.blur_range,
             bias_field_std=self.bias_field_std,
-            bias_shape_factor=self.bias_shape_factor)
+            bias_shape_factor=self.bias_shape_factor,
+            same_bias_for_all_channels=self.same_bias_for_all_channels)
         out_shape = lab_to_im_model.output[0].get_shape().as_list()[1:]
         return lab_to_im_model, out_shape
 
