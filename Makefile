@@ -6,7 +6,7 @@
 
 # Generic Variables
 USR := $(shell whoami | head -c 2)
-DT := $(shell date +"%Y%m%d-%H%M")
+DT := $(shell date +"%Y%m%d")
 
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
@@ -91,11 +91,11 @@ remove-subject-copies:
 create-subject-copies:
 	python scripts/photos_utils.py
 
-training: PATH := $(PATH):/usr/pubsw/packages/CUDA/10.1/extras/CUPTI/lib64
+training: PATH := $(PATH):/usr/pubsw/packages/CUDA/10.0/extras/CUPTI/lib64
 training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.0/lib64
 	
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py \
 		$(labels_dir) \
@@ -147,4 +147,5 @@ training:
 		--wl2_epochs $(wl2_epochs) \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
+		--message '' \
 		;

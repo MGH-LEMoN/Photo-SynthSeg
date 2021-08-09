@@ -72,6 +72,8 @@ parser.add_argument("--dice_epochs", type=int, dest="dice_epochs", default=100)
 parser.add_argument("--steps_per_epoch", type=int, dest="steps_per_epoch", default=1000)
 parser.add_argument("--checkpoint", type=str, dest="checkpoint", default=None)
 
+parser.add_argument("--message", type=str, dest="message", default=None)
+
 # import sys
 # sys.argv = ['/autofs/space/calico_001/users/Harsha/SynthSeg/scripts/commands/training.py',
 #  '/space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem',
@@ -139,11 +141,26 @@ parser.add_argument("--checkpoint", type=str, dest="checkpoint", default=None)
 
 args = parser.parse_args()
 
-args.data_res = ast.literal_eval(args.data_res)
-args.thickness = ast.literal_eval(args.thickness)
-args.bias_shape_factor = ast.literal_eval(args.bias_shape_factor)
-args.nonlin_shape_factor = ast.literal_eval(args.nonlin_shape_factor)
-args.nonlin_std = ast.literal_eval(args.nonlin_std)
+try:
+    args.data_res = ast.literal_eval(args.data_res)
+except ValueError:
+    pass
+try:
+    args.thickness = ast.literal_eval(args.thickness)
+except ValueError:
+    pass
+try:
+    args.bias_shape_factor = ast.literal_eval(args.bias_shape_factor)
+except ValueError:
+    pass
+try:
+    args.nonlin_shape_factor = ast.literal_eval(args.nonlin_shape_factor)
+except ValueError:
+    pass
+try:
+    args.nonlin_std = ast.literal_eval(args.nonlin_std)
+except ValueError:
+    pass
 
 if os.environ.get('SLURM_JOBID'):
     base_path, model_dir_name = os.path.split(args.model_dir)
@@ -151,5 +168,6 @@ if os.environ.get('SLURM_JOBID'):
     args.model_dir = os.path.join(base_path, model_dir_name)
 
 write_config(vars(args))
+delattr(args, 'message')
 
 training(**vars(args))

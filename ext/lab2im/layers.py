@@ -1201,7 +1201,7 @@ class WeightedL2Loss(Layer):
         gt = inputs[0]
         pred = inputs[1]
         weights = tf.expand_dims(1 - gt[..., 0] + self.background_weight, -1)
-        return K.sum(weights * K.square(pred - self.target_value * (2 * gt - 1))) / (K.sum(weights) * self.n_labels + 1e-6)
+        return K.sum(weights * K.square(pred - self.target_value * (2 * gt - 1))) / (K.sum(weights) * self.n_labels)
 
     def compute_output_shape(self, input_shape):
         return [[]]
