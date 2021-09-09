@@ -75,7 +75,6 @@ def build_model_inputs(path_label_maps,
         for idx in indices:
 
             # load input label map
-            print(path_label_maps[idx])
             lab = utils.load_volume(path_label_maps[idx],
                                     dtype='int',
                                     aff_ref=np.eye(4))
