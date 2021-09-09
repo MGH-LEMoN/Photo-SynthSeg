@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=lcnrtx
-#SBATCH --partition=rtx6000
+#SBATCH --partition=rtx8000
 #SBATCH --nodes=1
 #SBATCH --gpus=1
 #SBATCH --ntasks-per-node=3
@@ -9,9 +9,9 @@
 #SBATCH --output="./logs/%A.out"
 #SBATCH --error="./logs/%A.err"
 
-# source /space/calico/1/users/Harsha/synthseg-venv/bin/activate
-# export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/pubsw/packages/CUDA/10.1/lib64
+source /space/calico/1/users/Harsha/synthseg-venv/bin/activate
+export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/pubsw/packages/CUDA/10.1/lib64
 
 echo 'Requester:' $USER
 echo 'Node:' $HOSTNAME

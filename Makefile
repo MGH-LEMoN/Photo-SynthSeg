@@ -10,14 +10,14 @@ DT := $(shell date +"%Y%m%d")
 
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
-CMD = python
+CMD = sbatch submit.sh
 # {echo | python | sbatch submit.sh}
 
 ACTIVATE_ENV = source /space/calico/1/users/Harsha/synthseg-venv/bin/activate
 
 # variables for SynthSeg
 labels_dir = /space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
-model_dir = /cluster/scratch/friday/for_hg824/$(DT)
+model_dir = /cluster/scratch/friday/for_harsha/$(DT)
 
 ## label maps parameters ##
 generation_labels = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_charm_choroid_lesions.npy
@@ -26,9 +26,9 @@ noisy_patches =
 
 ## output-related parameters ##
 batch_size = 1
-channels = 1
+channels = 3
 target_res =
-output_shape = 96
+output_shape = 192
 
 # GMM-sampling parameters
 generation_classes = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_classes_charm_choroid_lesions_gm.npy
@@ -39,24 +39,24 @@ prior_std =
 # mix_prior_and_random = --mix_prior_and_random
 
 ## spatial deformation parameters ##
-no_flipping = --no_flipping
+# no_flipping = --no_flipping
 scaling =
 rotation =
 shearing =
 translation = 
-nonlin_std = (4, 0, 4)
-nonlin_shape_factor = (0.0625, 0.25, 0.0625)
+nonlin_std = 3
+nonlin_shape_factor = (0.04, 0.25, 0.04)
 
 ## blurring/resampling parameters ##
 # randomise_res = --randomise_res
 data_res = (1, 4, 1)
-thickness = (1, 0.001, 1)
+thickness = (1, 0.01, 1)
 downsample = --downsample
 blur_range = 1.03
 
 ## bias field parameters ##
 bias_std = .5
-bias_shape_factor = (0.025, 0.25, 0.025)
+bias_shape_factor = (0.04, 0.25, 0.04)
 # same_bias_for_all_channels = --same_bias_for_all_channels
 
 ## architecture parameters ##
@@ -70,11 +70,11 @@ feat_mult = 2    # if feat_multiplier is set to 1, we will keep the number of fe
 #                        3 will triple them, etc.
 
 ## Training parameters ##
-lr = 1e-3               # learning rate
+lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
 dice_epochs = 100       # number of training epochs
-steps_per_epoch = 5000  # number of iteration per epoch
+steps_per_epoch = 2500  # number of iteration per epoch
 checkpoint = '' 		# checkpoint name
 
 .PHONY: help
@@ -91,11 +91,11 @@ remove-subject-copies:
 create-subject-copies:
 	python scripts/photos_utils.py
 
-training: PATH := $(PATH):/usr/pubsw/packages/CUDA/10.0/extras/CUPTI/lib64
+# training: PATH := $(PATH):/usr/pubsw/packages/CUDA/10.0/extras/CUPTI/lib64
 training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.0/lib64
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 	
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py \
 		$(labels_dir) \
@@ -147,5 +147,17 @@ training:
 		--wl2_epochs $(wl2_epochs) \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message '' \
+		--message 'changed learning rate, output shape and flipping is true, 3 channels, diff bias, E parameters' \
 		;
+
+predict:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+
+	$(CMD) $(PROJ_DIR)/scripts/commands/predict.py
+	--model /cluster/scratch/friday/models/test_photos_no_brainstem_or_cerebellum/dice_038.h5 \
+	--label_list /space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem//segmentation_new_charm_choroid_lesions.npy \
+	--smoothing 0.5
+	--biggest_component \
+	--out_seg /tmp/seg4mm.mgz  /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/17-0333/17-0333.hard.recon.grayscale.mgz
