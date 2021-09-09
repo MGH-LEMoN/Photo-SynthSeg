@@ -2,11 +2,10 @@
 import keras.layers as KL
 import numpy as np
 import tensorflow as tf
-from keras.models import Model
-
 # third-party imports
 from ext.lab2im import edit_tensors as l2i_et
 from ext.lab2im import layers, utils
+from keras.models import Model
 
 
 def metrics_model(input_model, label_list, metrics='dice'):
