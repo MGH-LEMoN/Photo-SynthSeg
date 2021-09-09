@@ -25,3 +25,4 @@ logs/*
 models/*
 !models/.gitkeep
 .vscode
+**/*.pyc
