@@ -18,6 +18,7 @@
     -strip_extension
     -strip_suffix
     -mkdir
+    -mkcmd
 4- shape-related functions
     -get_dims
     -get_resample_shape
@@ -30,7 +31,8 @@
     -create_shearing_transform
 6- miscellaneous
     -infer
-    -print_loop_info
+    -LoopInfo
+    -get_mapping_lut
     -build_training_generator
     -find_closest_number_divisible_by_m
     -build_binary_structure
@@ -38,24 +40,28 @@
     -build_exp
 """
 
-import os
 import glob
 import math
-import time
+import os
 import pickle
-import numpy as np
-import nibabel as nib
-import tensorflow as tf
-import keras.layers as KL
-import keras.backend as K
+import time
 from datetime import timedelta
-from scipy.ndimage.morphology import distance_transform_edt
 
+import keras.backend as K
+import keras.layers as KL
+import nibabel as nib
+import numpy as np
+import tensorflow as tf
+from scipy.ndimage.morphology import distance_transform_edt
 
 # ---------------------------------------------- loading/saving functions ----------------------------------------------
 
 
-def load_volume(path_volume, im_only=True, squeeze=True, dtype=None, aff_ref=None):
+def load_volume(path_volume,
+                im_only=True,
+                squeeze=True,
+                dtype=None,
+                aff_ref=None):
     """
     Load volume file.
     :param path_volume: path of the volume to load. Can either be a nii, nii.gz, mgz, or npz format.
@@ -68,7 +74,9 @@ def load_volume(path_volume, im_only=True, squeeze=True, dtype=None, aff_ref=Non
     The returned affine matrix is also given in this new space. Must be a numpy array of dimension 4x4.
     :return: the volume, with corresponding affine matrix and header if im_only is False.
     """
-    assert path_volume.endswith(('.nii', '.nii.gz', '.mgz', '.npz')), 'Unknown data file: %s' % path_volume
+    assert path_volume.endswith(
+        ('.nii', '.nii.gz', '.mgz',
+         '.npz')), 'Unknown data file: %s' % path_volume
 
     if path_volume.endswith(('.nii', '.nii.gz', '.mgz')):
         x = nib.load(path_volume)
@@ -89,9 +97,14 @@ def load_volume(path_volume, im_only=True, squeeze=True, dtype=None, aff_ref=Non
 
     # align image to reference affine matrix
     if aff_ref is not None:
-        from . import edit_volumes  # the import is done here to avoid import loops
+        from . import \
+            edit_volumes  # the import is done here to avoid import loops
         n_dims, _ = get_dims(list(volume.shape), max_channels=10)
-        volume, aff = edit_volumes.align_volume_to_ref(volume, aff, aff_ref=aff_ref, return_aff=True, n_dims=n_dims)
+        volume, aff = edit_volumes.align_volume_to_ref(volume,
+                                                       aff,
+                                                       aff_ref=aff_ref,
+                                                       return_aff=True,
+                                                       n_dims=n_dims)
 
     if im_only:
         return volume
@@ -112,6 +125,7 @@ def save_volume(volume, aff, header, path, res=None, dtype=None, n_dims=3):
     :param n_dims: (optional) number of dimensions, to avoid confusion in multi-channel case. Default is None, where
     n_dims is automatically inferred.
     """
+
     mkdir(os.path.dirname(path))
     if dtype is not None:
         volume = volume.astype(dtype=dtype)
@@ -122,7 +136,8 @@ def save_volume(volume, aff, header, path, res=None, dtype=None, n_dims=3):
             header = nib.Nifti1Header()
         if isinstance(aff, str):
             if aff == 'FS':
-                aff = np.array([[-1, 0, 0, 0], [0, 0, 1, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
+                aff = np.array([[-1, 0, 0, 0], [0, 0, 1, 0], [0, -1, 0, 0],
+                                [0, 0, 0, 1]])
         elif aff is None:
             aff = np.eye(4)
         nifty = nib.Nifti1Image(volume, aff, header)
@@ -162,10 +177,14 @@ def get_volume_info(path_volume, return_volume=False, aff_ref=None):
 
     # align to given affine matrix
     if aff_ref is not None:
-        from . import edit_volumes  # the import is done here to avoid import loops
+        from . import \
+            edit_volumes  # the import is done here to avoid import loops
         ras_axes = edit_volumes.get_ras_axes(aff, n_dims=n_dims)
         ras_axes_ref = edit_volumes.get_ras_axes(aff_ref, n_dims=n_dims)
-        im = edit_volumes.align_volume_to_ref(im, aff, aff_ref=aff_ref, n_dims=n_dims)
+        im = edit_volumes.align_volume_to_ref(im,
+                                              aff,
+                                              aff_ref=aff_ref,
+                                              n_dims=n_dims)
         im_shape = np.array(im_shape)
         data_res = np.array(data_res)
         im_shape[ras_axes_ref] = im_shape[ras_axes]
@@ -180,7 +199,10 @@ def get_volume_info(path_volume, return_volume=False, aff_ref=None):
         return im_shape, aff, n_dims, n_channels, header, data_res
 
 
-def get_list_labels(label_list=None, labels_dir=None, save_label_list=None, FS_sort=False):
+def get_list_labels(label_list=None,
+                    labels_dir=None,
+                    save_label_list=None,
+                    FS_sort=False):
     """This function reads or computes a list of all label values used in a set of label maps.
     It can also sort all labels according to FreeSurfer lut.
     :param label_list: (optional) already computed label_list. Can be a sequence, a 1d numpy array, or the path to
@@ -198,7 +220,8 @@ def get_list_labels(label_list=None, labels_dir=None, save_label_list=None, FS_s
 
     # load label list if previously computed
     if label_list is not None:
-        label_list = np.array(reformat_to_list(label_list, load_as_numpy=True, dtype='int'))
+        label_list = np.array(
+            reformat_to_list(label_list, load_as_numpy=True, dtype='int'))
 
     # compute label list from all label files
     elif labels_dir is not None:
@@ -206,23 +229,31 @@ def get_list_labels(label_list=None, labels_dir=None, save_label_list=None, FS_s
         # go through all labels files and compute unique list of labels
         labels_paths = list_images_in_folder(labels_dir)
         label_list = np.empty(0)
-        loop_info = LoopInfo(len(labels_paths), 10, 'processing', print_time=True)
+        loop_info = LoopInfo(len(labels_paths),
+                             10,
+                             'processing',
+                             print_time=True)
         for lab_idx, path in enumerate(labels_paths):
             loop_info.update(lab_idx)
             y = load_volume(path, dtype='int32')
             y_unique = np.unique(y)
-            label_list = np.unique(np.concatenate((label_list, y_unique))).astype('int')
+            label_list = np.unique(np.concatenate(
+                (label_list, y_unique))).astype('int')
 
     else:
-        raise Exception('either label_list, path_label_list or labels_dir should be provided')
+        raise Exception(
+            'either label_list, path_label_list or labels_dir should be provided'
+        )
 
     # sort labels in neutral/left/right according to FS labels
     n_neutral_labels = 0
     if FS_sort:
-        neutral_FS_labels = [0, 14, 15, 16, 21, 22, 23, 24, 72, 77, 80, 85, 101, 102, 103, 104, 105, 165, 251, 252, 253,
-                             254, 255, 258, 259, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340,
-                             502, 506, 507, 508, 509, 511, 512, 514, 515, 516, 517, 530,
-                             531, 532, 533, 534, 535, 536, 537]
+        neutral_FS_labels = [
+            0, 14, 15, 16, 21, 22, 23, 24, 72, 77, 80, 85, 101, 102, 103, 104,
+            105, 165, 251, 252, 253, 254, 255, 258, 259, 331, 332, 333, 334,
+            335, 336, 337, 338, 339, 340, 502, 506, 507, 508, 509, 511, 512,
+            514, 515, 516, 517, 530, 531, 532, 533, 534, 535, 536, 537
+        ]
         neutral = list()
         left = list()
         right = list()
@@ -230,17 +261,22 @@ def get_list_labels(label_list=None, labels_dir=None, save_label_list=None, FS_s
             if la in neutral_FS_labels:
                 if la not in neutral:
                     neutral.append(la)
-            elif (0 < la < 14) | (16 < la < 21) | (24 < la < 40) | (135 < la < 138) | (20100 < la < 20110):
+            elif (0 < la < 14) | (16 < la < 21) | (24 < la < 40) | (
+                    135 < la < 138) | (20100 < la < 20110):
                 if la not in left:
                     left.append(la)
             elif (39 < la < 72) | (162 < la < 165) | (20000 < la < 20010):
                 if la not in right:
                     right.append(la)
             else:
-                raise Exception('label {} not in our current FS classification, '
-                                'please update get_list_labels in utils.py'.format(la))
-        label_list = np.concatenate([sorted(neutral), sorted(left), sorted(right)])
-        if ((len(left) > 0) & (len(right) > 0)) | ((len(left) == 0) & (len(right) == 0)):
+                raise Exception(
+                    'label {} not in our current FS classification, '
+                    'please update get_list_labels in utils.py'.format(la))
+        label_list = np.concatenate(
+            [sorted(neutral), sorted(left),
+             sorted(right)])
+        if ((len(left) > 0) & (len(right) > 0)) | ((len(left) == 0) &
+                                                   (len(right) == 0)):
             n_neutral_labels = len(neutral)
         else:
             n_neutral_labels = len(label_list)
@@ -278,10 +314,13 @@ def read_pickle(filepath):
         return unpickler.load()
 
 
-def write_model_summary(model, filepath='./model_summary.txt', line_length=150):
+def write_model_summary(model,
+                        filepath='./model_summary.txt',
+                        line_length=150):
     """Write the summary of a keras model at a given path, with a given length for each line"""
     with open(filepath, 'w') as fh:
-        model.summary(print_fn=lambda x: fh.write(x + '\n'), line_length=line_length)
+        model.summary(print_fn=lambda x: fh.write(x + '\n'),
+                      line_length=line_length)
 
 
 # ----------------------------------------------- reformatting functions -----------------------------------------------
@@ -303,7 +342,8 @@ def reformat_to_list(var, length=None, load_as_numpy=False, dtype=None):
     if var is None:
         return None
     var = load_array_if_path(var, load_as_numpy=load_as_numpy)
-    if isinstance(var, (int, float, np.int, np.int32, np.int64, np.float, np.float32, np.float64)):
+    if isinstance(var, (int, float, np.int, np.int32, np.int64, np.float,
+                        np.float32, np.float64)):
         var = [var]
     elif isinstance(var, tuple):
         var = list(var)
@@ -318,10 +358,13 @@ def reformat_to_list(var, length=None, load_as_numpy=False, dtype=None):
             if len(var) == 1:
                 var = var * length
             elif len(var) != length:
-                raise ValueError('if var is a list/tuple/numpy array, it should be of length 1 or {0}, '
-                                 'had {1}'.format(length, var))
+                raise ValueError(
+                    'if var is a list/tuple/numpy array, it should be of length 1 or {0}, '
+                    'had {1}'.format(length, var))
     else:
-        raise TypeError('var should be an int, float, tuple, list, numpy array, or path to numpy array')
+        raise TypeError(
+            'var should be an int, float, tuple, list, numpy array, or path to numpy array'
+        )
 
     # convert items type
     if dtype is not None:
@@ -334,7 +377,9 @@ def reformat_to_list(var, length=None, load_as_numpy=False, dtype=None):
         elif dtype == 'str':
             var = [str(v) for v in var]
         else:
-            raise ValueError("dtype should be 'str', 'float', 'int', or 'bool'; had {}".format(dtype))
+            raise ValueError(
+                "dtype should be 'str', 'float', 'int', or 'bool'; had {}".
+                format(dtype))
     return var
 
 
@@ -356,10 +401,11 @@ def reformat_to_n_channels_array(var, n_dims=3, n_channels=1):
         if n_channels == 1:
             var = var.reshape((1, n_dims))
         else:
-            if np.squeeze(var).shape == (n_dims,):
+            if np.squeeze(var).shape == (n_dims, ):
                 var = np.tile(var.reshape((1, n_dims)), (n_channels, 1))
             elif var.shape != (n_channels, n_dims):
-                raise ValueError('if array, var should be {0} or {1}'.format((1, n_dims), (n_channels, n_dims)))
+                raise ValueError('if array, var should be {0} or {1}'.format(
+                    (1, n_dims), (n_channels, n_dims)))
     else:
         raise TypeError('var should be int, float, list, tuple or ndarray')
     return np.round(var, 3)
@@ -377,13 +423,18 @@ def list_images_in_folder(path_dir, include_single_image=True):
         list_images = [path_dir]
     else:
         if os.path.isdir(path_dir):
-            list_images = sorted(glob.glob(os.path.join(path_dir, '*nii.gz')) +
-                                 glob.glob(os.path.join(path_dir, '*nii')) +
-                                 glob.glob(os.path.join(path_dir, '*.mgz')) +
-                                 glob.glob(os.path.join(path_dir, '*.npz')))
+            list_images = sorted(
+                glob.glob(os.path.join(path_dir, '*nii.gz')) +
+                glob.glob(os.path.join(path_dir, '*nii')) +
+                glob.glob(os.path.join(path_dir, '*.mgz')) +
+                glob.glob(os.path.join(path_dir, '*.npz')))
         else:
-            raise Exception('extension not supported for %s, only use: nii.gz, .nii, .mgz, or .npz' % path_dir)
-        assert len(list_images) > 0, 'no .nii, .nii.gz, .mgz or .npz image could be found in %s' % path_dir
+            raise Exception(
+                'extension not supported for %s, only use: nii.gz, .nii, .mgz, or .npz'
+                % path_dir)
+        assert len(
+            list_images
+        ) > 0, 'no .nii, .nii.gz, .mgz or .npz image could be found in %s' % path_dir
     return list_images
 
 
@@ -397,22 +448,32 @@ def list_files(path_dir, whole_path=True, expr=None, cond_type='or'):
     :return: a list of files
     """
     assert isinstance(whole_path, bool), "whole_path should be bool"
-    assert cond_type in ['or', 'and'], "cond_type should be either 'or', or 'and'"
+    assert cond_type in ['or',
+                         'and'], "cond_type should be either 'or', or 'and'"
     if whole_path:
-        files_list = sorted([os.path.join(path_dir, f) for f in os.listdir(path_dir)
-                             if os.path.isfile(os.path.join(path_dir, f))])
+        files_list = sorted([
+            os.path.join(path_dir, f) for f in os.listdir(path_dir)
+            if os.path.isfile(os.path.join(path_dir, f))
+        ])
     else:
-        files_list = sorted([f for f in os.listdir(path_dir) if os.path.isfile(os.path.join(path_dir, f))])
+        files_list = sorted([
+            f for f in os.listdir(path_dir)
+            if os.path.isfile(os.path.join(path_dir, f))
+        ])
     if expr is not None:  # assumed to be either str or list of str
         if isinstance(expr, str):
             expr = [expr]
         elif not isinstance(expr, (list, tuple)):
-            raise Exception("if specified, 'expr' should be a string or list of strings.")
+            raise Exception(
+                "if specified, 'expr' should be a string or list of strings.")
         matched_list_files = list()
         for match in expr:
-            tmp_matched_files_list = sorted([f for f in files_list if match in os.path.basename(f)])
+            tmp_matched_files_list = sorted(
+                [f for f in files_list if match in os.path.basename(f)])
             if cond_type == 'or':
-                files_list = [f for f in files_list if f not in tmp_matched_files_list]
+                files_list = [
+                    f for f in files_list if f not in tmp_matched_files_list
+                ]
                 matched_list_files += tmp_matched_files_list
             elif cond_type == 'and':
                 files_list = tmp_matched_files_list
@@ -431,22 +492,33 @@ def list_subfolders(path_dir, whole_path=True, expr=None, cond_type='or'):
     :return: a list of subfolders
     """
     assert isinstance(whole_path, bool), "whole_path should be bool"
-    assert cond_type in ['or', 'and'], "cond_type should be either 'or', or 'and'"
+    assert cond_type in ['or',
+                         'and'], "cond_type should be either 'or', or 'and'"
     if whole_path:
-        subdirs_list = sorted([os.path.join(path_dir, f) for f in os.listdir(path_dir)
-                               if os.path.isdir(os.path.join(path_dir, f))])
+        subdirs_list = sorted([
+            os.path.join(path_dir, f) for f in os.listdir(path_dir)
+            if os.path.isdir(os.path.join(path_dir, f))
+        ])
     else:
-        subdirs_list = sorted([f for f in os.listdir(path_dir) if os.path.isdir(os.path.join(path_dir, f))])
+        subdirs_list = sorted([
+            f for f in os.listdir(path_dir)
+            if os.path.isdir(os.path.join(path_dir, f))
+        ])
     if expr is not None:  # assumed to be either str or list of str
         if isinstance(expr, str):
             expr = [expr]
         elif not isinstance(expr, (list, tuple)):
-            raise Exception("if specified, 'expr' should be a string or list of strings.")
+            raise Exception(
+                "if specified, 'expr' should be a string or list of strings.")
         matched_list_subdirs = list()
         for match in expr:
-            tmp_matched_list_subdirs = sorted([f for f in subdirs_list if match in os.path.basename(f)])
+            tmp_matched_list_subdirs = sorted(
+                [f for f in subdirs_list if match in os.path.basename(f)])
             if cond_type == 'or':
-                subdirs_list = [f for f in subdirs_list if f not in tmp_matched_list_subdirs]
+                subdirs_list = [
+                    f for f in subdirs_list
+                    if f not in tmp_matched_list_subdirs
+                ]
                 matched_list_subdirs += tmp_matched_list_subdirs
             elif cond_type == 'and':
                 subdirs_list = tmp_matched_list_subdirs
@@ -506,6 +578,8 @@ def mkdir(path_dir):
 
 
 def mkcmd(*args):
+    """Creates terminal command with provided inputs.
+    Example: mkcmd('mv', 'source', 'dest') will give 'mv source dest'."""
     return ' '.join([str(arg) for arg in args])
 
 
@@ -539,7 +613,9 @@ def get_resample_shape(patch_shape, factor, n_channels=None):
     :return: list containing the shape of the input array after being resampled by the given factor.
     """
     factor = reformat_to_list(factor, length=len(patch_shape))
-    shape = [math.ceil(patch_shape[i] * factor[i]) for i in range(len(patch_shape))]
+    shape = [
+        math.ceil(patch_shape[i] * factor[i]) for i in range(len(patch_shape))
+    ]
     if n_channels is not None:
         shape += [n_channels]
     return shape
@@ -562,7 +638,9 @@ def get_padding_margin(cropping, loss_cropping):
         n_dims = max(len(cropping), len(loss_cropping))
         cropping = reformat_to_list(cropping, length=n_dims)
         loss_cropping = reformat_to_list(loss_cropping, length=n_dims)
-        padding_margin = [int((cropping[i] - loss_cropping[i]) / 2) for i in range(n_dims)]
+        padding_margin = [
+            int((cropping[i] - loss_cropping[i]) / 2) for i in range(n_dims)
+        ]
         if len(padding_margin) == 1:
             padding_margin = padding_margin[0]
     else:
@@ -573,7 +651,11 @@ def get_padding_margin(cropping, loss_cropping):
 # -------------------------------------------- build affine matrices/tensors -------------------------------------------
 
 
-def create_affine_transformation_matrix(n_dims, scaling=None, rotation=None, shearing=None, translation=None):
+def create_affine_transformation_matrix(n_dims,
+                                        scaling=None,
+                                        rotation=None,
+                                        shearing=None,
+                                        translation=None):
     """Create a 4x4 affine transformation matrix from specified values
     :param n_dims: integer
     :param scaling: list of 3 scaling values
@@ -588,7 +670,8 @@ def create_affine_transformation_matrix(n_dims, scaling=None, rotation=None, she
     T_translation = np.eye(n_dims + 1)
 
     if scaling is not None:
-        T_scaling[np.arange(n_dims + 1), np.arange(n_dims + 1)] = np.append(scaling, 1)
+        T_scaling[np.arange(n_dims + 1),
+                  np.arange(n_dims + 1)] = np.append(scaling, 1)
 
     if shearing is not None:
         shearing_index = np.ones((n_dims + 1, n_dims + 1), dtype='bool')
@@ -598,7 +681,8 @@ def create_affine_transformation_matrix(n_dims, scaling=None, rotation=None, she
         T_shearing[shearing_index] = shearing
 
     if translation is not None:
-        T_translation[np.arange(n_dims), n_dims * np.ones(n_dims, dtype='int')] = translation
+        T_translation[np.arange(n_dims),
+                      n_dims * np.ones(n_dims, dtype='int')] = translation
 
     if n_dims == 2:
         if rotation is None:
@@ -606,8 +690,13 @@ def create_affine_transformation_matrix(n_dims, scaling=None, rotation=None, she
         else:
             rotation = np.asarray(rotation) * (math.pi / 180)
         T_rot = np.eye(n_dims + 1)
-        T_rot[np.array([0, 1, 0, 1]), np.array([0, 0, 1, 1])] = [np.cos(rotation[0]), np.sin(rotation[0]),
-                                                                 np.sin(rotation[0]) * -1, np.cos(rotation[0])]
+        T_rot[np.array([0, 1, 0, 1]),
+              np.array([0, 0, 1, 1])] = [
+                  np.cos(rotation[0]),
+                  np.sin(rotation[0]),
+                  np.sin(rotation[0]) * -1,
+                  np.cos(rotation[0])
+              ]
         return T_translation @ T_rot @ T_shearing @ T_scaling
 
     else:
@@ -617,14 +706,29 @@ def create_affine_transformation_matrix(n_dims, scaling=None, rotation=None, she
         else:
             rotation = np.asarray(rotation) * (math.pi / 180)
         T_rot1 = np.eye(n_dims + 1)
-        T_rot1[np.array([1, 2, 1, 2]), np.array([1, 1, 2, 2])] = [np.cos(rotation[0]), np.sin(rotation[0]),
-                                                                  np.sin(rotation[0]) * -1, np.cos(rotation[0])]
+        T_rot1[np.array([1, 2, 1, 2]),
+               np.array([1, 1, 2, 2])] = [
+                   np.cos(rotation[0]),
+                   np.sin(rotation[0]),
+                   np.sin(rotation[0]) * -1,
+                   np.cos(rotation[0])
+               ]
         T_rot2 = np.eye(n_dims + 1)
-        T_rot2[np.array([0, 2, 0, 2]), np.array([0, 0, 2, 2])] = [np.cos(rotation[1]), np.sin(rotation[1]) * -1,
-                                                                  np.sin(rotation[1]), np.cos(rotation[1])]
+        T_rot2[np.array([0, 2, 0, 2]),
+               np.array([0, 0, 2, 2])] = [
+                   np.cos(rotation[1]),
+                   np.sin(rotation[1]) * -1,
+                   np.sin(rotation[1]),
+                   np.cos(rotation[1])
+               ]
         T_rot3 = np.eye(n_dims + 1)
-        T_rot3[np.array([0, 1, 0, 1]), np.array([0, 0, 1, 1])] = [np.cos(rotation[2]), np.sin(rotation[2]),
-                                                                  np.sin(rotation[2]) * -1, np.cos(rotation[2])]
+        T_rot3[np.array([0, 1, 0, 1]),
+               np.array([0, 0, 1, 1])] = [
+                   np.cos(rotation[2]),
+                   np.sin(rotation[2]),
+                   np.sin(rotation[2]) * -1,
+                   np.cos(rotation[2])
+               ]
         return T_translation @ T_rot3 @ T_rot2 @ T_rot1 @ T_shearing @ T_scaling
 
 
@@ -647,7 +751,8 @@ def sample_affine_transform(batchsize,
                                                         return_as_tensor=True,
                                                         batchsize=batchsize)
             else:
-                rotation = tf.zeros(tf.concat([batchsize, tf.ones(1, dtype='int32')], axis=0))
+                rotation = tf.zeros(
+                    tf.concat([batchsize, tf.ones(1, dtype='int32')], axis=0))
         else:  # n_dims = 3
             if rotation_bounds is not False:
                 rotation = draw_value_from_distribution(rotation_bounds,
@@ -656,25 +761,29 @@ def sample_affine_transform(batchsize,
                                                         return_as_tensor=True,
                                                         batchsize=batchsize)
             else:
-                rotation = tf.zeros(tf.concat([batchsize, 3 * tf.ones(1, dtype='int32')], axis=0))
+                rotation = tf.zeros(
+                    tf.concat([batchsize, 3 * tf.ones(1, dtype='int32')],
+                              axis=0))
         if enable_90_rotations:
             rotation = tf.cast(tf.random.uniform(tf.shape(rotation), maxval=4, dtype='int32') * 90, 'float32') \
                        + rotation
         T_rot = create_rotation_transform(rotation, n_dims)
     else:
-        T_rot = tf.tile(tf.expand_dims(tf.eye(n_dims), axis=0),
-                        tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
+        T_rot = tf.tile(
+            tf.expand_dims(tf.eye(n_dims), axis=0),
+            tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
 
     if shearing_bounds is not False:
         shearing = draw_value_from_distribution(shearing_bounds,
-                                                size=n_dims ** 2 - n_dims,
+                                                size=n_dims**2 - n_dims,
                                                 default_range=.01,
                                                 return_as_tensor=True,
                                                 batchsize=batchsize)
         T_shearing = create_shearing_transform(shearing, n_dims)
     else:
-        T_shearing = tf.tile(tf.expand_dims(tf.eye(n_dims), axis=0),
-                             tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
+        T_shearing = tf.tile(
+            tf.expand_dims(tf.eye(n_dims), axis=0),
+            tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
 
     if scaling_bounds is not False:
         scaling = draw_value_from_distribution(scaling_bounds,
@@ -685,8 +794,9 @@ def sample_affine_transform(batchsize,
                                                batchsize=batchsize)
         T_scaling = tf.linalg.diag(scaling)
     else:
-        T_scaling = tf.tile(tf.expand_dims(tf.eye(n_dims), axis=0),
-                            tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
+        T_scaling = tf.tile(
+            tf.expand_dims(tf.eye(n_dims), axis=0),
+            tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
 
     T = tf.matmul(T_scaling, tf.matmul(T_shearing, T_rot))
 
@@ -698,11 +808,19 @@ def sample_affine_transform(batchsize,
                                                    batchsize=batchsize)
         T = tf.concat([T, tf.expand_dims(translation, axis=-1)], axis=-1)
     else:
-        T = tf.concat([T, tf.zeros(tf.concat([tf.shape(T)[:2], tf.ones(1, dtype='int32')], 0))], axis=-1)
+        T = tf.concat([
+            T,
+            tf.zeros(tf.concat(
+                [tf.shape(T)[:2], tf.ones(1, dtype='int32')], 0))
+        ],
+                      axis=-1)
 
     # build rigid transform
-    T_last_row = tf.expand_dims(tf.concat([tf.zeros((1, n_dims)), tf.ones((1, 1))], axis=1), 0)
-    T_last_row = tf.tile(T_last_row, tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
+    T_last_row = tf.expand_dims(
+        tf.concat([tf.zeros(
+            (1, n_dims)), tf.ones((1, 1))], axis=1), 0)
+    T_last_row = tf.tile(
+        T_last_row, tf.concat([batchsize, tf.ones(2, dtype='int32')], axis=0))
     T = tf.concat([T, T_last_row], axis=1)
 
     return T
@@ -714,34 +832,70 @@ def create_rotation_transform(rotation, n_dims):
     if n_dims == 3:
         shape = tf.shape(tf.expand_dims(rotation[..., 0], -1))
 
-        Rx_row0 = tf.expand_dims(tf.tile(tf.expand_dims(tf.convert_to_tensor([1., 0., 0.]), 0), shape), axis=1)
-        Rx_row1 = tf.stack([tf.zeros(shape), tf.expand_dims(tf.cos(rotation[..., 0]), -1),
-                            tf.expand_dims(-tf.sin(rotation[..., 0]), -1)], axis=-1)
-        Rx_row2 = tf.stack([tf.zeros(shape), tf.expand_dims(tf.sin(rotation[..., 0]), -1),
-                            tf.expand_dims(tf.cos(rotation[..., 0]), -1)], axis=-1)
+        Rx_row0 = tf.expand_dims(tf.tile(
+            tf.expand_dims(tf.convert_to_tensor([1., 0., 0.]), 0), shape),
+                                 axis=1)
+        Rx_row1 = tf.stack([
+            tf.zeros(shape),
+            tf.expand_dims(tf.cos(rotation[..., 0]), -1),
+            tf.expand_dims(-tf.sin(rotation[..., 0]), -1)
+        ],
+                           axis=-1)
+        Rx_row2 = tf.stack([
+            tf.zeros(shape),
+            tf.expand_dims(tf.sin(rotation[..., 0]), -1),
+            tf.expand_dims(tf.cos(rotation[..., 0]), -1)
+        ],
+                           axis=-1)
         Rx = tf.concat([Rx_row0, Rx_row1, Rx_row2], axis=1)
 
-        Ry_row0 = tf.stack([tf.expand_dims(tf.cos(rotation[..., 1]), -1), tf.zeros(shape),
-                            tf.expand_dims(tf.sin(rotation[..., 1]), -1)], axis=-1)
-        Ry_row1 = tf.expand_dims(tf.tile(tf.expand_dims(tf.convert_to_tensor([0., 1., 0.]), 0), shape), axis=1)
-        Ry_row2 = tf.stack([tf.expand_dims(-tf.sin(rotation[..., 1]), -1), tf.zeros(shape),
-                            tf.expand_dims(tf.cos(rotation[..., 1]), -1)], axis=-1)
+        Ry_row0 = tf.stack([
+            tf.expand_dims(tf.cos(rotation[..., 1]), -1),
+            tf.zeros(shape),
+            tf.expand_dims(tf.sin(rotation[..., 1]), -1)
+        ],
+                           axis=-1)
+        Ry_row1 = tf.expand_dims(tf.tile(
+            tf.expand_dims(tf.convert_to_tensor([0., 1., 0.]), 0), shape),
+                                 axis=1)
+        Ry_row2 = tf.stack([
+            tf.expand_dims(-tf.sin(rotation[..., 1]), -1),
+            tf.zeros(shape),
+            tf.expand_dims(tf.cos(rotation[..., 1]), -1)
+        ],
+                           axis=-1)
         Ry = tf.concat([Ry_row0, Ry_row1, Ry_row2], axis=1)
 
-        Rz_row0 = tf.stack([tf.expand_dims(tf.cos(rotation[..., 2]), -1),
-                            tf.expand_dims(-tf.sin(rotation[..., 2]), -1), tf.zeros(shape)], axis=-1)
-        Rz_row1 = tf.stack([tf.expand_dims(tf.sin(rotation[..., 2]), -1),
-                            tf.expand_dims(tf.cos(rotation[..., 2]), -1), tf.zeros(shape)], axis=-1)
-        Rz_row2 = tf.expand_dims(tf.tile(tf.expand_dims(tf.convert_to_tensor([0., 0., 1.]), 0), shape), axis=1)
+        Rz_row0 = tf.stack([
+            tf.expand_dims(tf.cos(rotation[..., 2]), -1),
+            tf.expand_dims(-tf.sin(rotation[..., 2]), -1),
+            tf.zeros(shape)
+        ],
+                           axis=-1)
+        Rz_row1 = tf.stack([
+            tf.expand_dims(tf.sin(rotation[..., 2]), -1),
+            tf.expand_dims(tf.cos(rotation[..., 2]), -1),
+            tf.zeros(shape)
+        ],
+                           axis=-1)
+        Rz_row2 = tf.expand_dims(tf.tile(
+            tf.expand_dims(tf.convert_to_tensor([0., 0., 1.]), 0), shape),
+                                 axis=1)
         Rz = tf.concat([Rz_row0, Rz_row1, Rz_row2], axis=1)
 
         T_rot = tf.matmul(tf.matmul(Rx, Ry), Rz)
 
     elif n_dims == 2:
-        R_row0 = tf.stack([tf.expand_dims(tf.cos(rotation[..., 0]), -1),
-                           tf.expand_dims(tf.sin(rotation[..., 0]), -1)], axis=-1)
-        R_row1 = tf.stack([tf.expand_dims(-tf.sin(rotation[..., 0]), -1),
-                           tf.expand_dims(tf.cos(rotation[..., 0]), -1)], axis=-1)
+        R_row0 = tf.stack([
+            tf.expand_dims(tf.cos(rotation[..., 0]), -1),
+            tf.expand_dims(tf.sin(rotation[..., 0]), -1)
+        ],
+                          axis=-1)
+        R_row1 = tf.stack([
+            tf.expand_dims(-tf.sin(rotation[..., 0]), -1),
+            tf.expand_dims(tf.cos(rotation[..., 0]), -1)
+        ],
+                          axis=-1)
         T_rot = tf.concat([R_row0, R_row1], axis=1)
 
     else:
@@ -754,17 +908,34 @@ def create_shearing_transform(shearing, n_dims):
     """build shearing transform from 2d/3d shearing coefficients"""
     shape = tf.shape(tf.expand_dims(shearing[..., 0], -1))
     if n_dims == 3:
-        shearing_row0 = tf.stack([tf.ones(shape), tf.expand_dims(shearing[..., 0], -1),
-                                  tf.expand_dims(shearing[..., 1], -1)], axis=-1)
-        shearing_row1 = tf.stack([tf.expand_dims(shearing[..., 2], -1), tf.ones(shape),
-                                  tf.expand_dims(shearing[..., 3], -1)], axis=-1)
-        shearing_row2 = tf.stack([tf.expand_dims(shearing[..., 4], -1), tf.expand_dims(shearing[..., 5], -1),
-                                  tf.ones(shape)], axis=-1)
-        T_shearing = tf.concat([shearing_row0, shearing_row1, shearing_row2], axis=1)
+        shearing_row0 = tf.stack([
+            tf.ones(shape),
+            tf.expand_dims(shearing[..., 0], -1),
+            tf.expand_dims(shearing[..., 1], -1)
+        ],
+                                 axis=-1)
+        shearing_row1 = tf.stack([
+            tf.expand_dims(shearing[..., 2], -1),
+            tf.ones(shape),
+            tf.expand_dims(shearing[..., 3], -1)
+        ],
+                                 axis=-1)
+        shearing_row2 = tf.stack([
+            tf.expand_dims(shearing[..., 4], -1),
+            tf.expand_dims(shearing[..., 5], -1),
+            tf.ones(shape)
+        ],
+                                 axis=-1)
+        T_shearing = tf.concat([shearing_row0, shearing_row1, shearing_row2],
+                               axis=1)
 
     elif n_dims == 2:
-        shearing_row0 = tf.stack([tf.ones(shape), tf.expand_dims(shearing[..., 0], -1)], axis=-1)
-        shearing_row1 = tf.stack([tf.expand_dims(shearing[..., 1], -1), tf.ones(shape)], axis=-1)
+        shearing_row0 = tf.stack(
+            [tf.ones(shape),
+             tf.expand_dims(shearing[..., 0], -1)], axis=-1)
+        shearing_row1 = tf.stack(
+            [tf.expand_dims(shearing[..., 1], -1),
+             tf.ones(shape)], axis=-1)
         T_shearing = tf.concat([shearing_row0, shearing_row1], axis=1)
     else:
         raise Exception('only supports 2 or 3D.')
@@ -784,7 +955,9 @@ def infer(x):
         elif x == 'True':
             x = True
         elif not isinstance(x, str):
-            raise TypeError('input should be an int/float/boolean/str, had {}'.format(type(x)))
+            raise TypeError(
+                'input should be an int/float/boolean/str, had {}'.format(
+                    type(x)))
     return x
 
 
@@ -795,8 +968,11 @@ class LoopInfo:
     The printed text has the following format:
     processing i/total    remaining time: hh:mm:ss
     """
-
-    def __init__(self, n_iterations, spacing=10, text='processing', print_time=False):
+    def __init__(self,
+                 n_iterations,
+                 spacing=10,
+                 text='processing',
+                 print_time=False):
         """
         :param n_iterations: total number of iterations of the for loop.
         :param spacing: frequency at which the update info will be printed on screen.
@@ -815,7 +991,7 @@ class LoopInfo:
         self.align = len(str(self.n_iterations)) * 2 + 1 + 3
 
         # timing parameters
-        self.iteration_durations = np.zeros((n_iterations,))
+        self.iteration_durations = np.zeros((n_iterations, ))
         self.start = time.time()
         self.previous = time.time()
 
@@ -834,12 +1010,16 @@ class LoopInfo:
             if self.print_time:
                 # estimate remaining time
                 max_duration = np.max(self.iteration_durations)
-                average_duration = np.mean(self.iteration_durations[self.iteration_durations > .01 * max_duration])
-                remaining_time = int(average_duration * (self.n_iterations - idx))
+                average_duration = np.mean(
+                    self.iteration_durations[self.iteration_durations > .01 *
+                                             max_duration])
+                remaining_time = int(average_duration *
+                                     (self.n_iterations - idx))
                 # print total remaining time only if it is greater than 1s or if it was previously printed
                 if (remaining_time > 1) | self.print_previous_time:
                     eta = str(timedelta(seconds=remaining_time))
-                    print(self.text + ' {:<{x}} remaining time: {}'.format(iteration, eta, x=self.align))
+                    print(self.text + ' {:<{x}} remaining time: {}'.format(
+                        iteration, eta, x=self.align))
                     self.print_previous_time = True
                 else:
                     print(self.text + ' {}'.format(iteration))
@@ -859,7 +1039,8 @@ def get_mapping_lut(source, dest=None):
     if dest is None:
         dest = np.arange(n_labels, dtype='int32')
     else:
-        assert len(source) == len(dest), 'label_list and new_label_list should have the same length'
+        assert len(source) == len(
+            dest), 'label_list and new_label_list should have the same length'
         dest = np.array(reformat_to_list(dest, dtype='int'))
 
     # build look-up table
@@ -954,47 +1135,66 @@ def draw_value_from_distribution(hyperparameter,
     hyperparameter = load_array_if_path(hyperparameter, load_as_numpy=True)
     if not isinstance(hyperparameter, np.ndarray):
         if hyperparameter is None:
-            hyperparameter = np.array([[centre - default_range] * size, [centre + default_range] * size])
+            hyperparameter = np.array([[centre - default_range] * size,
+                                       [centre + default_range] * size])
         elif isinstance(hyperparameter, (int, float)):
-            hyperparameter = np.array([[centre - hyperparameter] * size, [centre + hyperparameter] * size])
+            hyperparameter = np.array([[centre - hyperparameter] * size,
+                                       [centre + hyperparameter] * size])
         elif isinstance(hyperparameter, (list, tuple)):
-            assert len(hyperparameter) == 2, 'if list, parameter_range should be of length 2.'
-            hyperparameter = np.transpose(np.tile(np.array(hyperparameter), (size, 1)))
+            assert len(
+                hyperparameter
+            ) == 2, 'if list, parameter_range should be of length 2.'
+            hyperparameter = np.transpose(
+                np.tile(np.array(hyperparameter), (size, 1)))
         else:
-            raise ValueError('parameter_range should either be None, a nummber, a sequence, or a numpy array.')
+            raise ValueError(
+                'parameter_range should either be None, a nummber, a sequence, or a numpy array.'
+            )
     elif isinstance(hyperparameter, np.ndarray):
-        assert hyperparameter.shape[0] % 2 == 0, 'number of rows of parameter_range should be divisible by 2'
+        assert hyperparameter.shape[
+            0] % 2 == 0, 'number of rows of parameter_range should be divisible by 2'
         n_modalities = int(hyperparameter.shape[0] / 2)
         modality_idx = 2 * np.random.randint(n_modalities)
-        hyperparameter = hyperparameter[modality_idx: modality_idx + 2, :]
+        hyperparameter = hyperparameter[modality_idx:modality_idx + 2, :]
 
     # draw values as tensor
     if return_as_tensor:
-        shape = KL.Lambda(lambda x: tf.convert_to_tensor(hyperparameter.shape[1], 'int32'))([])
+        shape = KL.Lambda(
+            lambda x: tf.convert_to_tensor(hyperparameter.shape[1], 'int32'))(
+                [])
         if batchsize is not None:
-            shape = KL.Lambda(lambda x: tf.concat([x[0], tf.expand_dims(x[1], axis=0)], axis=0))([batchsize, shape])
+            shape = KL.Lambda(lambda x: tf.concat(
+                [x[0], tf.expand_dims(x[1], axis=0)], axis=0))(
+                    [batchsize, shape])
         if distribution == 'uniform':
-            parameter_value = KL.Lambda(lambda x: tf.random.uniform(shape=x,
-                                                                    minval=hyperparameter[0, :],
-                                                                    maxval=hyperparameter[1, :]))(shape)
+            parameter_value = KL.Lambda(lambda x: tf.random.uniform(
+                shape=x,
+                minval=hyperparameter[0, :],
+                maxval=hyperparameter[1, :]))(shape)
         elif distribution == 'normal':
-            parameter_value = KL.Lambda(lambda x: tf.random.normal(shape=x,
-                                                                   mean=hyperparameter[0, :],
-                                                                   stddev=hyperparameter[1, :]))(shape)
+            parameter_value = KL.Lambda(
+                lambda x: tf.random.normal(shape=x,
+                                           mean=hyperparameter[0, :],
+                                           stddev=hyperparameter[1, :]))(shape)
         else:
-            raise ValueError("Distribution not supported, should be 'uniform' or 'normal'.")
+            raise ValueError(
+                "Distribution not supported, should be 'uniform' or 'normal'.")
 
         if positive_only:
-            parameter_value = KL.Lambda(lambda x: K.clip(x, 0, None))(parameter_value)
+            parameter_value = KL.Lambda(lambda x: K.clip(x, 0, None))(
+                parameter_value)
 
     # draw values as numpy array
     else:
         if distribution == 'uniform':
-            parameter_value = np.random.uniform(low=hyperparameter[0, :], high=hyperparameter[1, :])
+            parameter_value = np.random.uniform(low=hyperparameter[0, :],
+                                                high=hyperparameter[1, :])
         elif distribution == 'normal':
-            parameter_value = np.random.normal(loc=hyperparameter[0, :], scale=hyperparameter[1, :])
+            parameter_value = np.random.normal(loc=hyperparameter[0, :],
+                                               scale=hyperparameter[1, :])
         else:
-            raise ValueError("Distribution not supported, should be 'uniform' or 'normal'.")
+            raise ValueError(
+                "Distribution not supported, should be 'uniform' or 'normal'.")
 
         if positive_only:
             parameter_value[parameter_value < 0] = 0
@@ -1006,5 +1206,5 @@ def build_exp(x, first, last, fix_point):
     # first = f(0), last = f(+inf), fix_point = [x0, f(x0))]
     a = last
     b = first - last
-    c = - (1 / fix_point[0]) * np.log((fix_point[1] - last) / (first - last))
+    c = -(1 / fix_point[0]) * np.log((fix_point[1] - last) / (first - last))
     return a + b * np.exp(-c * x)

@@ -2,25 +2,28 @@
     - blurring_sigma_for_downsampling
     - gaussian_kernel
     - resample_tensor
-    - convert_labels
+    - expand_dims
 """
 
+from itertools import combinations
+
+# third-party imports
+import ext.neuron.layers as nrn_layers
+import keras.backend as K
+import keras.layers as KL
 # python imports
 import numpy as np
 import tensorflow as tf
-import keras.layers as KL
-import keras.backend as K
-from itertools import combinations
+from ext.neuron.utils import volshape_to_meshgrid
 
 # project imports
 from . import utils
 
-# third-party imports
-import ext.neuron.layers as nrn_layers
-from ext.neuron.utils import volshape_to_meshgrid
 
-
-def blurring_sigma_for_downsampling(current_res, downsample_res, mult_coef=None, thickness=None):
+def blurring_sigma_for_downsampling(current_res,
+                                    downsample_res,
+                                    mult_coef=None,
+                                    thickness=None):
     """Compute standard deviations of 1d gaussian masks for image blurring before downsampling.
     :param downsample_res: resolution to downsample to. Can be a 1d numpy array or list, or a tensor.
     :param current_res: resolution of the volume before downsampling.
@@ -49,17 +52,24 @@ def blurring_sigma_for_downsampling(current_res, downsample_res, mult_coef=None,
 
         # reformat data resolution at which we blur
         if thickness is not None:
-            down_res = KL.Lambda(lambda x: tf.math.minimum(x[0], x[1]))([downsample_res, thickness])
+            down_res = KL.Lambda(lambda x: tf.math.minimum(x[0], x[1]))(
+                [downsample_res, thickness])
         else:
             down_res = downsample_res
 
         # get std deviation for blurring kernels
         if mult_coef is None:
-            sigma = KL.Lambda(lambda x: tf.where(tf.math.equal(x, tf.convert_to_tensor(current_res, dtype='float32')),
-                              0.5, 0.75 * x / tf.convert_to_tensor(current_res, dtype='float32')))(down_res)
+            sigma = KL.Lambda(lambda x: tf.where(
+                tf.math.equal(
+                    x, tf.convert_to_tensor(current_res, dtype='float32')),
+                0.5, 0.75 * x / tf.convert_to_tensor(
+                    current_res, dtype='float32')))(down_res)
         else:
-            sigma = KL.Lambda(lambda x: mult_coef * x / tf.convert_to_tensor(current_res, dtype='float32'))(down_res)
-        sigma = KL.Lambda(lambda x: tf.where(tf.math.equal(x[0], 0.), 0., x[1]))([down_res, sigma])
+            sigma = KL.Lambda(lambda x: mult_coef * x / tf.convert_to_tensor(
+                current_res, dtype='float32'))(down_res)
+        sigma = KL.Lambda(
+            lambda x: tf.where(tf.math.equal(x[0], 0.), 0., x[1]))(
+                [down_res, sigma])
 
     return sigma
 
@@ -76,7 +86,8 @@ def gaussian_kernel(sigma, max_sigma=None, blur_range=None, separable=True):
     """
     # convert sigma into a tensor
     if not tf.is_tensor(sigma):
-        sigma_tens = tf.convert_to_tensor(utils.reformat_to_list(sigma), dtype='float32')
+        sigma_tens = tf.convert_to_tensor(utils.reformat_to_list(sigma),
+                                          dtype='float32')
     else:
         assert max_sigma is not None, 'max_sigma must be provided when sigma is given as a tensor'
         sigma_tens = sigma
@@ -99,7 +110,8 @@ def gaussian_kernel(sigma, max_sigma=None, blur_range=None, separable=True):
     # randomise the burring std dev and/or split it between dimensions
     if blur_range is not None:
         if blur_range != 1:
-            sigma_tens = sigma_tens * tf.random.uniform(tf.shape(sigma_tens), minval=1 / blur_range, maxval=blur_range)
+            sigma_tens = sigma_tens * tf.random.uniform(
+                tf.shape(sigma_tens), minval=1 / blur_range, maxval=blur_range)
 
     # get size of blurring kernels
     windowsize = np.int32(np.ceil(2.5 * max_sigma) / 2) * 2 + 1
@@ -109,22 +121,30 @@ def gaussian_kernel(sigma, max_sigma=None, blur_range=None, separable=True):
         split_sigma = tf.split(sigma_tens, [1] * n_dims, axis=-1)
 
         kernels = list()
-        comb = np.array(list(combinations(list(range(n_dims)), n_dims - 1))[::-1])
+        comb = np.array(
+            list(combinations(list(range(n_dims)), n_dims - 1))[::-1])
         for (i, wsize) in enumerate(windowsize):
 
             if wsize > 1:
 
                 # build meshgrid and replicate it along batch dim if dynamic blurring
-                locations = tf.cast(tf.range(0, wsize), 'float32') - (wsize - 1) / 2
+                locations = tf.cast(tf.range(0, wsize),
+                                    'float32') - (wsize - 1) / 2
                 if batchsize is not None:
-                    locations = tf.tile(tf.expand_dims(locations, axis=0),
-                                        tf.concat([batchsize, tf.ones(tf.shape(tf.shape(locations)), dtype='int32')],
-                                                  axis=0))
+                    locations = tf.tile(
+                        tf.expand_dims(locations, axis=0),
+                        tf.concat([
+                            batchsize,
+                            tf.ones(tf.shape(tf.shape(locations)),
+                                    dtype='int32')
+                        ],
+                                  axis=0))
                     comb[i] += 1
 
                 # compute gaussians
-                exp_term = -K.square(locations) / (2 * split_sigma[i] ** 2)
-                g = tf.exp(exp_term - tf.math.log(np.sqrt(2 * np.pi) * split_sigma[i]))
+                exp_term = -K.square(locations) / (2 * split_sigma[i]**2)
+                g = tf.exp(exp_term -
+                           tf.math.log(np.sqrt(2 * np.pi) * split_sigma[i]))
                 g = g / tf.reduce_sum(g)
 
                 for axis in comb[i]:
@@ -137,13 +157,24 @@ def gaussian_kernel(sigma, max_sigma=None, blur_range=None, separable=True):
     else:
 
         # build meshgrid
-        mesh = [tf.cast(f, 'float32') for f in volshape_to_meshgrid(windowsize, indexing='ij')]
-        diff = tf.stack([mesh[f] - (windowsize[f] - 1) / 2 for f in range(len(windowsize))], axis=-1)
+        mesh = [
+            tf.cast(f, 'float32')
+            for f in volshape_to_meshgrid(windowsize, indexing='ij')
+        ]
+        diff = tf.stack([
+            mesh[f] - (windowsize[f] - 1) / 2 for f in range(len(windowsize))
+        ],
+                        axis=-1)
 
         # replicate meshgrid to batch size and reshape sigma_tens
         if batchsize is not None:
-            diff = tf.tile(tf.expand_dims(diff, axis=0),
-                           tf.concat([batchsize, tf.ones(tf.shape(tf.shape(diff)), dtype='int32')], axis=0))
+            diff = tf.tile(
+                tf.expand_dims(diff, axis=0),
+                tf.concat([
+                    batchsize,
+                    tf.ones(tf.shape(tf.shape(diff)), dtype='int32')
+                ],
+                          axis=0))
             for i in range(n_dims):
                 sigma_tens = tf.expand_dims(sigma_tens, axis=1)
         else:
@@ -152,8 +183,11 @@ def gaussian_kernel(sigma, max_sigma=None, blur_range=None, separable=True):
 
         # compute gaussians
         sigma_is_0 = tf.equal(sigma_tens, 0)
-        exp_term = -K.square(diff) / (2 * tf.where(sigma_is_0, tf.ones_like(sigma_tens), sigma_tens)**2)
-        norms = exp_term - tf.math.log(tf.where(sigma_is_0, tf.ones_like(sigma_tens), np.sqrt(2 * np.pi) * sigma_tens))
+        exp_term = -K.square(diff) / (
+            2 * tf.where(sigma_is_0, tf.ones_like(sigma_tens), sigma_tens)**2)
+        norms = exp_term - tf.math.log(
+            tf.where(sigma_is_0, tf.ones_like(sigma_tens),
+                     np.sqrt(2 * np.pi) * sigma_tens))
         kernels = K.sum(norms, -1)
         kernels = tf.exp(kernels)
         kernels /= tf.reduce_sum(kernels)
@@ -200,16 +234,21 @@ def resample_tensor(tensor,
         if subsample_res != volume_res:
 
             # get shape at which we downsample
-            downsample_shape = [int(tensor_shape[i] * volume_res[i] / subsample_res[i]) for i in range(n_dims)]
+            downsample_shape = [
+                int(tensor_shape[i] * volume_res[i] / subsample_res[i])
+                for i in range(n_dims)
+            ]
 
             # downsample volume
             tensor._keras_shape = tuple(tensor.get_shape().as_list())
-            tensor = nrn_layers.Resize(size=downsample_shape, interp_method='nearest')(tensor)
+            tensor = nrn_layers.Resize(size=downsample_shape,
+                                       interp_method='nearest')(tensor)
 
     # resample image at target resolution
     if resample_shape != downsample_shape:  # if we didn't dowmsample downsample_shape = tensor_shape
         tensor._keras_shape = tuple(tensor.get_shape().as_list())
-        tensor = nrn_layers.Resize(size=resample_shape, interp_method=interp_method)(tensor)
+        tensor = nrn_layers.Resize(size=resample_shape,
+                                   interp_method=interp_method)(tensor)
 
     # compute reliability maps if necessary and return results
     if build_reliability_map:
@@ -218,22 +257,28 @@ def resample_tensor(tensor,
         if downsample_shape != tensor_shape:
 
             # compute upsampling factors
-            upsampling_factors = np.array(resample_shape) / np.array(downsample_shape)
+            upsampling_factors = np.array(resample_shape) / np.array(
+                downsample_shape)
 
             # build reliability map
             reliability_map = 1
             for i in range(n_dims):
-                loc_float = np.arange(0, resample_shape[i], upsampling_factors[i])
+                loc_float = np.arange(0, resample_shape[i],
+                                      upsampling_factors[i])
                 loc_floor = np.int32(np.floor(loc_float))
-                loc_ceil = np.int32(np.clip(loc_floor + 1, 0, resample_shape[i] - 1))
+                loc_ceil = np.int32(
+                    np.clip(loc_floor + 1, 0, resample_shape[i] - 1))
                 tmp_reliability_map = np.zeros(resample_shape[i])
                 tmp_reliability_map[loc_floor] = 1 - (loc_float - loc_floor)
-                tmp_reliability_map[loc_ceil] = tmp_reliability_map[loc_ceil] + (loc_float - loc_floor)
+                tmp_reliability_map[loc_ceil] = tmp_reliability_map[
+                    loc_ceil] + (loc_float - loc_floor)
                 shape = [1, 1, 1]
                 shape[i] = resample_shape[i]
-                reliability_map = reliability_map * np.reshape(tmp_reliability_map, shape)
+                reliability_map = reliability_map * np.reshape(
+                    tmp_reliability_map, shape)
             shape = KL.Lambda(lambda x: tf.shape(x))(tensor)
-            mask = KL.Lambda(lambda x: tf.reshape(tf.convert_to_tensor(reliability_map, dtype='float32'),
+            mask = KL.Lambda(lambda x: tf.reshape(tf.convert_to_tensor(
+                reliability_map, dtype='float32'),
                                                   shape=x))(shape)
 
         # otherwise just return an all-one tensor
@@ -247,6 +292,7 @@ def resample_tensor(tensor,
 
 
 def expand_dims(tensor, axis=0):
+    """Expand the dimensions of the input tensor along the provided axes (given as an integer or a list)."""
     axis = utils.reformat_to_list(axis)
     for ax in axis:
         tensor = tf.expand_dims(tensor, axis=ax)
