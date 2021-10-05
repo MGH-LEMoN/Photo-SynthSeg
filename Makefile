@@ -26,7 +26,7 @@ noisy_patches =
 
 ## output-related parameters ##
 batch_size = 1
-channels = 3
+channels = 1
 target_res =
 output_shape = 192
 
@@ -74,8 +74,8 @@ lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
 dice_epochs = 100       # number of training epochs
-steps_per_epoch = 2500  # number of iteration per epoch
-checkpoint = '' 		# checkpoint name
+steps_per_epoch = 2000  # number of iteration per epoch
+checkpoint = '20211004-model' 		# checkpoint name
 
 .PHONY: help
 help:
@@ -147,7 +147,7 @@ training:
 		--wl2_epochs $(wl2_epochs) \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'changed learning rate, output shape and flipping is true, 3 channels, diff bias, E parameters' \
+		--message 'New training on 20211004' \
 		;
 
 predict:
@@ -161,3 +161,64 @@ predict:
 	--smoothing 0.5
 	--biggest_component \
 	--out_seg /tmp/seg4mm.mgz  /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/17-0333/17-0333.hard.recon.grayscale.mgz
+
+
+test:
+	for dir in /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/*     # list directories in the form "/tmp/dirname/"
+	do
+		echo $$dir/*.hard.recon.grayscale.mgz
+	done
+
+predict1:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+
+	$(CMD) $(PROJ_DIR)/scripts/commands/predict.py \
+		--model /cluster/scratch/friday/for_harsha/20210819-436612/dice_076.h5 \
+		--label_list /space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/segmentation_new_charm_choroid_lesions.npy \
+		--out_seg /space/calico/1/users/Harsha/SynthSeg/results/UW_photos/segmentations-latest-192/ \
+		--topology_classes /space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/topo_classes.npy \
+		--smoothing 0.5 \
+		--biggest_component \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW_photos/
+
+
+predict-scans:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+
+	$(CMD) $(PROJ_DIR)/scripts/commands/SynthSeg_predict.py \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/
+
+predict-soft:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+
+	python scripts/commands/predict.py \
+		--model /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
+		--label_list /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy \
+		--smoothing 0.5 \
+		--biggest_component \
+		--padding 256 \
+		--out_seg /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.segmentations.jei/ \
+		--out_vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.volumes.jei \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon/
+
+predict-hard:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+
+	python scripts/commands/predict.py \
+		--model /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
+		--label_list /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy \
+		--smoothing 0.5 \
+		--biggest_component \
+		--padding 256 \
+		--out_seg /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.segmentations.jei/ \
+		--out_vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.volumes.jei \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon/
