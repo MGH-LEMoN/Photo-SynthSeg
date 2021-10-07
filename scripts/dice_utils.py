@@ -2,9 +2,9 @@
 """
 
 import glob
+import json
 import os
 import re
-from pprint import pprint
 from shutil import copyfile
 
 import numpy as np
@@ -21,18 +21,19 @@ UW_MRI_SCAN_PATH = '/cluster/vive/UW_photo_recon/FLAIR_Scan_Data'
 
 MRI_SCANS_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.mri.scans'
 MRI_SCANS_SEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.mri.scans.segmentations'
+MRI_SCANS_REG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.mri.scans.registered'
 MRI_SCANS_SEG_RESAMPLED_PATH = MRI_SCANS_SEG_PATH + '.resampled'
 MRI_SCANS_SEG_REG_PATH = MRI_SCANS_SEG_RESAMPLED_PATH + '.registered'
 
 HARD_RECONS_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.hard.recon'
 HARD_RECON_SEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.hard.recon.segmentations.jei'
 HARD_RECON_SEG_RESAMPLED_PATH = HARD_RECON_SEG_PATH + '.resampled'
-HARD_RECON_REG_PATH = HARD_RECONS_PATH + '.reg'
+# HARD_RECON_REG_PATH = HARD_RECONS_PATH + '.reg'
 
 SOFT_RECONS_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.soft.recon'
 SOFT_RECON_SEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.soft.recon.segmentations.jei'
 SOFT_RECON_SEG_RESAMPLED_PATH = SOFT_RECON_SEG_PATH + '.resampled'
-SOFT_RECON_REG_PATH = SOFT_RECONS_PATH + '.reg'
+# SOFT_RECON_REG_PATH = SOFT_RECONS_PATH + '.reg'
 
 
 def files_at_path(path_str):
@@ -42,10 +43,14 @@ def files_at_path(path_str):
 def copy_uw_recon_vols(src_path, dest_path, flag_list):
     """[summary]
 
+    Args:
+        src_path ([type]): [description]
+        dest_path ([type]): [description]
+        flag_list ([type]): [description]
+
     Raises:
         Exception: [description]
     """
-
     os.makedirs(dest_path, exist_ok=True)
 
     folder_list = files_at_path(src_path)
@@ -65,36 +70,50 @@ def copy_uw_recon_vols(src_path, dest_path, flag_list):
 
         print(file_name)
         new_file_name = '.'.join([file_name, 'grayscale']) + file_ext
-        file_name = 'NP' + file_name.replace('-', '_')
 
         im, aff, header = utils.load_volume(reconstructed_file[0],
                                             im_only=False)
-        im = np.mean(im, axis=-1).astype('int')
+
+        # If n_channels = 3 convert to 1 channel by averaging
+        if im.ndim == 4 and im.shape[-1] == 3:
+            im = np.mean(im, axis=-1).astype('int')
 
         save_path = os.path.join(dest_path, new_file_name)
         utils.save_volume(im, aff, header, save_path)
 
 
 def copy_uw_mri_scans(src_path, dest_path):
+    """Copy MRI Scans from {src_path} to {dest_path}
+
+    Args:
+        src_path (Path String):
+        dest_path (Path String):
+
+    Notes:
+        The 'NP' prefix for files at {src_path} have been
+        removed and replaced '_' with '-' for consistency
+        across hard and soft reconstruction names
+    """
     os.makedirs(dest_path, exist_ok=True)
 
     folder_list = sorted(os.listdir(os.path.join(UW_HARD_RECON_PATH)))
     subject_list = [
-        folder.replace('-', '_') for folder in folder_list
-        if re.search('[0-9]', folder)
+        folder for folder in folder_list if re.search('[0-9]', folder)
     ]
 
     print('Copying...')
     for subject in subject_list:
-        print(subject)
-        scan_file = 'NP' + subject + '.rotated.mgz'
-        src_scan_file = os.path.join(src_path, scan_file)
-        dst_scan_file = os.path.join(dest_path, scan_file)
+        src_scan_file = 'NP' + subject.replace('-', '_') + '.rotated.mgz'
+        print(src_scan_file)
+        src_scan_file = os.path.join(src_path, src_scan_file)
+
+        dest_scan_file = subject + '.rotated.mgz'
+        dst_scan_file = os.path.join(dest_path, dest_scan_file)
 
         copyfile(src_scan_file, dst_scan_file)
 
 
-def run_mri_convert(in_file, out_file, ref_file):
+def run_mri_convert(in_file, ref_file, out_file):
     mc = MRIConvert()
     mc.terminal_output = 'none'
     mc.inputs.in_file = in_file
@@ -111,91 +130,99 @@ def run_make_target(flag):
     os.system(f'make -C {SYNTHSEG_PRJCT} predict-{flag}')
 
 
-def perform_registration(segmentations_path, reference_path, output_path):
-    mri_scan_segs = files_at_path(segmentations_path)
-    mri_scans = files_at_path(reference_path)
+def perform_registration(input_path, reference_path, output_path):
+    input_files = files_at_path(input_path)
+    reference_files = files_at_path(reference_path)
 
     os.makedirs(output_path, exist_ok=True)
 
     print('Creating...')
-    for mri_scan_seg, mri_scan in zip(mri_scan_segs, mri_scans):
-        assert mri_scan[:10] == mri_scan_seg[:10]
+    for input_file, reference_file in zip(input_files, reference_files):
+        id_check(input_file, reference_file)
 
-        _, file_name = os.path.split(mri_scan)
+        _, file_name = os.path.split(input_file)
         file_name, file_ext = os.path.splitext(file_name)
 
         out_file = file_name + '.res' + file_ext
-        print(out_file)
         out_file = os.path.join(output_path, out_file)
 
-        run_mri_convert(mri_scan_seg, out_file, mri_scan)
+        run_mri_convert(input_file, reference_file, out_file)
+
+        # Testing
+        _, ref_aff, _ = utils.load_volume(reference_file, im_only=False)
+        _, out_aff, _ = utils.load_volume(out_file, im_only=False)
+
+        assert np.allclose(ref_aff, out_aff) == True, "Mismatched Affine"
+
+
+def id_check(scan_reg, mri_resampled_seg):
+    scan_reg_fn = os.path.split(scan_reg)[-1]
+    mri_resampled_seg_fn = os.path.split(mri_resampled_seg)[-1]
+
+    assert scan_reg_fn[:7] == mri_resampled_seg_fn[:7], 'File MisMatch'
+    print(scan_reg_fn[:7])
 
 
 def perform_overlay():
-    mri_scans = files_at_path(MRI_SCANS_PATH)
-    mri_segs_resampled = files_at_path(MRI_SCANS_SEG_RESAMPLED_PATH)
-    MRI_SCANS_REG_PATH = None
-    mri_reg_scans = files_at_path(MRI_SCANS_REG_PATH)
+    mri_scans_reg = files_at_path(MRI_SCANS_REG_PATH)
+    mri_resampled_segs = files_at_path(MRI_SCANS_SEG_RESAMPLED_PATH)
 
     os.makedirs(MRI_SCANS_SEG_REG_PATH, exist_ok=True)
 
-    for scan, reg_scan, resampled_seg in zip(mri_scans, mri_reg_scans,
-                                             mri_segs_resampled):
-        assert scan[:10] == reg_scan[:10] == resampled_seg[:10], 'File MisMatch'
+    print('Creating...')
+    for scan_reg, mri_resampled_seg in zip(mri_scans_reg, mri_resampled_segs):
+        id_check(scan_reg, mri_resampled_seg)
 
-        _, file_name = os.path.split(resampled_seg)
+        _, scan_reg_aff, scan_reg_head = utils.load_volume(scan_reg,
+                                                           im_only=False)
+        mrs_im = utils.load_volume(mri_resampled_seg)
+
+        _, file_name = os.path.split(mri_resampled_seg)
         file_name, file_ext = os.path.splitext(file_name)
 
         out_file = file_name + '.reg' + file_ext
-        print(out_file)
         out_file = os.path.join(MRI_SCANS_SEG_REG_PATH, out_file)
 
-        # read in the MRI and SynthSeg segmentation, which now live in the same space
-        scan_im, scan_aff, scan_head = utils.load_volume(scan, im_only=False)
-        scan_seg_im = utils.load_volume(resampled_seg)
-
-        # now read the registered MRI, which is essentially the same voxels but with a different header. This scan should overlay with the 3D photo reconstruction.
-        scan_reg_im, scan_reg_aff, scan_reg_head = utils.load_volume(reg_scan)
-
         # We can now combine the segmentation voxels with the registered header.
-        utils.save_volume(scan_seg_im, scan_reg_head, out_file)
+        utils.save_volume(mrs_im, scan_reg_aff, scan_reg_head, out_file)
+
         # this new file should overlay with the 3D photo reconstruction
 
 
-def some_function():
-    # put the synthseg segmentation in the same space as the input
-    perform_registration(MRI_SCANS_SEG_PATH, MRI_SCANS_PATH,
-                         MRI_SCANS_SEG_RESAMPLED_PATH)
+def calculate_dice(ground_truth_segs_path, estimated_segs_path):
+    ground_truths = files_at_path(ground_truth_segs_path)
+    estimated_segs = files_at_path(estimated_segs_path)
 
-    perform_overlay()
+    final_dice_scores = dict()
+    for ground_truth, estimated_seg in zip(ground_truths, estimated_segs):
+        id_check(ground_truth, estimated_seg)
 
-    # The photo segmentation (photo_synthseg.mgz) and the ground truth segmentation in photo space (registered_segmentation.mgz)
-    # % overlay in Freeview but do not live in the same voxel space as they have different headers. You need to resample the segmentation of the photos on
-    # % the space of the ground truth (which is cleaner than the other way around, me thinks? I don’t know. It shouldn’t be too different…
-    # mri_convert photo_synthseg.mgz photo_synthseg_resampled.mgz -rl registered_segmentation.mgz -rt nearest -odt float
+        subject_id = os.path.split(ground_truth)[-1][:7]
 
-    perform_registration(HARD_RECON_SEG_PATH, REG_SEG_PATH,
-                         HARD_RECON_SEG_RESAMPLED_PATH)
+        ground_truth_vol = utils.load_volume(ground_truth)
+        estimated_seg_vol = utils.load_volume(estimated_seg)
 
+        assert ground_truth_vol.shape == estimated_seg_vol.shape, "Shape mismatch"
 
-def calculate_dice(reference_path, segmentation_path):
-    reference_list = files_at_path(reference_path)
-    segmentation_list = files_at_path(segmentation_path)
+        ground_truth_labels, estimated_seg_labels = np.unique(
+            ground_truth_vol), np.unique(estimated_seg_vol)
 
-    for ref_file, seg_file in zip(reference_list, segmentation_list):
-        assert ref_file[:10] == seg_file[:10], 'File Mismatch'
+        common_labels = np.array(
+            list(set(ground_truth_labels).intersection(estimated_seg_labels)))
 
-        ref_vol = utils.load_volume(ref_file)
-        seg_vol = utils.load_volume(seg_file)
+        dice_coeff = fast_dice(ground_truth_vol, estimated_seg_vol,
+                               common_labels)
 
-        assert ref_vol.shape == seg_vol.shape, "Shape mismatch"
+        common_labels = common_labels.astype('int').tolist()
 
-        ref_vol_labels, seg_vol_labels = np.unique(ref_vol), np.unique(seg_vol)
+        final_dice_scores[subject_id] = dict(zip(common_labels, dice_coeff))
 
-    common_labels = np.array(
-        list(set(ref_vol_labels).intersection(seg_vol_labels)))
-
-    dice_coeff = fast_dice(ref_vol, seg_vol, common_labels)
+    with open('hard_recon_dice.json', 'w', encoding='utf-8') as fp:
+        json.dump(final_dice_scores,
+                  fp,
+                  ensure_ascii=False,
+                  sort_keys=True,
+                  indent=4)
 
 
 def main():
@@ -211,15 +238,24 @@ def main():
     #                    src_file_suffix['hard1'])
     # copy_uw_recon_vols(UW_SOFT_RECON_PATH, SOFT_RECONS_PATH,
     #                    src_file_suffix['soft1'])
-    # copy_uw_recon_vols(UW_HARD_RECON_PATH, HARD_RECON_REG_PATH,
+    # copy_uw_recon_vols(UW_HARD_RECON_PATH, MRI_SCANS_REG_PATH,
     #                    src_file_suffix['hard2'])
     # copy_uw_recon_vols(UW_SOFT_RECON_PATH, SOFT_RECON_REG_PATH,
     #                    src_file_suffix['soft2'])
 
-    # run_make_target('hard')  # Run this on mlsc
-    # run_make_target('soft')  # Run this on mlsc
+    # run_make_target('hard')   # Run this on mlsc
+    # run_make_target('soft')   # Run this on mlsc
+    # run_make_target('scans')  # Run this on mlsc
 
-    # some_function()
+    # put the synthseg segmentation in the same space as the input
+    # perform_registration(MRI_SCANS_SEG_PATH, MRI_SCANS_PATH,
+    #                      MRI_SCANS_SEG_RESAMPLED_PATH)
+
+    # perform_overlay()
+
+    # perform_registration(HARD_RECON_SEG_PATH, MRI_SCANS_SEG_REG_PATH,
+    #                      HARD_RECON_SEG_RESAMPLED_PATH)
+
     # calculate_dice(MRI_SCANS_SEG_RESAMPLED_PATH,
     #                HARD_RECON_SEG_RESAMPLED_PATH)  # for hard
     # calculate_dice(MRI_SCANS_SEG_RESAMPLED_PATH,
