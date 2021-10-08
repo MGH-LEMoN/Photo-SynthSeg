@@ -3,6 +3,7 @@
 
 import glob
 import json
+from mmap import ALLOCATIONGRANULARITY
 import os
 import re
 from shutil import copyfile
@@ -218,14 +219,10 @@ def calculate_dice(ground_truth_segs_path, estimated_segs_path):
 
         assert ground_truth_vol.shape == estimated_seg_vol.shape, "Shape mismatch"
 
-        ground_truth_labels, estimated_seg_labels = np.unique(
-            ground_truth_vol), np.unique(estimated_seg_vol)
-
-        common_labels = np.array(
-            list(set(ground_truth_labels).intersection(estimated_seg_labels)))
+        required_labels = np.array(list(set(ALL_LABELS) - set(IGNORE_LABELS)))
 
         dice_coeff = fast_dice(ground_truth_vol, estimated_seg_vol,
-                               common_labels)
+                               required_labels)
 
         common_labels = common_labels.astype('int').tolist()
 
@@ -331,7 +328,7 @@ def combine_pairs(df, pair_list):
     return df
 
 
-def volume_correlations():
+def get_volume_correlations():
     hard_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
                                       'UW.photos.hard.recon.volumes.jei.csv')
     soft_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
@@ -395,4 +392,5 @@ if __name__ == '__main__':
     # calculate_dice(MRI_SCANS_SEG_RESAMPLED_PATH,
     #                SOFT_RECON_SEG_RESAMPLED_PATH)  # for soft- check with Henry
 
-    #  hard_recon_box_plot()
+    # hard_recon_box_plot()
+    # get_volume_correlations()
