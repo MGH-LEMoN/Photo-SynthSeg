@@ -189,9 +189,10 @@ predict-scans:
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 
-	$(CMD) $(PROJ_DIR)/scripts/commands/SynthSeg_predict.py \
+	python $(PROJ_DIR)/scripts/commands/SynthSeg_predict.py \
 		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/ \
+		--vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/
 
 predict-soft:
 	$(ACTIVATE_ENV)

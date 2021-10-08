@@ -7,11 +7,17 @@ import os
 import re
 from shutil import copyfile
 
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from matplotlib.backends.backend_pdf import PdfPages
 from nipype.interfaces.freesurfer import MRIConvert
 
 from ext.lab2im import utils
 from SynthSeg.evaluate import fast_dice
+
+# TODO: this file is work in progress
+plt.rcParams.update({"text.usetex": False, 'font.family': 'sans-serif'})
 
 SYNTHSEG_PRJCT = '/space/calico/1/users/Harsha/SynthSeg'
 
@@ -34,6 +40,14 @@ SOFT_RECONS_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.soft.recon'
 SOFT_RECON_SEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.soft.recon.segmentations.jei'
 SOFT_RECON_SEG_RESAMPLED_PATH = SOFT_RECON_SEG_PATH + '.resampled'
 # SOFT_RECON_REG_PATH = SOFT_RECONS_PATH + '.reg'
+
+ALL_LABELS = [
+    0, 2, 3, 4, 5, 10, 11, 12, 13, 14, 17, 18, 26, 28, 41, 42, 43, 44, 49, 50,
+    51, 52, 53, 54, 58, 60
+]
+IGNORE_LABELS = [0, 5, 14, 26, 28, 44, 58, 60]
+LABEL_PAIRS = [(2, 41), (3, 42), (4, 43), (10, 49), (11, 50), (12, 51),
+               (13, 52), (17, 53), (18, 54)]
 
 
 def files_at_path(path_str):
@@ -225,7 +239,127 @@ def calculate_dice(ground_truth_segs_path, estimated_segs_path):
                   indent=4)
 
 
-def main():
+def hard_recon_box_plot():
+    # Load json
+    hard_dice_json = os.path.join(SYNTHSEG_PRJCT, 'hard_recon_dice.json')
+    with open(hard_dice_json, 'r') as fp:
+        hard_dice = json.load(fp)
+
+    dice_pair_dict = dict()
+    for label_pair in LABEL_PAIRS:
+        dice_pair_dict[label_pair] = []
+
+    for subject in hard_dice:
+        print(f'{subject} - {len(hard_dice[subject])}')
+        for label_pair in LABEL_PAIRS:
+            dice_pair = [
+                hard_dice[subject].get(str(label), 0) for label in label_pair
+            ]
+
+            if np.all(dice_pair):  # Remove (0, x)/(x, 0)/(0, 0)
+                dice_pair_dict[label_pair].append(dice_pair)
+
+    data = []
+    for label_pair in dice_pair_dict:
+        data.append(np.mean(dice_pair_dict[label_pair], 1))
+
+    plt.rcParams.update({"text.usetex": False})
+    pp = PdfPages('hard_dice_boxplot1.pdf')
+
+    # https://www.geeksforgeeks.org/box-plot-in-python-using-matplotlib/
+
+    # fig, ax = plt.subplots()
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111)
+
+    # Creating axes instance
+    bp = ax.boxplot(data, patch_artist=True, notch='True')
+
+    # colors = ['#0000FF', '#00FF00',
+    #         '#FFFF00', '#FF00FF']
+
+    # for patch, color in zip(bp['boxes'], colors):
+    #     patch.set_facecolor(color)
+
+    # changing color and linewidth of
+    # whiskers
+    for whisker in bp['whiskers']:
+        whisker.set(color='#8B008B', linewidth=1.5, linestyle=":")
+
+    # changing color and linewidth of
+    # caps
+    for cap in bp['caps']:
+        cap.set(color='#8B008B', linewidth=2)
+
+    # changing color and linewidth of
+    # medians
+    for median in bp['medians']:
+        median.set(color='red', linewidth=3)
+
+    # changing style of fliers
+    for flier in bp['fliers']:
+        flier.set(marker='D', color='#e7298a', alpha=0.5)
+
+    # x-axis labels
+    ax.set_xticklabels(LABEL_PAIRS, fontsize=15, rotation=45)
+    plt.yticks(fontsize=15)
+
+    # Adding title
+    plt.title("Measured 3D Surface - Dice Scores", fontsize=20)
+
+    # Removing top axes and right axes
+    # ticks
+    ax.get_xaxis().tick_bottom()
+    ax.get_yaxis().tick_left()
+
+    # show plot
+    plt.show()
+
+    pp.savefig(fig)
+    pp.close()
+
+
+def combine_pairs(df, pair_list):
+    # drop ignore columns
+    # df = df.drop(columns=[str(item) for item in IGNORE_LIST])
+
+    for label_pair in pair_list:
+        label_pair = tuple(str(item) for item in label_pair)
+        df[f'{label_pair}'] = df[label_pair[0]] + df[label_pair[1]]
+        df = df.drop(columns=list(label_pair))
+
+    return df
+
+
+def volume_correlations():
+    hard_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
+                                      'UW.photos.hard.recon.volumes.jei.csv')
+    soft_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
+                                      'UW.photos.soft.recon.volumes.jei.csv')
+    mri_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
+                                     'UW.photos.mri.scans.segmentations.csv')
+
+    mri_seg_vols = pd.read_csv(mri_seg_vols_file, header=None)
+    hard_seg_vols = pd.read_csv(hard_seg_vols_file, header=0)
+    soft_seg_vols = pd.read_csv(soft_seg_vols_file, header=0)
+
+    label_names = mri_seg_vols.iloc[0, 1:].values
+    label_idx = mri_seg_vols.iloc[1, 1:].values
+
+    label_dict = list(zip(label_idx, label_names))
+
+    mri_seg_vols = mri_seg_vols.drop([0])
+    mri_seg_vols.loc[1, 0] = 'subjects'
+    mri_seg_vols.columns = mri_seg_vols.iloc[0]
+    mri_seg_vols = mri_seg_vols.drop([1])
+    mri_seg_vols = mri_seg_vols.reset_index(drop=True)
+
+    mri_seg_vols = combine_pairs(mri_seg_vols, LABEL_PAIRS)
+    hard_seg_vols = combine_pairs(hard_seg_vols, LABEL_PAIRS)
+    soft_seg_vols = combine_pairs(soft_seg_vols, LABEL_PAIRS)
+
+
+if __name__ == '__main__':
     src_file_suffix = {
         'hard1': ['*.hard.recon.mgz'],
         'soft1': ['soft', '*_soft.mgz'],
@@ -261,6 +395,4 @@ def main():
     # calculate_dice(MRI_SCANS_SEG_RESAMPLED_PATH,
     #                SOFT_RECON_SEG_RESAMPLED_PATH)  # for soft- check with Henry
 
-
-if __name__ == '__main__':
-    main()
+    #  hard_recon_box_plot()

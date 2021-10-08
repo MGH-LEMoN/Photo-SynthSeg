@@ -1,7 +1,7 @@
 import ast
 import os
 
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 
 from argparse import ArgumentParser
 from SynthSeg.training import training
