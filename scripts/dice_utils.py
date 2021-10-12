@@ -3,7 +3,6 @@
 
 import glob
 import json
-from mmap import ALLOCATIONGRANULARITY
 import os
 import re
 from shutil import copyfile
@@ -13,6 +12,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from nipype.interfaces.freesurfer import MRIConvert
+from scipy.stats.stats import pearsonr
 
 from ext.lab2im import utils
 from SynthSeg.evaluate import fast_dice
@@ -21,6 +21,7 @@ from SynthSeg.evaluate import fast_dice
 plt.rcParams.update({"text.usetex": False, 'font.family': 'sans-serif'})
 
 SYNTHSEG_PRJCT = '/space/calico/1/users/Harsha/SynthSeg'
+SYNTHSEG_RESULTS = f'{SYNTHSEG_PRJCT}/results'
 
 UW_HARD_RECON_PATH = '/cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard'
 UW_SOFT_RECON_PATH = '/cluster/vive/UW_photo_recon/recons/results_Henry/Results_soft'
@@ -35,11 +36,15 @@ MRI_SCANS_SEG_REG_PATH = MRI_SCANS_SEG_RESAMPLED_PATH + '.registered'
 HARD_RECONS_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.hard.recon'
 HARD_RECON_SEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.hard.recon.segmentations.jei'
 HARD_RECON_SEG_RESAMPLED_PATH = HARD_RECON_SEG_PATH + '.resampled'
+HARD_RECON_SAMSEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.hard.samseg.segmentations'
+HARD_RECON_SAMSEG_RESAMPLED_PATH = HARD_RECON_SAMSEG_PATH + '.resampled'
 # HARD_RECON_REG_PATH = HARD_RECONS_PATH + '.reg'
 
 SOFT_RECONS_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.soft.recon'
 SOFT_RECON_SEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.soft.recon.segmentations.jei'
 SOFT_RECON_SEG_RESAMPLED_PATH = SOFT_RECON_SEG_PATH + '.resampled'
+SOFT_RECON_SAMSEG_PATH = f'{SYNTHSEG_PRJCT}/results/UW.photos.soft.samseg.segmentations'
+SOFT_RECON_SAMSEG_RESAMPLED_PATH = SOFT_RECON_SAMSEG_PATH + '.resampled'
 # SOFT_RECON_REG_PATH = SOFT_RECONS_PATH + '.reg'
 
 ALL_LABELS = [
@@ -47,8 +52,10 @@ ALL_LABELS = [
     51, 52, 53, 54, 58, 60
 ]
 IGNORE_LABELS = [0, 5, 14, 26, 28, 44, 58, 60]
+ADDL_IGNORE_LABELS = ['7', '8', '15', '16', '46', '47']
 LABEL_PAIRS = [(2, 41), (3, 42), (4, 43), (10, 49), (11, 50), (12, 51),
                (13, 52), (17, 53), (18, 54)]
+IGNORE_SUBJECTS = ['19-0019']
 
 
 def files_at_path(path_str):
@@ -77,6 +84,10 @@ def copy_uw_recon_vols(src_path, dest_path, flag_list):
     print('Copying...')
     for subject in subject_list:
         reconstructed_file = glob.glob(os.path.join(subject, *flag_list))
+
+        if not len(reconstructed_file):
+            continue
+
         if len(reconstructed_file) > 1:
             raise Exception('There are more than one reconstructed volumes')
 
@@ -175,7 +186,12 @@ def id_check(scan_reg, mri_resampled_seg):
     mri_resampled_seg_fn = os.path.split(mri_resampled_seg)[-1]
 
     assert scan_reg_fn[:7] == mri_resampled_seg_fn[:7], 'File MisMatch'
-    print(scan_reg_fn[:7])
+
+    if scan_reg_fn[:7] in IGNORE_SUBJECTS:
+        return 0
+    else:
+        print(scan_reg_fn[:7])
+        return 1
 
 
 def perform_overlay():
@@ -204,13 +220,14 @@ def perform_overlay():
         # this new file should overlay with the 3D photo reconstruction
 
 
-def calculate_dice(ground_truth_segs_path, estimated_segs_path):
+def calculate_dice(ground_truth_segs_path, estimated_segs_path, file_name):
     ground_truths = files_at_path(ground_truth_segs_path)
     estimated_segs = files_at_path(estimated_segs_path)
 
     final_dice_scores = dict()
     for ground_truth, estimated_seg in zip(ground_truths, estimated_segs):
-        id_check(ground_truth, estimated_seg)
+        if not id_check(ground_truth, estimated_seg):
+            continue
 
         subject_id = os.path.split(ground_truth)[-1][:7]
 
@@ -224,21 +241,19 @@ def calculate_dice(ground_truth_segs_path, estimated_segs_path):
         dice_coeff = fast_dice(ground_truth_vol, estimated_seg_vol,
                                required_labels)
 
-        common_labels = common_labels.astype('int').tolist()
+        required_labels = required_labels.astype('int').tolist()
 
-        final_dice_scores[subject_id] = dict(zip(common_labels, dice_coeff))
+        final_dice_scores[subject_id] = dict(zip(required_labels, dice_coeff))
 
-    with open('hard_recon_dice.json', 'w', encoding='utf-8') as fp:
-        json.dump(final_dice_scores,
-                  fp,
-                  ensure_ascii=False,
-                  sort_keys=True,
-                  indent=4)
+    with open(os.path.join(SYNTHSEG_RESULTS, file_name),
+              'w',
+              encoding='utf-8') as fp:
+        json.dump(final_dice_scores, fp, sort_keys=True, indent=4)
 
 
-def hard_recon_box_plot():
+def hard_recon_box_plot(in_file_name, out_file_name):
     # Load json
-    hard_dice_json = os.path.join(SYNTHSEG_PRJCT, 'hard_recon_dice.json')
+    hard_dice_json = os.path.join(SYNTHSEG_RESULTS, in_file_name)
     with open(hard_dice_json, 'r') as fp:
         hard_dice = json.load(fp)
 
@@ -253,15 +268,16 @@ def hard_recon_box_plot():
                 hard_dice[subject].get(str(label), 0) for label in label_pair
             ]
 
-            if np.all(dice_pair):  # Remove (0, x)/(x, 0)/(0, 0)
-                dice_pair_dict[label_pair].append(dice_pair)
+            # if np.all(dice_pair):  # Remove (0, x)/(x, 0)/(0, 0)
+            dice_pair_dict[label_pair].append(dice_pair)
 
     data = []
     for label_pair in dice_pair_dict:
+        print(label_pair, np.mean(dice_pair_dict[label_pair], 1))
         data.append(np.mean(dice_pair_dict[label_pair], 1))
 
     plt.rcParams.update({"text.usetex": False})
-    pp = PdfPages('hard_dice_boxplot1.pdf')
+    pp = PdfPages(os.path.join(SYNTHSEG_RESULTS, out_file_name))
 
     # https://www.geeksforgeeks.org/box-plot-in-python-using-matplotlib/
 
@@ -310,16 +326,13 @@ def hard_recon_box_plot():
     ax.get_yaxis().tick_left()
 
     # show plot
-    plt.show()
+    # plt.show()
 
     pp.savefig(fig)
     pp.close()
 
 
 def combine_pairs(df, pair_list):
-    # drop ignore columns
-    # df = df.drop(columns=[str(item) for item in IGNORE_LIST])
-
     for label_pair in pair_list:
         label_pair = tuple(str(item) for item in label_pair)
         df[f'{label_pair}'] = df[label_pair[0]] + df[label_pair[1]]
@@ -328,22 +341,32 @@ def combine_pairs(df, pair_list):
     return df
 
 
-def get_volume_correlations():
-    hard_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
+def print_correlations(x, y, file_name=None):
+    if file_name is None:
+        raise Exception('Please enter a file name to print correlations')
+    col_names = x.columns
+
+    corr_dict = dict()
+    for col_name in col_names:
+        corr_dict[col_name] = pearsonr(x[col_name], y[col_name])[0]
+
+    with open(os.path.join(SYNTHSEG_RESULTS, file_name),
+            'w',
+            encoding='utf-8') as fp:
+        json.dump(corr_dict, fp, sort_keys=True, indent=4)
+
+
+def get_volume_correlations(flag):
+    hard_seg_vols_file = os.path.join(SYNTHSEG_RESULTS,
                                       'UW.photos.hard.recon.volumes.jei.csv')
-    soft_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
+    soft_seg_vols_file = os.path.join(SYNTHSEG_RESULTS,
                                       'UW.photos.soft.recon.volumes.jei.csv')
-    mri_seg_vols_file = os.path.join(SYNTHSEG_PRJCT, 'results',
+    mri_seg_vols_file = os.path.join(SYNTHSEG_RESULTS,
                                      'UW.photos.mri.scans.segmentations.csv')
 
     mri_seg_vols = pd.read_csv(mri_seg_vols_file, header=None)
     hard_seg_vols = pd.read_csv(hard_seg_vols_file, header=0)
     soft_seg_vols = pd.read_csv(soft_seg_vols_file, header=0)
-
-    label_names = mri_seg_vols.iloc[0, 1:].values
-    label_idx = mri_seg_vols.iloc[1, 1:].values
-
-    label_dict = list(zip(label_idx, label_names))
 
     mri_seg_vols = mri_seg_vols.drop([0])
     mri_seg_vols.loc[1, 0] = 'subjects'
@@ -351,9 +374,24 @@ def get_volume_correlations():
     mri_seg_vols = mri_seg_vols.drop([1])
     mri_seg_vols = mri_seg_vols.reset_index(drop=True)
 
+    drop_cols = [str(label) for label in IGNORE_LABELS
+                 ] + ADDL_IGNORE_LABELS + ['subjects']
+    mri_seg_vols = mri_seg_vols.drop(columns=drop_cols, errors='ignore')
+    hard_seg_vols = hard_seg_vols.drop(columns=drop_cols, errors='ignore')
+    soft_seg_vols = soft_seg_vols.drop(columns=drop_cols, errors='ignore')
+
+    mri_seg_vols = mri_seg_vols.astype('float32')
+    hard_seg_vols = hard_seg_vols.astype('float32')
+    soft_seg_vols = soft_seg_vols.astype('float32')
+
     mri_seg_vols = combine_pairs(mri_seg_vols, LABEL_PAIRS)
     hard_seg_vols = combine_pairs(hard_seg_vols, LABEL_PAIRS)
     soft_seg_vols = combine_pairs(soft_seg_vols, LABEL_PAIRS)
+
+    print('Saving Hard Reconstruction Correlations')
+    print_correlations(mri_seg_vols, hard_seg_vols, f'{flag}_hard_recon_correlations.json')
+    print('Saving Soft Reconstruction Correlations')
+    print_correlations(mri_seg_vols, soft_seg_vols, f'{flag}_soft_recon_correlations.json')
 
 
 if __name__ == '__main__':
@@ -361,7 +399,9 @@ if __name__ == '__main__':
         'hard1': ['*.hard.recon.mgz'],
         'soft1': ['soft', '*_soft.mgz'],
         'hard2': ['*.hard.warped_ref.mgz'],
-        'soft2': ['soft', '*_soft_regatlas.mgz']
+        'soft2': ['soft', '*_soft_regatlas.mgz'],
+        'hard3': ['*samseg*.mgz'],
+        'soft3': ['soft', '*samseg*.mgz']
     }
 
     # copy_uw_mri_scans(UW_MRI_SCAN_PATH, MRI_SCANS_PATH)
@@ -388,9 +428,26 @@ if __name__ == '__main__':
     #                      HARD_RECON_SEG_RESAMPLED_PATH)
 
     # calculate_dice(MRI_SCANS_SEG_RESAMPLED_PATH,
-    #                HARD_RECON_SEG_RESAMPLED_PATH)  # for hard
+    #                HARD_RECON_SEG_RESAMPLED_PATH, 'hard_recon_dice.json')  # for hard
     # calculate_dice(MRI_SCANS_SEG_RESAMPLED_PATH,
     #                SOFT_RECON_SEG_RESAMPLED_PATH)  # for soft- check with Henry
 
-    # hard_recon_box_plot()
-    # get_volume_correlations()
+    # hard_recon_box_plot('hard_recon_dice.json', 'hard_dice_boxplot.pdf')
+    # get_volume_correlations('synthseg')
+
+    ### START for SAMSEG
+    # copy_uw_recon_vols(UW_HARD_RECON_PATH, HARD_RECON_SAMSEG_PATH,
+    #                    src_file_suffix['hard3'])
+    # copy_uw_recon_vols(UW_SOFT_RECON_PATH, SOFT_RECON_SAMSEG_PATH,
+    #                    src_file_suffix['soft3'])
+
+    perform_registration(HARD_RECON_SAMSEG_PATH, MRI_SCANS_SEG_REG_PATH,
+                        HARD_RECON_SAMSEG_RESAMPLED_PATH)
+
+    # calculate_dice(MRI_SCANS_SEG_RESAMPLED_PATH,
+    #                HARD_RECON_SAMSEG_RESAMPLED_PATH, 'hard_samseg_dice.json')
+
+    hard_recon_box_plot('hard_samseg_dice.json', 'hard_samseg_dice_boxplot.pdf')
+    # get_volume_correlations('samseg')
+
+    # TODO: SAMSEG vs SYNTHSEG
