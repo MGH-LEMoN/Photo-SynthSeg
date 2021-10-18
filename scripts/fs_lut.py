@@ -8,15 +8,7 @@ import sys
 # 2. Run chmod +x /path/to/script
 # 3. Create an alias in your ~/.bashrc file: alias fs_lut='/path/to/script'
 # 4. source ~/.bashrc
-# 5. Example: fs_lut <integer>
-
-def check_user_input(input):
-    try:
-        val = int(input)
-        return val
-    except ValueError:
-        print('Invalid String')
-        exit()
+# 5. Example: fs_lut <integer> | <list of integers>
 
 
 def fs_lut():
@@ -35,6 +27,6 @@ def fs_lut():
 
 if __name__ == '__main__':
     lut, reverse_lut = fs_lut()
-    idx = check_user_input(sys.argv[1])
 
-    print(lut.get(str(idx), 'Requested Index doesn\'t exist'))
+    for arg in sys.argv[1:]:
+        print(f'{str(arg)} - {lut.get(str(arg), "Does Not Exist")}')
