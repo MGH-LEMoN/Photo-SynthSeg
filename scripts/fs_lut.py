@@ -10,7 +10,7 @@ import sys
 # 4. source ~/.bashrc
 # 5. Example: fs_lut <integer> | <list of integers>
 
-# TODO: 1. user requests the fost 'n' labels
+# TODO: 1. user requests the first 'n' labels
 # TODO: 2. user specifies a 'range' or 'list of ranges'
 
 
