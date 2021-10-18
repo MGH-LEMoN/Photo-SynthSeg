@@ -3,6 +3,12 @@
 import re
 import sys
 
+## !!! INSTRUCTIONS !!! ## (You do this only once)
+# 1. Place this script in your home directory
+# 2. Run chmod +x /path/to/script
+# 3. Create an alias in your ~/.bashrc file: alias fs_lut='/path/to/script'
+# 4. source ~/.bashrc
+# 5. Example: fs_lut <integer>
 
 def check_user_input(input):
     try:
@@ -31,4 +37,4 @@ if __name__ == '__main__':
     lut, reverse_lut = fs_lut()
     idx = check_user_input(sys.argv[1])
 
-    print(lut[str(idx)])
+    print(lut.get(str(idx), 'Requested Index doesn\'t exist'))
