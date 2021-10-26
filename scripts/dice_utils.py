@@ -307,7 +307,7 @@ def calculate_dice(ground_truth_segs_path, estimated_segs_path, file_name):
         json.dump(final_dice_scores, fp, sort_keys=True, indent=4)
 
 
-def hard_recon_box_plot(in_file_name, out_file_name):
+def dice_box_plot(in_file_name, out_file_name):
     # Load json
     hard_dice_json = os.path.join(SYNTHSEG_RESULTS, in_file_name)
     with open(hard_dice_json, 'r') as fp:
@@ -686,7 +686,7 @@ if __name__ == '__main__':
                          MRI_SYNTHSEG_IN_SAMSEG_SPACE)
     calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
                    'mri_synth_vs_hard_samseg_in_sam_space.json')
-    hard_recon_box_plot('mri_synth_vs_hard_samseg_in_sam_space.json',
+    dice_box_plot('mri_synth_vs_hard_samseg_in_sam_space.json',
                         'mri_synth_vs_hard_samseg_in_sam_space.pdf')
 
     print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
@@ -695,7 +695,7 @@ if __name__ == '__main__':
     calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
                    HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
                    'mri_synth_vs_hard_synth_in_sam_space.json')
-    hard_recon_box_plot('mri_synth_vs_hard_synth_in_sam_space.json',
+    dice_box_plot('mri_synth_vs_hard_synth_in_sam_space.json',
                         'mri_synth_vs_hard_synth_in_sam_space.pdf')
 
     print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
@@ -703,7 +703,7 @@ if __name__ == '__main__':
                          HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
     calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
                    'mri_synth_vs_hard_synth_in_mri_space.json')
-    hard_recon_box_plot('mri_synth_vs_hard_synth_in_mri_space.json',
+    dice_box_plot('mri_synth_vs_hard_synth_in_mri_space.json',
                         'mri_synth_vs_hard_synth_in_mri_space.pdf')
 
     print('Extracting SYNTHSEG Volumes')
@@ -735,11 +735,11 @@ if __name__ == '__main__':
     calculate_soft_dice(MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE,
                         SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
                         'mri_synth_vs_soft_synth_in_sam_space.json')
-    hard_recon_box_plot('mri_synth_vs_soft_synth_in_sam_space.json',
+    dice_box_plot('mri_synth_vs_soft_synth_in_sam_space.json',
                         'mri_synth_vs_soft_synth_in_sam_space.pdf')
 
     print('Dice(MRIseg, PhotoSamSeg) in PhotoSAMSEG space')
     calculate_soft_dice(MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE, SOFT_RECON_SAMSEG,
                         'mri_synth_vs_soft_samseg_in_sam_space.json')
-    hard_recon_box_plot('mri_synth_vs_soft_samseg_in_sam_space.json',
+    dice_box_plot('mri_synth_vs_soft_samseg_in_sam_space.json',
                         'mri_synth_vs_soft_samseg_in_sam_space.pdf')
