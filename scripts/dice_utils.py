@@ -16,6 +16,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from nipype.interfaces.freesurfer import MRIConvert
 from scipy.stats.stats import pearsonr
 from SynthSeg.evaluate import fast_dice
+
 from fs_lut import fs_lut
 
 # TODO: this file is work in progress
@@ -38,29 +39,25 @@ MRI_SCANS_SEG_REG_RES = MRI_SCANS_SEG_RESAMPLED + '.registered'
 
 HARD_RECONS = f'{SYNTHSEG_RESULTS}/UW.photos.hard.recon'
 HARD_RECON_SYNTHSEG = f'{SYNTHSEG_RESULTS}/UW.photos.hard.recon.segmentations.jei'
-HARD_RECON_SYNTHSEG_RESAMPLED = HARD_RECON_SYNTHSEG + '.resampled'
 HARD_RECON_SAMSEG = f'{SYNTHSEG_RESULTS}/UW.photos.hard.samseg.segmentations'
-HARD_RECON_SAMSEG_RESAMPLED = HARD_RECON_SAMSEG + '.resampled'
 
 SOFT_RECONS = f'{SYNTHSEG_RESULTS}/UW.photos.soft.recon'
 SOFT_RECON_REG = SOFT_RECONS + '.registered'
 SOFT_RECON_SYNTHSEG = f'{SYNTHSEG_RESULTS}/UW.photos.soft.recon.segmentations.jei'
-SOFT_RECON_SYNTHSEG_RESAMPLED = SOFT_RECON_SYNTHSEG + '.resampled'
 SOFT_RECON_SAMSEG = f'{SYNTHSEG_RESULTS}/UW.photos.soft.samseg.segmentations'
-SOFT_RECON_SAMSEG_RESAMPLED = SOFT_RECON_SAMSEG + '.resampled'
+SOFT_MANUAL_LABELS_MERGED = f'{SYNTHSEG_RESULTS}/UW.photos.soft.manual.labels'
 
 # Note: All of these are in photo RAS space (just resampling based on reference)
 MRI_SYNTHSEG_IN_SAMSEG_SPACE = MRI_SCANS_SEG_REG_RES + '.in_samseg_space'
+MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE = MRI_SCANS_SEG_REG_RES + '.in_softsamseg_space'
 HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE = HARD_RECON_SYNTHSEG + '.in_samseg_space'
 HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE = HARD_RECON_SYNTHSEG + '.in_mri_space'
+SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE = SOFT_RECON_SYNTHSEG + '.in_samseg_space'
 
-mri_synthseg_vols_file = os.path.join(SYNTHSEG_RESULTS,
-                                    'UW.photos.mri.scans.segmentations.csv')
-soft_synthseg_vols_file = os.path.join(SYNTHSEG_RESULTS,
-                                'UW.photos.soft.recon.volumes.jei.csv')
-hard_synthseg_vols_file = os.path.join(SYNTHSEG_RESULTS,
-                                'UW.photos.hard.recon.volumes.jei.csv')
-                                
+mri_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.mri.scans.segmentations.csv'
+soft_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.soft.recon.volumes.jei.csv'
+hard_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.hard.recon.volumes.jei.csv'
+
 #### Extract SAMSEG Volumes
 HARD_SAMSEG_STATS = f'{UW_HARD_RECON}/SAMSEG/'
 SOFT_SAMSEG_STATS = f'{UW_SOFT_RECON}/SAMSEG/'
@@ -455,19 +452,20 @@ def get_volume_correlations(flag):
 def extract_synthseg_vols(file_name, flag):
     skiprows = 1 if flag == 'mri' else None
     df = pd.read_csv(file_name, skiprows=skiprows, header=0)
-    
+
     if flag == 'mri':
         df = df.rename(columns={'Unnamed: 0': 'subjects'})
 
     df['subjects'] = df['subjects'].str.slice(0, 7)
     df = df.set_index('subjects')
-    
+
     df.index.name = None
-    
+
     df = combine_pairs(df, LABEL_PAIRS)
-    df = df.drop(columns=[column for column in df.columns if '(' not in column])
+    df = df.drop(
+        columns=[column for column in df.columns if '(' not in column])
     df = df.drop(labels=IGNORE_SUBJECTS)
-    
+
     return df
 
 
@@ -479,42 +477,43 @@ def print_correlation_pairs(x, y, z, file_name=None, flag=None):
 
     col_names = x.columns
 
-    original_stdout = sys.stdout # Save a reference to the original standard output
-    with open(os.path.join(SYNTHSEG_RESULTS, 'volume_correlations'), 'a+') as f:
-        sys.stdout = f # Change the standard output to the file we created.
+    original_stdout = sys.stdout  # Save a reference to the original standard output
+    with open(os.path.join(SYNTHSEG_RESULTS, 'volume_correlations'),
+              'a+') as f:
+        sys.stdout = f  # Change the standard output to the file we created.
 
         print(f'{flag} RECONSTRUCTIONS')
         print('{:^15}{:^15}{:^15}'.format('label', 'SAMSEG', 'SYNTHSEG'))
-        print('='*45)   
+        print('=' * 45)
         print('CORRELATIONS')
-        print('='*45)
+        print('=' * 45)
         for col_name in col_names:
             a = pearsonr(x[col_name], y[col_name])[0]
             b = pearsonr(x[col_name], z[col_name])[0]
-            
+
             print(f'{col_name:^15}{a:^15.3f}{b:^15.3f}')
-        print('='*45)
-        
+        print('=' * 45)
+
         print('MEAN ABSOLUTE RESIDUALS')
-        print('='*45)
+        print('=' * 45)
         for col_name in col_names:
-            a = np.mean(np.abs(x[col_name] - y[col_name]) / x[col_name]) * 100   
+            a = np.mean(np.abs(x[col_name] - y[col_name]) / x[col_name]) * 100
             b = np.mean(np.abs(x[col_name] - z[col_name]) / x[col_name]) * 100
-            
+
             print(f'{col_name:^15}{a:^15.3f}{b:^15.3f}')
-        print('='*45)
-        
+        print('=' * 45)
+
         print('MEAN RESIDUALS')
-        print('='*45)
+        print('=' * 45)
         for col_name in col_names:
-            a = np.mean((x[col_name] - y[col_name]) / x[col_name]) * 100   
+            a = np.mean((x[col_name] - y[col_name]) / x[col_name]) * 100
             b = np.mean((x[col_name] - z[col_name]) / x[col_name]) * 100
-            
+
             print(f'{col_name:^15}{a:^15.3f}{b:^15.3f}')
-        print('='*45)
+        print('=' * 45)
         print()
-        sys.stdout = original_stdout # Reset the standard output to its original value
-        
+        sys.stdout = original_stdout  # Reset the standard output to its original value
+
     return
 
 
@@ -529,7 +528,7 @@ def combine_pairs(df, pair_list):
 
 def extract_samseg_volumes(folder_path, flag):
     df_list = []
-    
+
     hard_folder_list = sorted(glob.glob(os.path.join(folder_path, '*')))
 
     for folder in hard_folder_list:
@@ -545,7 +544,9 @@ def extract_samseg_volumes(folder_path, flag):
         if subject_id in IGNORE_SUBJECTS:
             continue
 
-        df = pd.read_csv(os.path.join(folder, 'samseg.stats'), header=None, names = ['label', 'volume', 'units'])
+        df = pd.read_csv(os.path.join(folder, 'samseg.stats'),
+                         header=None,
+                         names=['label', 'volume', 'units'])
 
         # drop column 'units'
         df = df.drop(columns=['units'])
@@ -575,8 +576,9 @@ def extract_samseg_volumes(folder_path, flag):
     df2 = df1.T
 
     df2 = combine_pairs(df2, LABEL_PAIRS)
-    hard_samseg_df = df2.drop(columns=[column for column in df2.columns if '(' not in column])
-    
+    hard_samseg_df = df2.drop(
+        columns=[column for column in df2.columns if '(' not in column])
+
     return hard_samseg_df
 
 
@@ -594,6 +596,43 @@ def print_correlations(x, y, file_name=None):
         json.dump(corr_dict, fp, sort_keys=True, indent=4)
 
 
+def calculate_soft_dice(folder1, folder2, file_name):
+    folder1_list = files_at_path(folder1)
+    folder2_list = files_at_path(folder2)
+
+    folder1_list, folder2_list = return_common_subjects(
+        folder1_list, folder2_list)
+
+    final_dice_scores = dict()
+    for file1, file2 in zip(folder1_list, folder2_list):
+        if not id_check(file1, file2):
+            continue
+
+        subject_id = os.path.split(file1)[-1][:7]
+
+        img1 = utils.load_volume(file1)
+        img2 = utils.load_volume(file2)
+
+        assert img2.shape == img2.shape, "Shape Mismatch"
+
+        slice_idx = np.argmax((img1 > 1).sum(0).sum(0))
+
+        x = img1[:, :, slice_idx]
+        y = img2[:, :, slice_idx]
+
+        required_labels = np.array(list(set(ALL_LABELS) - set(IGNORE_LABELS)))
+
+        dice_coeff = fast_dice(x, y, required_labels)
+
+        required_labels = required_labels.astype('int').tolist()
+
+        final_dice_scores[subject_id] = dict(zip(required_labels, dice_coeff))
+
+    with open(os.path.join(SYNTHSEG_RESULTS, file_name), 'w',
+              encoding='utf-8') as fp:
+        json.dump(final_dice_scores, fp, sort_keys=True, indent=4)
+
+
 if __name__ == '__main__':
     src_file_suffix = {
         'hard1': ['*.hard.recon.mgz'],
@@ -601,90 +640,106 @@ if __name__ == '__main__':
         'hard2': ['*.hard.warped_ref.mgz'],
         'soft2': ['soft', '*_soft_regatlas.mgz'],
         'hard3': ['*samseg*.mgz'],
-        'soft3': ['soft', '*samseg*.mgz']
+        'soft3': ['soft', '*samseg*.mgz'],
+        'soft4': ['soft', '*manualLabel_merged.mgz']
     }
 
-    # print('\nCopying MRI Scans')
-    # copy_uw_mri_scans(UW_MRI_SCAN, MRI_SCANS)
+    print('\nCopying MRI Scans')
+    copy_uw_mri_scans(UW_MRI_SCAN, MRI_SCANS)
 
-    # print('\nCopying Hard Reconsructions')
-    # copy_uw_recon_vols(UW_HARD_RECON, HARD_RECONS, src_file_suffix['hard1'])
+    print('\nCopying Hard Reconstructions')
+    copy_uw_recon_vols(UW_HARD_RECON, HARD_RECONS, src_file_suffix['hard1'])
 
-    # print('\nCopying Soft Reconstructions')
-    # copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECONS, src_file_suffix['soft1'])
+    print('\nCopying Soft Reconstructions')
+    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECONS, src_file_suffix['soft1'])
 
-    # print('\nCopying Registered (to hard) MRI Scans')
-    # copy_uw_recon_vols(UW_HARD_RECON, MRI_SCANS_REG, src_file_suffix['hard2'])
+    print('\nCopying Registered (to hard) MRI Scans')
+    copy_uw_recon_vols(UW_HARD_RECON, MRI_SCANS_REG, src_file_suffix['hard2'])
 
-    # print('\nCopying I really dont know what this is')
-    # copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_REG, src_file_suffix['soft2'])
+    print('\nCopying I really dont know what this is')
+    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_REG, src_file_suffix['soft2'])
 
-    # run_make_target('hard')  # Run this on mlsc
-    # run_make_target('soft')  # Run this on mlsc
-    # run_make_target('scans')  # Run this on mlsc
+    print('\nCopying Soft Manual Labels')
+    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_MANUAL_LABELS_MERGED,
+                       src_file_suffix['soft4'])
 
-    # print('\nCopying SAMSEG Segmentations (Hard)')
-    # copy_uw_recon_vols(UW_HARD_RECON, HARD_RECON_SAMSEG,
-    #                    src_file_suffix['hard3'])
+    run_make_target('hard')  # Run this on mlsc
+    run_make_target('soft')  # Run this on mlsc
+    run_make_target('scans')  # Run this on mlsc
 
-    # print('\nCopying SAMSEG Segmentations (Soft)')
-    # copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_SAMSEG,
-    #                    src_file_suffix['soft3'])
+    print('\nCopying SAMSEG Segmentations (Hard)')
+    copy_uw_recon_vols(UW_HARD_RECON, HARD_RECON_SAMSEG,
+                       src_file_suffix['hard3'])
 
-    # print('\nPut MRI SynthSeg Segmentation in the same space as MRI')
-    # perform_registration(MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
+    print('\nCopying SAMSEG Segmentations (Soft)')
+    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_SAMSEG,
+                       src_file_suffix['soft3'])
 
-    # print('\nCombining MRI_Seg Volume and MRI_Vol Header')
-    # perform_overlay()
+    print('\nPut MRI SynthSeg Segmentation in the same space as MRI')
+    perform_registration(MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
 
-    # print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
-    # perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
-    #                      MRI_SYNTHSEG_IN_SAMSEG_SPACE)
-    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
-    #                'mri_synth_vs_hard_samseg_in_sam_space.json')
-    # hard_recon_box_plot('mri_synth_vs_hard_samseg_in_sam_space.json',
-    #                     'mri_synth_vs_hard_samseg_in_sam_space.pdf')
+    print('\nCombining MRI_Seg Volume and MRI_Vol Header')
+    perform_overlay()
 
-    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    # perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
-    #                      HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
-    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
-    #                HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
-    #                'mri_synth_vs_hard_synth_in_sam_space.json')
-    # hard_recon_box_plot('mri_synth_vs_hard_synth_in_sam_space.json',
-    #                     'mri_synth_vs_hard_synth_in_sam_space.pdf')
+    print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
+    perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
+                         MRI_SYNTHSEG_IN_SAMSEG_SPACE)
+    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
+                   'mri_synth_vs_hard_samseg_in_sam_space.json')
+    hard_recon_box_plot('mri_synth_vs_hard_samseg_in_sam_space.json',
+                        'mri_synth_vs_hard_samseg_in_sam_space.pdf')
 
-    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    # perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
-    #                      HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
-    # calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
-    #                'mri_synth_vs_hard_synth_in_mri_space.json')
-    # hard_recon_box_plot('mri_synth_vs_hard_synth_in_mri_space.json',
-    #                     'mri_synth_vs_hard_synth_in_mri_space.pdf')
+    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
+                         HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
+    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
+                   HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+                   'mri_synth_vs_hard_synth_in_sam_space.json')
+    hard_recon_box_plot('mri_synth_vs_hard_synth_in_sam_space.json',
+                        'mri_synth_vs_hard_synth_in_sam_space.pdf')
 
-    #### Extract SYNTHSEG Volumes
+    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
+                         HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
+    calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
+                   'mri_synth_vs_hard_synth_in_mri_space.json')
+    hard_recon_box_plot('mri_synth_vs_hard_synth_in_mri_space.json',
+                        'mri_synth_vs_hard_synth_in_mri_space.pdf')
+
+    print('Extracting SYNTHSEG Volumes')
     mri_synthseg_vols = extract_synthseg_vols(mri_synthseg_vols_file, 'mri')
     hard_synthseg_vols = extract_synthseg_vols(hard_synthseg_vols_file, 'hard')
     soft_synthseg_vols = extract_synthseg_vols(soft_synthseg_vols_file, 'soft')
 
+    print('Extracting SAMSEG Volumes')
     hard_samseg_vols = extract_samseg_volumes(HARD_SAMSEG_STATS, 'hard')
     soft_samseg_vols = extract_samseg_volumes(SOFT_SAMSEG_STATS, 'soft')
-            
-    print_correlation_pairs(mri_synthseg_vols, hard_samseg_vols, hard_synthseg_vols, flag='HARD')
-    print_correlation_pairs(mri_synthseg_vols, soft_samseg_vols, soft_synthseg_vols, flag='SOFT')
+
+    print('Writing Correlations to File')
+    print_correlation_pairs(mri_synthseg_vols,
+                            hard_samseg_vols,
+                            hard_synthseg_vols,
+                            flag='HARD')
+    print_correlation_pairs(mri_synthseg_vols,
+                            soft_samseg_vols,
+                            soft_synthseg_vols,
+                            flag='SOFT')
 
     ### Work for Soft segmentations
+    print('Printing Soft Dices')
+    print('Dice(MRIseg, PhotoSynthSeg) in PhotoSAMSEG space')
+    perform_registration(MRI_SCANS_SEG_REG_RES, SOFT_RECON_SAMSEG,
+                         MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE)
+    perform_registration(SOFT_RECON_SYNTHSEG, SOFT_RECON_SAMSEG,
+                         SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
+    calculate_soft_dice(MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE,
+                        SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+                        'mri_synth_vs_soft_synth_in_sam_space.json')
+    hard_recon_box_plot('mri_synth_vs_soft_synth_in_sam_space.json',
+                        'mri_synth_vs_soft_synth_in_sam_space.pdf')
 
-    # get_volume_correlations('synthseg')
-
-    # ## START for SAMSEG
-
-    # perform_registration(HARD_RECON_SAMSEG, MRI_SCANS_SEG_REG,
-    #                      HARD_RECON_SAMSEG_RESAMPLED)
-
-    # calculate_dice(MRI_SCANS_SEG_RESAMPLED,
-    #                HARD_RECON_SAMSEG_RESAMPLED, 'hard_samseg_dice.json')
-
-    # hard_recon_box_plot('hard_samseg_dice.json',
-    #                     'hard_samseg_dice_boxplot.pdf')
-    # get_volume_correlations('samseg')
+    print('Dice(MRIseg, PhotoSamSeg) in PhotoSAMSEG space')
+    calculate_soft_dice(MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE, SOFT_RECON_SAMSEG,
+                        'mri_synth_vs_soft_samseg_in_sam_space.json')
+    hard_recon_box_plot('mri_synth_vs_soft_samseg_in_sam_space.json',
+                        'mri_synth_vs_soft_samseg_in_sam_space.pdf')
