@@ -409,46 +409,6 @@ def print_correlations(x, y, file_name=None):
         json.dump(corr_dict, fp, sort_keys=True, indent=4)
 
 
-def get_volume_correlations(flag):
-    hard_seg_vols_file = os.path.join(SYNTHSEG_RESULTS,
-                                      'UW.photos.hard.recon.volumes.jei.csv')
-    soft_seg_vols_file = os.path.join(SYNTHSEG_RESULTS,
-                                      'UW.photos.soft.recon.volumes.jei.csv')
-    mri_seg_vols_file = os.path.join(SYNTHSEG_RESULTS,
-                                     'UW.photos.mri.scans.segmentations.csv')
-
-    mri_seg_vols = pd.read_csv(mri_seg_vols_file, header=None)
-    hard_seg_vols = pd.read_csv(hard_seg_vols_file, header=0)
-    soft_seg_vols = pd.read_csv(soft_seg_vols_file, header=0)
-
-    mri_seg_vols = mri_seg_vols.drop([0])
-    mri_seg_vols.loc[1, 0] = 'subjects'
-    mri_seg_vols.columns = mri_seg_vols.iloc[0]
-    mri_seg_vols = mri_seg_vols.drop([1])
-    mri_seg_vols = mri_seg_vols.reset_index(drop=True)
-
-    drop_cols = [str(label) for label in IGNORE_LABELS
-                 ] + ADDL_IGNORE_LABELS + ['subjects']
-    mri_seg_vols = mri_seg_vols.drop(columns=drop_cols, errors='ignore')
-    hard_seg_vols = hard_seg_vols.drop(columns=drop_cols, errors='ignore')
-    soft_seg_vols = soft_seg_vols.drop(columns=drop_cols, errors='ignore')
-
-    mri_seg_vols = mri_seg_vols.astype('float32')
-    hard_seg_vols = hard_seg_vols.astype('float32')
-    soft_seg_vols = soft_seg_vols.astype('float32')
-
-    mri_seg_vols = combine_pairs(mri_seg_vols, LABEL_PAIRS)
-    hard_seg_vols = combine_pairs(hard_seg_vols, LABEL_PAIRS)
-    soft_seg_vols = combine_pairs(soft_seg_vols, LABEL_PAIRS)
-
-    print('Saving Hard Reconstruction Correlations')
-    print_correlations(mri_seg_vols, hard_seg_vols,
-                       f'{flag}_hard_recon_correlations.json')
-    print('Saving Soft Reconstruction Correlations')
-    print_correlations(mri_seg_vols, soft_seg_vols,
-                       f'{flag}_soft_recon_correlations.json')
-
-
 def extract_synthseg_vols(file_name, flag):
     skiprows = 1 if flag == 'mri' else None
     df = pd.read_csv(file_name, skiprows=skiprows, header=0)
