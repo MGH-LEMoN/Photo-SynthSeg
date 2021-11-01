@@ -11,7 +11,9 @@ from shutil import copyfile
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from ext.lab2im import utils
+from matplotlib import rcParams
 from matplotlib.backends.backend_pdf import PdfPages
 from nipype.interfaces.freesurfer import MRIConvert
 from scipy.stats.stats import pearsonr
@@ -19,8 +21,12 @@ from SynthSeg.evaluate import fast_dice
 
 from fs_lut import fs_lut
 
+rcParams.update({'figure.autolayout': True})
+
+sns.set(style="whitegrid", rc={'text.usetex': True})
+
 # TODO: this file is work in progress
-plt.rcParams.update({"text.usetex": False, 'font.family': 'sans-serif'})
+plt.rcParams.update({"text.usetex": True, 'font.family': 'sans-serif'})
 
 LUT, REVERSE_LUT = fs_lut()
 
@@ -40,6 +46,7 @@ MRI_SCANS_SEG_REG_RES = MRI_SCANS_SEG_RESAMPLED + '.registered'
 HARD_RECONS = f'{SYNTHSEG_RESULTS}/UW.photos.hard.recon'
 HARD_RECON_SYNTHSEG = f'{SYNTHSEG_RESULTS}/UW.photos.hard.recon.segmentations.jei'
 HARD_RECON_SAMSEG = f'{SYNTHSEG_RESULTS}/UW.photos.hard.samseg.segmentations'
+HARD_MANUAL_LABELS_MERGED = f'{SYNTHSEG_RESULTS}/UW.photos.hard.manual.labels'
 
 SOFT_RECONS = f'{SYNTHSEG_RESULTS}/UW.photos.soft.recon'
 SOFT_RECON_REG = SOFT_RECONS + '.registered'
@@ -70,6 +77,10 @@ IGNORE_LABELS = [0, 5, 14, 26, 28, 44, 58, 60]
 ADDL_IGNORE_LABELS = [7, 8, 15, 16, 46, 47]
 LABEL_PAIRS = [(2, 41), (3, 42), (4, 43), (10, 49), (11, 50), (12, 51),
                (13, 52), (17, 53), (18, 54)]
+LABEL_PAIR_NAMES = [
+    'White Matter', 'Cortex', 'Ventricle', 'Thalamus', 'Caudate', 'Putamen',
+    'Pallidum', 'Hippocampus', 'Amygdala'
+]
 IGNORE_SUBJECTS = ['18-1343', '18-2260', '19-0019']
 
 
@@ -307,85 +318,6 @@ def calculate_dice(ground_truth_segs_path, estimated_segs_path, file_name):
         json.dump(final_dice_scores, fp, sort_keys=True, indent=4)
 
 
-def dice_box_plot(in_file_name, out_file_name):
-    # Load json
-    hard_dice_json = os.path.join(SYNTHSEG_RESULTS, in_file_name)
-    with open(hard_dice_json, 'r') as fp:
-        hard_dice = json.load(fp)
-
-    dice_pair_dict = dict()
-    for label_pair in LABEL_PAIRS:
-        dice_pair_dict[label_pair] = []
-
-    for subject in hard_dice:
-        for label_pair in LABEL_PAIRS:
-            dice_pair = [
-                hard_dice[subject].get(str(label), 0) for label in label_pair
-            ]
-
-            # if np.all(dice_pair):  # Remove (0, x)/(x, 0)/(0, 0)
-            dice_pair_dict[label_pair].append(dice_pair)
-
-    data = []
-    for label_pair in dice_pair_dict:
-        data.append(np.mean(dice_pair_dict[label_pair], 1))
-
-    plt.rcParams.update({"text.usetex": False})
-    pp = PdfPages(os.path.join(SYNTHSEG_RESULTS, out_file_name))
-
-    # https://www.geeksforgeeks.org/box-plot-in-python-using-matplotlib/
-
-    # fig, ax = plt.subplots()
-    fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(111)
-
-    # Creating axes instance
-    bp = ax.boxplot(data, patch_artist=True, notch='True')
-
-    # colors = ['#0000FF', '#00FF00',
-    #         '#FFFF00', '#FF00FF']
-
-    # for patch, color in zip(bp['boxes'], colors):
-    #     patch.set_facecolor(color)
-
-    # changing color and linewidth of
-    # whiskers
-    for whisker in bp['whiskers']:
-        whisker.set(color='#8B008B', linewidth=1.5, linestyle=":")
-
-    # changing color and linewidth of
-    # caps
-    for cap in bp['caps']:
-        cap.set(color='#8B008B', linewidth=2)
-
-    # changing color and linewidth of
-    # medians
-    for median in bp['medians']:
-        median.set(color='red', linewidth=3)
-
-    # changing style of fliers
-    for flier in bp['fliers']:
-        flier.set(marker='D', color='#e7298a', alpha=0.5)
-
-    # x-axis labels
-    ax.set_xticklabels(LABEL_PAIRS, fontsize=15, rotation=45)
-    plt.yticks(fontsize=15)
-
-    # Adding title
-    plt.title("Measured 3D Surface - Dice Scores", fontsize=20)
-
-    # Removing top axes and right axes
-    # ticks
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
-
-    # show plot
-    # plt.show()
-
-    pp.savefig(fig)
-    pp.close()
-
-
 def combine_pairs(df, pair_list):
     for label_pair in pair_list:
         label_pair = tuple(str(item) for item in label_pair)
@@ -556,9 +488,115 @@ def print_correlations(x, y, file_name=None):
         json.dump(corr_dict, fp, sort_keys=True, indent=4)
 
 
-def calculate_soft_dice(folder1, folder2, file_name):
-    folder1_list = files_at_path(folder1)
-    folder2_list = files_at_path(folder2)
+def extract_scores(in_file_name, merge=0):
+    # Load json
+    hard_dice_json = os.path.join(SYNTHSEG_RESULTS, in_file_name)
+    with open(hard_dice_json, 'r') as fp:
+        hard_dice = json.load(fp)
+
+    if merge:
+        print('I am in')
+        dice_pair_dict = dict()
+        for label_idx1, label_idx2 in LABEL_PAIRS:
+            dice_pair_dict[label_idx1] = []
+
+        for subject in hard_dice:
+            for label_idx1, _ in LABEL_PAIRS:
+                dice_pair = hard_dice[subject].get(str(label_idx1), 0)
+
+                # if np.all(dice_pair):  # Remove (0, x)/(x, 0)/(0, 0)
+                dice_pair_dict[label_idx1].append(dice_pair)
+
+        data = []
+        for label_idx in dice_pair_dict:
+            data.append(dice_pair_dict[label_idx])
+    else:
+        dice_pair_dict = dict()
+        for label_pair in LABEL_PAIRS:
+            dice_pair_dict[label_pair] = []
+
+        for subject in hard_dice:
+            for label_pair in LABEL_PAIRS:
+                dice_pair = [
+                    hard_dice[subject].get(str(label), 0)
+                    for label in label_pair
+                ]
+
+                # if np.all(dice_pair):  # Remove (0, x)/(x, 0)/(0, 0)
+                dice_pair_dict[label_pair].append(dice_pair)
+
+        data = []
+        for label_pair in dice_pair_dict:
+            data.append(np.mean(dice_pair_dict[label_pair], 1))
+
+    return data
+
+
+def create_single_dataframe(data1, data2):
+    ha1 = pd.DataFrame(data1, index=LABEL_PAIRS)
+    ha2 = pd.DataFrame(data2, index=LABEL_PAIRS)
+
+    ha1 = ha1.stack().reset_index()
+    ha1 = ha1.rename(
+        columns=dict(zip(ha1.columns, ['struct', 'subject', 'score'])))
+    ha1['type'] = 'samseg'
+
+    ha2 = ha2.stack().reset_index()
+    ha2 = ha2.rename(
+        columns=dict(zip(ha2.columns, ['struct', 'subject', 'score'])))
+    ha2['type'] = 'synthseg'
+
+    ha = pd.concat([ha1, ha2], axis=0, ignore_index=True)
+
+    return ha
+
+
+def dice_plot_from_df(df, out_file_name, flag):
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111)
+    ax = sns.boxplot(x="struct",
+                     y="score",
+                     hue="type",
+                     data=df,
+                     palette="Set3")
+    ax.set_xlim(-0.5, 8.49)
+    ax.set_ylim(-0.025, 1.025)
+    [
+        ax.axvline(x + .5, color='k', linestyle=':', lw=0.5)
+        for x in ax.get_xticks()
+    ]
+    [i.set_linewidth(1) for i in ax.spines.values()]
+    [i.set_edgecolor('k') for i in ax.spines.values()]
+
+    # Adding title
+    plt.title(f"2D Dice Scores (For {flag} reconstruction)", fontsize=20)
+    plt.yticks(fontsize=15)
+    ax.set_xlabel('')
+    ax.set_ylabel('')
+    ax.set_xticklabels(LABEL_PAIR_NAMES, fontsize=15, rotation=45, usetex=True)
+
+    handles, labels = ax.get_legend_handles_labels()
+    ax.get_legend().remove()
+    ax.legend(handles=handles, labels=labels, fontsize=20, frameon=False)
+
+    plt.savefig(out_file_name)
+
+
+def merge_labels_in_image(x, y):
+    merge_required_labels = []
+    for (id1, id2) in LABEL_PAIRS:
+        x[x == id2] = id1
+        y[y == id2] = id1
+
+        merge_required_labels.append(id1)
+
+    merge_required_labels = np.array(merge_required_labels)
+
+    return x, y, merge_required_labels
+
+
+def calculate_dice_2d(folder1, folder2, file_name, merge=0):
+    folder1_list, folder2_list = files_at_path(folder1), files_at_path(folder2)
 
     folder1_list, folder2_list = return_common_subjects(
         folder1_list, folder2_list)
@@ -577,18 +615,22 @@ def calculate_soft_dice(folder1, folder2, file_name):
 
         slice_idx = np.argmax((img1 > 1).sum(0).sum(0))
 
-        x = img1[:, :, slice_idx]
-        y = img2[:, :, slice_idx]
+        x = img1[:, :, slice_idx].astype('int')
+        y = img2[:, :, slice_idx].astype('int')
 
         required_labels = np.array(list(set(ALL_LABELS) - set(IGNORE_LABELS)))
 
+        if merge:
+            x, y, required_labels = merge_labels_in_image(x, y)
+
         dice_coeff = fast_dice(x, y, required_labels)
-
         required_labels = required_labels.astype('int').tolist()
-
         final_dice_scores[subject_id] = dict(zip(required_labels, dice_coeff))
 
-    with open(os.path.join(SYNTHSEG_RESULTS, file_name), 'w',
+    merge_tag = 'merge' if merge else 'no-merge'
+
+    with open(os.path.join(SYNTHSEG_RESULTS, f'{file_name}_{merge_tag}.json'),
+              'w',
               encoding='utf-8') as fp:
         json.dump(final_dice_scores, fp, sort_keys=True, indent=4)
 
@@ -601,105 +643,155 @@ if __name__ == '__main__':
         'soft2': ['soft', '*_soft_regatlas.mgz'],
         'hard3': ['*samseg*.mgz'],
         'soft3': ['soft', '*samseg*.mgz'],
+        'hard4': ['*manualLabel_merged.mgz'],
         'soft4': ['soft', '*manualLabel_merged.mgz']
     }
 
-    print('\nCopying MRI Scans')
-    copy_uw_mri_scans(UW_MRI_SCAN, MRI_SCANS)
+    # print('\nCopying MRI Scans')
+    # copy_uw_mri_scans(UW_MRI_SCAN, MRI_SCANS)
 
-    print('\nCopying Hard Reconstructions')
-    copy_uw_recon_vols(UW_HARD_RECON, HARD_RECONS, src_file_suffix['hard1'])
+    # print('\nCopying Hard Reconstructions')
+    # copy_uw_recon_vols(UW_HARD_RECON, HARD_RECONS, src_file_suffix['hard1'])
 
-    print('\nCopying Soft Reconstructions')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECONS, src_file_suffix['soft1'])
+    # print('\nCopying Soft Reconstructions')
+    # copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECONS, src_file_suffix['soft1'])
 
-    print('\nCopying Registered (to hard) MRI Scans')
-    copy_uw_recon_vols(UW_HARD_RECON, MRI_SCANS_REG, src_file_suffix['hard2'])
+    # print('\nCopying Registered (to hard) MRI Scans')
+    # copy_uw_recon_vols(UW_HARD_RECON, MRI_SCANS_REG, src_file_suffix['hard2'])
 
-    print('\nCopying I really dont know what this is')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_REG, src_file_suffix['soft2'])
+    # print('\nCopying I really dont know what this is')
+    # copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_REG, src_file_suffix['soft2'])
 
-    print('\nCopying Soft Manual Labels')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_MANUAL_LABELS_MERGED,
-                       src_file_suffix['soft4'])
+    # print('\nCopying Hard Manual Labels')
+    # copy_uw_recon_vols(UW_HARD_RECON, HARD_MANUAL_LABELS_MERGED,
+    #                    src_file_suffix['hard4'])
 
-    run_make_target('hard')  # Run this on mlsc
-    run_make_target('soft')  # Run this on mlsc
-    run_make_target('scans')  # Run this on mlsc
+    # print('\nCopying Soft Manual Labels')
+    # copy_uw_recon_vols(UW_SOFT_RECON, SOFT_MANUAL_LABELS_MERGED,
+    #                    src_file_suffix['soft4'])
 
-    print('\nCopying SAMSEG Segmentations (Hard)')
-    copy_uw_recon_vols(UW_HARD_RECON, HARD_RECON_SAMSEG,
-                       src_file_suffix['hard3'])
+    # run_make_target('hard')  # Run this on mlsc
+    # run_make_target('soft')  # Run this on mlsc
+    # run_make_target('scans')  # Run this on mlsc
 
-    print('\nCopying SAMSEG Segmentations (Soft)')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_SAMSEG,
-                       src_file_suffix['soft3'])
+    # print('\nCopying SAMSEG Segmentations (Hard)')
+    # copy_uw_recon_vols(UW_HARD_RECON, HARD_RECON_SAMSEG,
+    #                    src_file_suffix['hard3'])
 
-    print('\nPut MRI SynthSeg Segmentation in the same space as MRI')
-    perform_registration(MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
+    # print('\nCopying SAMSEG Segmentations (Soft)')
+    # copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_SAMSEG,
+    #                    src_file_suffix['soft3'])
 
-    print('\nCombining MRI_Seg Volume and MRI_Vol Header')
-    perform_overlay()
+    # print('\nPut MRI SynthSeg Segmentation in the same space as MRI')
+    # perform_registration(MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
 
-    print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
-    perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
-                         MRI_SYNTHSEG_IN_SAMSEG_SPACE)
-    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
-                   'mri_synth_vs_hard_samseg_in_sam_space.json')
-    dice_box_plot('mri_synth_vs_hard_samseg_in_sam_space.json',
-                        'mri_synth_vs_hard_samseg_in_sam_space.pdf')
+    # print('\nCombining MRI_Seg Volume and MRI_Vol Header')
+    # perform_overlay()
 
-    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
-                         HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
-    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
-                   HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
-                   'mri_synth_vs_hard_synth_in_sam_space.json')
-    dice_box_plot('mri_synth_vs_hard_synth_in_sam_space.json',
-                        'mri_synth_vs_hard_synth_in_sam_space.pdf')
+    # print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
+    # perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
+    #                      MRI_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
+    #                'mri_synth_vs_hard_samseg_in_sam_space.json')
+    # dice_box_plot('mri_synth_vs_hard_samseg_in_sam_space.json',
+    #                     'mri_synth_vs_hard_samseg_in_sam_space.pdf')
 
-    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
-                         HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
-    calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
-                   'mri_synth_vs_hard_synth_in_mri_space.json')
-    dice_box_plot('mri_synth_vs_hard_synth_in_mri_space.json',
-                        'mri_synth_vs_hard_synth_in_mri_space.pdf')
+    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    # perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
+    #                      HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                'mri_synth_vs_hard_synth_in_sam_space.json')
+    # dice_box_plot('mri_synth_vs_hard_synth_in_sam_space.json',
+    #                     'mri_synth_vs_hard_synth_in_sam_space.pdf')
 
-    print('Extracting SYNTHSEG Volumes')
-    mri_synthseg_vols = extract_synthseg_vols(mri_synthseg_vols_file, 'mri')
-    hard_synthseg_vols = extract_synthseg_vols(hard_synthseg_vols_file, 'hard')
-    soft_synthseg_vols = extract_synthseg_vols(soft_synthseg_vols_file, 'soft')
+    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    # perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
+    #                      HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
+    # calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
+    #                'mri_synth_vs_hard_synth_in_mri_space.json')
+    # dice_box_plot('mri_synth_vs_hard_synth_in_mri_space.json',
+    #                     'mri_synth_vs_hard_synth_in_mri_space.pdf')
 
-    print('Extracting SAMSEG Volumes')
-    hard_samseg_vols = extract_samseg_volumes(HARD_SAMSEG_STATS, 'hard')
-    soft_samseg_vols = extract_samseg_volumes(SOFT_SAMSEG_STATS, 'soft')
+    # print('Extracting SYNTHSEG Volumes')
+    # mri_synthseg_vols = extract_synthseg_vols(mri_synthseg_vols_file, 'mri')
+    # hard_synthseg_vols = extract_synthseg_vols(hard_synthseg_vols_file, 'hard')
+    # soft_synthseg_vols = extract_synthseg_vols(soft_synthseg_vols_file, 'soft')
 
-    print('Writing Correlations to File')
-    print_correlation_pairs(mri_synthseg_vols,
-                            hard_samseg_vols,
-                            hard_synthseg_vols,
-                            flag='HARD')
-    print_correlation_pairs(mri_synthseg_vols,
-                            soft_samseg_vols,
-                            soft_synthseg_vols,
-                            flag='SOFT')
+    # print('Extracting SAMSEG Volumes')
+    # hard_samseg_vols = extract_samseg_volumes(HARD_SAMSEG_STATS, 'hard')
+    # soft_samseg_vols = extract_samseg_volumes(SOFT_SAMSEG_STATS, 'soft')
+
+    # print('Writing Correlations to File')
+    # print_correlation_pairs(mri_synthseg_vols,
+    #                         hard_samseg_vols,
+    #                         hard_synthseg_vols,
+    #                         flag='HARD')
+    # print_correlation_pairs(mri_synthseg_vols,
+    #                         soft_samseg_vols,
+    #                         soft_synthseg_vols,
+    #                         flag='SOFT')
 
     ### Work for Soft segmentations
-    print('Printing Soft Dices')
-    print('Dice(MRIseg, PhotoSynthSeg) in PhotoSAMSEG space')
-    perform_registration(MRI_SCANS_SEG_REG_RES, SOFT_RECON_SAMSEG,
-                         MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE)
-    perform_registration(SOFT_RECON_SYNTHSEG, SOFT_RECON_SAMSEG,
-                         SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
-    calculate_soft_dice(MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE,
-                        SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
-                        'mri_synth_vs_soft_synth_in_sam_space.json')
-    dice_box_plot('mri_synth_vs_soft_synth_in_sam_space.json',
-                        'mri_synth_vs_soft_synth_in_sam_space.pdf')
+    print('Printing 2D Hard Dices')
+    print('Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space')
+    calculate_dice_2d(HARD_MANUAL_LABELS_MERGED,
+                      HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+                      'hard_manual_vs_hard_synth_in_sam_space')
+    calculate_dice_2d(HARD_MANUAL_LABELS_MERGED,
+                      HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+                      'hard_manual_vs_hard_synth_in_sam_space', 1)
 
-    print('Dice(MRIseg, PhotoSamSeg) in PhotoSAMSEG space')
-    calculate_soft_dice(MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE, SOFT_RECON_SAMSEG,
-                        'mri_synth_vs_soft_samseg_in_sam_space.json')
-    dice_box_plot('mri_synth_vs_soft_samseg_in_sam_space.json',
-                        'mri_synth_vs_soft_samseg_in_sam_space.pdf')
+    print('Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space')
+    calculate_dice_2d(HARD_MANUAL_LABELS_MERGED, HARD_RECON_SAMSEG,
+                      'hard_manual_vs_hard_sam_in_sam_space')
+    calculate_dice_2d(HARD_MANUAL_LABELS_MERGED, HARD_RECON_SAMSEG,
+                      'hard_manual_vs_hard_sam_in_sam_space', 1)
+
+    ### Work for Soft segmentations
+    print('Printing 2D Soft Dices')
+    print('Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space')
+    calculate_dice_2d(SOFT_MANUAL_LABELS_MERGED,
+                      SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+                      'soft_manual_vs_soft_synth_in_sam_space')
+    calculate_dice_2d(SOFT_MANUAL_LABELS_MERGED,
+                      SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+                      'soft_manual_vs_soft_synth_in_sam_space', 1)
+
+    print('Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space')
+    calculate_dice_2d(SOFT_MANUAL_LABELS_MERGED, SOFT_RECON_SAMSEG,
+                      'soft_manual_vs_soft_sam_in_sam_space')
+    calculate_dice_2d(SOFT_MANUAL_LABELS_MERGED, SOFT_RECON_SAMSEG,
+                      'soft_manual_vs_soft_sam_in_sam_space', 1)
+
+    data1 = extract_scores('soft_manual_vs_soft_sam_in_sam_space_merge.json',
+                           1)
+    data2 = extract_scores('soft_manual_vs_soft_synth_in_sam_space_merge.json',
+                           1)
+
+    df = create_single_dataframe(data1, data2)
+    dice_plot_from_df(df, 'soft_reconstruction_merge.png', 'soft')
+
+    data1 = extract_scores(
+        'soft_manual_vs_soft_sam_in_sam_space_no-merge.json', 0)
+    data2 = extract_scores(
+        'soft_manual_vs_soft_synth_in_sam_space_no-merge.json', 0)
+
+    df = create_single_dataframe(data1, data2)
+    dice_plot_from_df(df, 'soft_reconstruction_no-merge.png', 'soft')
+
+    data1 = extract_scores(
+        'hard_manual_vs_hard_sam_in_sam_space_no-merge.json', 0)
+    data2 = extract_scores(
+        'hard_manual_vs_hard_synth_in_sam_space_no-merge.json', 0)
+
+    df = create_single_dataframe(data1, data2)
+    dice_plot_from_df(df, 'hard_reconstruction_no-merge.png', 'hard')
+
+    data1 = extract_scores('hard_manual_vs_hard_sam_in_sam_space_merge.json',
+                           1)
+    data2 = extract_scores('hard_manual_vs_hard_synth_in_sam_space_merge.json',
+                           1)
+
+    df = create_single_dataframe(data1, data2)
+    dice_plot_from_df(df, 'hard_reconstruction_merge.png', 'hard')
