@@ -26,7 +26,7 @@ rcParams.update({'figure.autolayout': True})
 sns.set(style="whitegrid", rc={'text.usetex': True})
 
 # TODO: this file is work in progress
-plt.rcParams.update({"text.usetex": True, 'font.family': 'sans-serif'})
+# plt.rcParams.update({"text.usetex": False, 'font.family': 'sans-serif'})
 
 LUT, REVERSE_LUT = fs_lut()
 
@@ -495,7 +495,6 @@ def extract_scores(in_file_name, merge=0):
         hard_dice = json.load(fp)
 
     if merge:
-        print('I am in')
         dice_pair_dict = dict()
         for label_idx1, label_idx2 in LABEL_PAIRS:
             dice_pair_dict[label_idx1] = []
@@ -573,13 +572,13 @@ def dice_plot_from_df(df, out_file_name, flag):
     plt.yticks(fontsize=15)
     ax.set_xlabel('')
     ax.set_ylabel('')
-    ax.set_xticklabels(LABEL_PAIR_NAMES, fontsize=15, rotation=45, usetex=True)
+    ax.set_xticklabels(LABEL_PAIR_NAMES, fontsize=15, rotation=45)
 
     handles, labels = ax.get_legend_handles_labels()
     ax.get_legend().remove()
     ax.legend(handles=handles, labels=labels, fontsize=20, frameon=False)
 
-    plt.savefig(out_file_name)
+    plt.savefig(os.path.join(SYNTHSEG_RESULTS, out_file_name))
 
 
 def merge_labels_in_image(x, y):
@@ -633,6 +632,15 @@ def calculate_dice_2d(folder1, folder2, file_name, merge=0):
               'w',
               encoding='utf-8') as fp:
         json.dump(final_dice_scores, fp, sort_keys=True, indent=4)
+
+
+def construct_dice_plots_from_files(file1, file2, merge_flag, hard_or_soft,
+                                    out_name):
+    data1 = extract_scores(file1, merge_flag)
+    data2 = extract_scores(file2, merge_flag)
+
+    df = create_single_dataframe(data1, data2)
+    dice_plot_from_df(df, out_name, hard_or_soft)
 
 
 if __name__ == '__main__':
@@ -732,7 +740,7 @@ if __name__ == '__main__':
     #                         soft_synthseg_vols,
     #                         flag='SOFT')
 
-    ### Work for Soft segmentations
+    ### Work for Hard segmentations
     print('Printing 2D Hard Dices')
     print('Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space')
     calculate_dice_2d(HARD_MANUAL_LABELS_MERGED,
@@ -748,7 +756,17 @@ if __name__ == '__main__':
     calculate_dice_2d(HARD_MANUAL_LABELS_MERGED, HARD_RECON_SAMSEG,
                       'hard_manual_vs_hard_sam_in_sam_space', 1)
 
-    ### Work for Soft segmentations
+    construct_dice_plots_from_files(
+        'hard_manual_vs_hard_sam_in_sam_space_no-merge.json',
+        'hard_manual_vs_hard_synth_in_sam_space_no-merge.json', 0, 'hard',
+        'hard_reconstruction_no-merge.png')
+
+    construct_dice_plots_from_files(
+        'hard_manual_vs_hard_sam_in_sam_space_merge.json',
+        'hard_manual_vs_hard_synth_in_sam_space_merge.json', 1, 'hard',
+        'hard_reconstruction_merge.png')
+
+    # ### Work for Soft segmentations
     print('Printing 2D Soft Dices')
     print('Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space')
     calculate_dice_2d(SOFT_MANUAL_LABELS_MERGED,
@@ -764,34 +782,12 @@ if __name__ == '__main__':
     calculate_dice_2d(SOFT_MANUAL_LABELS_MERGED, SOFT_RECON_SAMSEG,
                       'soft_manual_vs_soft_sam_in_sam_space', 1)
 
-    data1 = extract_scores('soft_manual_vs_soft_sam_in_sam_space_merge.json',
-                           1)
-    data2 = extract_scores('soft_manual_vs_soft_synth_in_sam_space_merge.json',
-                           1)
+    construct_dice_plots_from_files(
+        'soft_manual_vs_soft_sam_in_sam_space_no-merge.json',
+        'soft_manual_vs_soft_synth_in_sam_space_no-merge.json', 0, 'soft',
+        'soft_reconstruction_no-merge.png')
 
-    df = create_single_dataframe(data1, data2)
-    dice_plot_from_df(df, 'soft_reconstruction_merge.png', 'soft')
-
-    data1 = extract_scores(
-        'soft_manual_vs_soft_sam_in_sam_space_no-merge.json', 0)
-    data2 = extract_scores(
-        'soft_manual_vs_soft_synth_in_sam_space_no-merge.json', 0)
-
-    df = create_single_dataframe(data1, data2)
-    dice_plot_from_df(df, 'soft_reconstruction_no-merge.png', 'soft')
-
-    data1 = extract_scores(
-        'hard_manual_vs_hard_sam_in_sam_space_no-merge.json', 0)
-    data2 = extract_scores(
-        'hard_manual_vs_hard_synth_in_sam_space_no-merge.json', 0)
-
-    df = create_single_dataframe(data1, data2)
-    dice_plot_from_df(df, 'hard_reconstruction_no-merge.png', 'hard')
-
-    data1 = extract_scores('hard_manual_vs_hard_sam_in_sam_space_merge.json',
-                           1)
-    data2 = extract_scores('hard_manual_vs_hard_synth_in_sam_space_merge.json',
-                           1)
-
-    df = create_single_dataframe(data1, data2)
-    dice_plot_from_df(df, 'hard_reconstruction_merge.png', 'hard')
+    construct_dice_plots_from_files(
+        'soft_manual_vs_soft_sam_in_sam_space_merge.json',
+        'soft_manual_vs_soft_synth_in_sam_space_merge.json', 1, 'soft',
+        'soft_reconstruction_merge.png')
