@@ -127,8 +127,6 @@ def save_volume(volume, aff, header, path, res=None, dtype=None, n_dims=3):
     """
 
     mkdir(os.path.dirname(path))
-    if dtype is not None:
-        volume = volume.astype(dtype=dtype)
     if '.npz' in path:
         np.savez_compressed(path, vol_data=volume)
     else:
@@ -141,6 +139,8 @@ def save_volume(volume, aff, header, path, res=None, dtype=None, n_dims=3):
         elif aff is None:
             aff = np.eye(4)
         nifty = nib.Nifti1Image(volume, aff, header)
+        if dtype is not None:
+            nifty.set_data_dtype(dtype)
         if res is not None:
             if n_dims is None:
                 n_dims, _ = get_dims(volume.shape)
@@ -149,7 +149,7 @@ def save_volume(volume, aff, header, path, res=None, dtype=None, n_dims=3):
         nib.save(nifty, path)
 
 
-def get_volume_info(path_volume, return_volume=False, aff_ref=None):
+def get_volume_info(path_volume, return_volume=False, aff_ref=None, max_channels=10):
     """
     Gather information about a volume: shape, affine matrix, number of dimensions and channels, header, and resolution.
     :param path_volume: path of the volume to get information form.
@@ -164,16 +164,16 @@ def get_volume_info(path_volume, return_volume=False, aff_ref=None):
 
     # understand if image is multichannel
     im_shape = list(im.shape)
-    n_dims, n_channels = get_dims(im_shape, max_channels=10)
+    n_dims, n_channels = get_dims(im_shape, max_channels=max_channels)
     im_shape = im_shape[:n_dims]
 
     # get labels res
-    if '.nii.gz' in path_volume:
-        data_res = np.array(header['pixdim'][1:n_dims + 1]).tolist()
+    if '.nii' in path_volume:
+        data_res = np.array(header['pixdim'][1:n_dims + 1])
     elif '.mgz' in path_volume:
-        data_res = np.array(header['delta']).tolist()  # mgz image
+        data_res = np.array(header['delta'])  # mgz image
     else:
-        data_res = [1.0] * n_dims
+        data_res = np.array([1.0] * n_dims)
 
     # align to given affine matrix
     if aff_ref is not None:
@@ -190,7 +190,6 @@ def get_volume_info(path_volume, return_volume=False, aff_ref=None):
         im_shape[ras_axes_ref] = im_shape[ras_axes]
         data_res[ras_axes_ref] = data_res[ras_axes]
         im_shape = im_shape.tolist()
-        data_res = data_res.tolist()
 
     # return info
     if return_volume:
@@ -248,12 +247,11 @@ def get_list_labels(label_list=None,
     # sort labels in neutral/left/right according to FS labels
     n_neutral_labels = 0
     if FS_sort:
-        neutral_FS_labels = [
-            0, 14, 15, 16, 21, 22, 23, 24, 72, 77, 80, 85, 101, 102, 103, 104,
-            105, 165, 251, 252, 253, 254, 255, 258, 259, 331, 332, 333, 334,
-            335, 336, 337, 338, 339, 340, 502, 506, 507, 508, 509, 511, 512,
-            514, 515, 516, 517, 530, 531, 532, 533, 534, 535, 536, 537
-        ]
+        neutral_FS_labels = [0, 14, 15, 16, 21, 22, 23, 24, 72, 77, 80, 85, 100, 101, 102, 103, 104, 105, 106, 107, 108,
+                             109, 165, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210,
+                             251, 252, 253, 254, 255, 258, 259, 260, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340,
+                             502, 506, 507, 508, 509, 511, 512, 514, 515, 516, 517, 530,
+                             531, 532, 533, 534, 535, 536, 537]
         neutral = list()
         left = list()
         right = list()
@@ -348,7 +346,10 @@ def reformat_to_list(var, length=None, load_as_numpy=False, dtype=None):
     elif isinstance(var, tuple):
         var = list(var)
     elif isinstance(var, np.ndarray):
-        var = np.squeeze(var).tolist()
+        if var.shape == (1,):
+            var = [var[0]]
+        else:
+            var = np.squeeze(var).tolist()
     elif isinstance(var, str):
         var = [var]
     elif isinstance(var, bool):
@@ -483,7 +484,7 @@ def list_files(path_dir, whole_path=True, expr=None, cond_type='or'):
 
 
 def list_subfolders(path_dir, whole_path=True, expr=None, cond_type='or'):
-    """This function returns a list of subfolders contained in a folder, whith possible regexp.
+    """This function returns a list of subfolders contained in a folder, with possible regexp.
     :param path_dir: path of a folder
     :param whole_path: (optional) whether to return whole path or just the subfolder names.
     :param expr: (optional) regexp for files to list. Can be a str or a list of str.
@@ -525,6 +526,18 @@ def list_subfolders(path_dir, whole_path=True, expr=None, cond_type='or'):
                 matched_list_subdirs = tmp_matched_list_subdirs
         subdirs_list = sorted(matched_list_subdirs)
     return subdirs_list
+
+
+def get_image_extension(path):
+    name = os.path.basename(path)
+    if name[-7:] == '.nii.gz':
+        return 'nii.gz'
+    elif name[-4:] == '.mgz':
+        return 'mgz'
+    elif name[-4:] == '.nii':
+        return 'nii'
+    elif name[-4:] == '.npz':
+        return 'npz'
 
 
 def strip_extension(path):
@@ -1062,23 +1075,23 @@ def build_training_generator(gen, batchsize):
         yield inputs, target
 
 
-def find_closest_number_divisible_by_m(n, m, smaller_ans=True):
-    """Return the closest integer to n that is divisible by m.
-    If smaller_ans is True, only values lower than n are considered."""
-    # quotient
-    q = int(n / m)
-    # 1st possible closest number
-    n1 = m * q
-    # 2nd possible closest number
-    if (n * m) > 0:
-        n2 = (m * (q + 1))
+def find_closest_number_divisible_by_m(n, m, answer_type='lower'):
+    """Return the closest integer to n that is divisible by m. answer_type can either be 'closer', 'lower' (only returns
+    values lower than n), or 'higher (only returns values higher than m)."""
+    if n % m == 0:
+        return n
     else:
-        n2 = (m * (q - 1))
-    # find closest solution
-    if (abs(n - n1) < abs(n - n2)) | smaller_ans:
-        return n1
-    else:
-        return n2
+        q = int(n / m)
+        lower = q * m
+        higher = (q + 1) * m
+        if answer_type == 'lower':
+            return lower
+        elif answer_type == 'higher':
+            return higher
+        elif answer_type == 'closer':
+            return lower if (n - lower) < (higher - n) else higher
+        else:
+            raise Exception('answer_type should be lower, higher, or closer, had : %s' % answer_type)
 
 
 def build_binary_structure(connectivity, n_dims, shape=None):

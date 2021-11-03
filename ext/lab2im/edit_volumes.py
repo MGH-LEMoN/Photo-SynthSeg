@@ -9,6 +9,7 @@ These functions are sorted in five categories:
         -pad_volume
         -flip_volume
         -resample_volume
+        -resample_volume_like
         -get_ras_axes
         -align_volume_to_ref
         -blur_volume
@@ -122,7 +123,6 @@ def mask_volume(volume,
     if erode > 0:
         erode_struct = utils.build_binary_structure(erode, n_dims)
         mask_to_apply = binary_erosion(mask_to_apply, erode_struct)
-    mask_to_apply = mask | mask_to_apply
     if fill_holes:
         mask_to_apply = binary_fill_holes(mask_to_apply)
 
@@ -212,34 +212,22 @@ def crop_volume(volume,
 
     # find cropping indices
     if cropping_margin is not None:
-        cropping_margin = utils.reformat_to_list(cropping_margin,
-                                                 length=n_dims)
-        min_crop_idx = cropping_margin
-        max_crop_idx = [
-            vol_shape[i] - cropping_margin[i] for i in range(n_dims)
-        ]
-        assert (np.array(max_crop_idx) >= np.array(min_crop_idx)
-                ).all(), 'cropping_margin is larger than volume shape'
+        cropping_margin = utils.reformat_to_list(cropping_margin, length=n_dims)
+        do_cropping = np.array(vol_shape[:n_dims]) > 2 * np.array(cropping_margin)
+        min_crop_idx = [cropping_margin[i] if do_cropping[i] else 0 for i in range(n_dims)]
+        max_crop_idx = [vol_shape[i] - cropping_margin[i] if do_cropping[i] else vol_shape[i] for i in range(n_dims)]
     else:
         cropping_shape = utils.reformat_to_list(cropping_shape, length=n_dims)
         if mode == 'center':
-            min_crop_idx = [
-                int((vol_shape[i] - cropping_shape[i]) / 2)
-                for i in range(n_dims)
-            ]
-            max_crop_idx = [
-                min_crop_idx[i] + cropping_shape[i] for i in range(n_dims)
-            ]
+            min_crop_idx = np.maximum([int((vol_shape[i] - cropping_shape[i]) / 2) for i in range(n_dims)], 0)
+            max_crop_idx = np.minimum([min_crop_idx[i] + cropping_shape[i] for i in range(n_dims)],
+                                      np.array(vol_shape)[:n_dims])
         elif mode == 'random':
-            crop_max_val = np.array(
-                [vol_shape[i] - cropping_shape[i] for i in range(n_dims)])
+            crop_max_val = np.maximum(np.array([vol_shape[i] - cropping_shape[i] for i in range(n_dims)]), 0)
             min_crop_idx = np.random.randint(0, high=crop_max_val + 1)
-            max_crop_idx = min_crop_idx + np.array(cropping_shape)
+            max_crop_idx = np.minimum(min_crop_idx + np.array(cropping_shape), np.array(vol_shape)[:n_dims])
         else:
-            raise ValueError(
-                'mode should be either "center" or "random", had %s' % mode)
-        assert (np.array(min_crop_idx) >=
-                0).all(), 'cropping_shape is larger than volume shape'
+            raise ValueError('mode should be either "center" or "random", had %s' % mode)
     crop_idx = np.concatenate([np.array(min_crop_idx), np.array(max_crop_idx)])
 
     # crop volume
@@ -263,57 +251,103 @@ def crop_volume(volume,
 
 def crop_volume_around_region(volume,
                               mask=None,
-                              threshold=0.1,
                               masking_labels=None,
+                              threshold=0.1,
                               margin=0,
+                              cropping_shape=None,
+                              cropping_shape_div_by=None,
                               aff=None):
-    """Crop a volume around a specific region. This region is defined by a mask obtained by either
+    """Crop a volume around a specific region.
+    This region is defined by a mask obtained by either:
     1) directly specifying it as input
-    2) thresholding the input volume
-    3) keeping a set of label values if the volume is a label map.
+    2) keeping a set of label values (defined by masking_labels) if the volume is a label map.
+    3) thresholding the input volume
+    The cropped region is defined by either:
+    1) cropping around the non-zero values in the above-defined mask (possibly with a margin)
+    2) cropping to a specified shape, centered around the middle of the above-defined mask
+    3) cropping to a shape divisible by the given number, centered around the middle of the above-defined mask
     :param volume: a 2d or 3d numpy array
     :param mask: (optional) mask of region to crop around. Must be same size as volume. Can either be boolean or 0/1.
-    it defaults to masking around all values above threshold.
-    :param threshold: (optional) if mask is None, lower bound to determine values to crop around
+    If no mask is given, it will be computed by either thresholding the input volume or using masking_labels.
     :param masking_labels: (optional) if mask is None, and if the volume is a label map, it can be cropped around a
     set of labels specified in masking_labels, which can either be a single int, a sequence or a 1d numpy array.
+    :param threshold: (optional) if mask amd masking_labels are None, lower bound to determine values to crop around.
     :param margin: (optional) add margin around mask
+    :param cropping_shape: (optional) shape to which the input volumes must be cropped. Volumes are padded around the
+    centre of the above-defined mask is they are too small for the given shape. Can be an integer or sequence.
+    Cannot be given at the same time as margin or cropping_shape_div_by.
+    :param cropping_shape_div_by: (optional) makes sure the shape of the cropped region is divisible by the provided
+    number. If it is not, then we enlarge the cropping area. If the enlarged area is too big fort he input volume, we
+    pad it with 0. Must be a integer. Cannot be given at the same time as margin or cropping_shape.
     :param aff: (optional) if specified, this function returns an updated affine matrix of the volume after cropping.
     :return: the cropped volume, the cropping indices (in the order [lower_bound_dim_1, ..., upper_bound_dim_1, ...]),
     and the updated affine matrix if aff is not None.
     """
 
+    assert not ((margin > 0) & (cropping_shape is not None)), "margin and cropping_shape can't be given together."
+    assert not ((margin > 0) & (cropping_shape_div_by is not None)), \
+        "margin and cropping_shape_div_by can't be given together."
+    assert not ((cropping_shape_div_by is not None) & (cropping_shape is not None)), \
+        "cropping_shape_div_by and cropping_shape can't be given together."
+
     new_vol = volume.copy()
-    n_dims, _ = utils.get_dims(new_vol.shape)
+    n_dims, n_channels = utils.get_dims(new_vol.shape)
+    vol_shape = np.array(new_vol.shape[:n_dims])
 
     # mask ROIs for cropping
     if mask is None:
         if masking_labels is not None:
-            masked_volume, mask = mask_label_map(new_vol,
-                                                 masking_values=masking_labels,
-                                                 return_mask=True)
+            _, mask = mask_label_map(new_vol, masking_values=masking_labels, return_mask=True)
         else:
             mask = new_vol > threshold
 
     # find cropping indices
     if np.any(mask):
         indices = np.nonzero(mask)
-        min_idx = np.maximum(
-            np.array([np.min(idx) for idx in indices]) - margin, 0)
-        max_idx = np.minimum(
-            np.array([np.max(idx) for idx in indices]) + 1 + margin,
-            np.array(new_vol.shape[:n_dims]))
+        min_idx = np.maximum(np.array([np.min(idx) for idx in indices]) - margin, 0)
+        max_idx = np.minimum(np.array([np.max(idx) for idx in indices]) + 1 + margin, vol_shape)
         cropping = np.concatenate([min_idx, max_idx])
+
+        # modify the cropping indices if we want the output to have a given shape
+        if (cropping_shape is not None) | (cropping_shape_div_by is not None):
+
+            # expand/retract (depending on the desired shape) the cropping region around the centre
+            intermediate_vol_shape = max_idx - min_idx
+            if cropping_shape is not None:
+                cropping_shape = np.array(utils.reformat_to_list(cropping_shape, length=n_dims))
+            else:
+                cropping_shape = [utils.find_closest_number_divisible_by_m(s, cropping_shape_div_by,
+                                                                           answer_type='higher')
+                                  for s in intermediate_vol_shape]
+            min_idx = min_idx - np.int32(np.ceil((cropping_shape - intermediate_vol_shape)/2))
+            max_idx = max_idx + np.int32(np.floor((cropping_shape - intermediate_vol_shape)/2))
+
+            # check if we need to pad the output to the desired shape
+            min_padding = np.abs(np.minimum(min_idx, 0))
+            max_padding = np.maximum(max_idx - vol_shape, 0)
+            if np.any(min_padding > 0) | np.any(max_padding > 0):
+                pad_margins = tuple([(min_padding[i], max_padding[i]) for i in range(n_dims)])
+            else:
+                pad_margins = None
+            cropping = np.concatenate([np.maximum(min_idx, 0), np.minimum(max_idx, vol_shape)])
+
+        else:
+            pad_margins = None
 
         # crop volume
         if n_dims == 3:
-            new_vol = new_vol[min_idx[0]:max_idx[0], min_idx[1]:max_idx[1],
-                              min_idx[2]:max_idx[2], ...]
+            new_vol = new_vol[cropping[0]:cropping[3], cropping[1]:cropping[4], cropping[2]:cropping[5], ...]
         elif n_dims == 2:
-            new_vol = new_vol[min_idx[0]:max_idx[0], min_idx[1]:max_idx[1],
-                              ...]
+            new_vol = new_vol[cropping[0]:cropping[2], cropping[1]:cropping[3], ...]
         else:
             raise ValueError('cannot crop volumes with more than 3 dimensions')
+
+        # pad volume if necessary
+        if pad_margins is not None:
+            pad_margins = tuple(list(pad_margins) + [(0, 0)]) if n_channels > 1 else pad_margins
+            new_vol = np.pad(new_vol, pad_margins, mode='constant', constant_values=0)
+
+    # if there's nothing to crop around, we return the input as is
     else:
         min_idx = np.zeros((3, 1))
         cropping = None
@@ -361,7 +395,7 @@ def crop_volume_with_idx(volume, crop_idx, aff=None, n_dims=None):
         return new_volume
 
 
-def pad_volume(volume, padding_shape, padding_value=0, aff=None):
+def pad_volume(volume, padding_shape, padding_value=0, aff=None, return_pad_idx=False):
     """Pad volume to a given shape
     :param volume: volume to be padded
     :param padding_shape: shape to pad volume to. Can be a number, a sequence or a 1d numpy array.
@@ -378,37 +412,35 @@ def pad_volume(volume, padding_shape, padding_value=0, aff=None):
                                            length=n_dims,
                                            dtype='int')
 
-    # get padding margins
-    min_pad_margins = np.maximum(
-        np.int32(
-            np.floor(
-                (np.array(padding_shape) - np.array(vol_shape)[:n_dims]) / 2)),
-        0)
-    max_pad_margins = np.maximum(
-        np.int32(
-            np.ceil(
-                (np.array(padding_shape) - np.array(vol_shape)[:n_dims]) / 2)),
-        0)
-    if (min_pad_margins == 0).all():
-        return new_volume
-    pad_margins = tuple([(min_pad_margins[i], max_pad_margins[i])
-                         for i in range(n_dims)])
-    if n_channels > 1:
-        pad_margins = tuple(list(pad_margins) + [[0, 0]])
+    # check if need to pad
+    if np.any(np.array(padding_shape, dtype='int32') > np.array(vol_shape[:n_dims], dtype='int32')):
 
-    # pad volume
-    new_volume = np.pad(new_volume,
-                        pad_margins,
-                        mode='constant',
-                        constant_values=padding_value)
+        # get padding margins
+        min_margins = np.maximum(np.int32(np.floor((np.array(padding_shape) - np.array(vol_shape)[:n_dims]) / 2)), 0)
+        max_margins = np.maximum(np.int32(np.ceil((np.array(padding_shape) - np.array(vol_shape)[:n_dims]) / 2)), 0)
+        pad_idx = np.concatenate([min_margins, min_margins + np.array(vol_shape[:n_dims])])
+        pad_margins = tuple([(min_margins[i], max_margins[i]) for i in range(n_dims)])
+        if n_channels > 1:
+            pad_margins = tuple(list(pad_margins) + [(0, 0)])
 
-    if aff is not None:
-        if n_dims == 2:
-            min_pad_margins = np.append(min_pad_margins, 0)
-        aff[:-1, -1] = aff[:-1, -1] - aff[:-1, :-1] @ min_pad_margins
-        return new_volume, aff
+        # pad volume
+        new_volume = np.pad(new_volume, pad_margins, mode='constant', constant_values=padding_value)
+
+        if aff is not None:
+            if n_dims == 2:
+                min_margins = np.append(min_margins, 0)
+            aff[:-1, -1] = aff[:-1, -1] - aff[:-1, :-1] @ min_margins
+
     else:
-        return new_volume
+        pad_idx = np.concatenate([np.array([0] * n_dims), np.array(vol_shape[:n_dims])])
+
+    # sort outputs
+    output = [new_volume]
+    if aff is not None:
+        output.append(aff)
+    if return_pad_idx:
+        output.append(pad_idx)
+    return output[0] if len(output) == 1 else tuple(output)
 
 
 def flip_volume(volume, axis=None, direction=None, aff=None):
@@ -443,7 +475,7 @@ def flip_volume(volume, axis=None, direction=None, aff=None):
     return np.flip(new_volume, axis=axis)
 
 
-def resample_volume(volume, aff, new_vox_size):
+def resample_volume(volume, aff, new_vox_size, interpolation='linear'):
     """This function resizes the voxels of a volume to a new provided size, while adjusting the header to keep the RAS
     :param volume: a numpy array
     :param aff: affine matrix of the volume
@@ -464,7 +496,7 @@ def resample_volume(volume, aff, new_vox_size):
     y = np.arange(0, volume_filt.shape[1])
     z = np.arange(0, volume_filt.shape[2])
 
-    my_interpolating_function = RegularGridInterpolator((x, y, z), volume_filt)
+    my_interpolating_function = RegularGridInterpolator((x, y, z), volume_filt, method=interpolation)
 
     start = -(factor - 1) / (2 * factor)
     step = 1.0 / factor
@@ -490,6 +522,41 @@ def resample_volume(volume, aff, new_vox_size):
          -1] = aff2[:-1, -1] - np.matmul(aff2[:-1, :-1], 0.5 * (factor - 1))
 
     return volume2, aff2
+
+
+def resample_volume_like(vol_ref, aff_ref, vol_flo, aff_flo, interpolation='linear'):
+    """This function reslices a floating image to the space of a reference image
+    :param vol_ref: a numpy array with the reference volume
+    :param aff_ref: affine matrix of the reference volume
+    :param vol_flo: a numpy array with the floating volume
+    :param aff_flo: affine matrix of the floating volume
+    :return: resliced volume
+    """
+
+    T = np.matmul(np.linalg.inv(aff_flo), aff_ref)
+
+    xf = np.arange(0, vol_flo.shape[0])
+    yf = np.arange(0, vol_flo.shape[1])
+    zf = np.arange(0, vol_flo.shape[2])
+
+    my_interpolating_function = RegularGridInterpolator((xf, yf, zf), vol_flo, bounds_error=False, fill_value=0.0,
+                                                        method=interpolation)
+
+    xr = np.arange(0, vol_ref.shape[0])
+    yr = np.arange(0, vol_ref.shape[1])
+    zr = np.arange(0, vol_ref.shape[2])
+
+    xrg, yrg, zrg = np.meshgrid(xr, yr, zr, indexing='ij', sparse=False)
+    n = xrg.size
+    xrg = xrg.reshape([n])
+    yrg = yrg.reshape([n])
+    zrg = zrg.reshape([n])
+    bottom = np.ones_like(xrg)
+    coords = np.stack([xrg, yrg, zrg, bottom])
+    coords_new = np.matmul(T, coords)[:-1, :]
+    result = my_interpolating_function((coords_new[0, :], coords_new[1, :], coords_new[2, :]))
+
+    return result.reshape(vol_ref.shape)
 
 
 def get_ras_axes(aff, n_dims=3):
@@ -1317,11 +1384,8 @@ def align_images_in_dir(image_dir,
         path_result = os.path.join(result_dir, os.path.basename(path_image))
         if (not os.path.isfile(path_result)) | recompute:
             im, aff, h = utils.load_volume(path_image, im_only=False)
-            im, aff = align_volume_to_ref(im,
-                                          aff,
-                                          aff_ref=aff_ref,
-                                          return_aff=True)
-            utils.save_volume(im, aff_ref, h, path_result)
+            im, aff = align_volume_to_ref(im, aff, aff_ref=aff_ref, return_aff=True)
+            utils.save_volume(im, aff, h, path_result)
 
 
 def correct_nans_images_in_dir(image_dir, result_dir, recompute=True):
@@ -1385,8 +1449,7 @@ def blur_images_in_dir(image_dir,
         # load image
         path_result = os.path.join(result_dir, os.path.basename(path_image))
         if (not os.path.isfile(path_result)) | recompute:
-            im, im_shape, aff, n_dims, _, h, image_res = utils.get_volume_info(
-                path_image, return_volume=True)
+            im, im_shape, aff, n_dims, _, h, _ = utils.get_volume_info(path_image, return_volume=True)
             if path_mask is not None:
                 mask = utils.load_volume(path_mask)
                 assert mask.shape == im.shape, 'mask and image should have the same shape'
@@ -1503,12 +1566,15 @@ def convert_images_in_dir_to_nifty(image_dir,
             result_dir, os.path.basename(
                 utils.strip_extension(path_image))) + '.nii.gz'
         if (not os.path.isfile(path_result)) | recompute:
-            im, tmp_aff, h = utils.load_volume(path_image, im_only=False)
-            if aff is not None:
-                tmp_aff = aff
-            elif path_ref is not None:
-                _, tmp_aff, h = utils.load_volume(path_ref, im_only=False)
-            utils.save_volume(im, tmp_aff, h, path_result)
+            if utils.get_image_extension(path_image) == 'nii.gz':
+                shutil.copy2(path_image, path_result)
+            else:
+                im, tmp_aff, h = utils.load_volume(path_image, im_only=False)
+                if aff is not None:
+                    tmp_aff = aff
+                elif path_ref is not None:
+                    _, tmp_aff, h = utils.load_volume(path_ref, im_only=False)
+                utils.save_volume(im, tmp_aff, h, path_result)
 
 
 def mri_convert_images_in_dir(
@@ -1631,7 +1697,7 @@ def samseg_images_in_dir(image_dir,
             cmd = utils.mkcmd(path_samseg, '-i', path_image, '-o',
                               path_im_result_dir, '--threads', threads)
             if atlas_dir is not None:
-                cmd = utils.mkcmd(cmd, '--a', atlas_dir)
+                cmd = utils.mkcmd(cmd, '-a', atlas_dir)
             os.system(cmd)
 
         # move segmentation to result_dir if necessary
@@ -1642,19 +1708,18 @@ def samseg_images_in_dir(image_dir,
                 shutil.rmtree(path_im_result_dir)
 
 
-def niftyreg_images_in_dir(
-        image_dir,
-        reference_dir,
-        nifty_reg_function='reg_resample',
-        input_transformation_dir=None,
-        result_dir=None,
-        result_transformation_dir=None,
-        interpolation=None,
-        same_floating=False,
-        same_reference=False,
-        same_transformation=False,
-        path_nifty_reg='/home/benjamin/Softwares/niftyreg-gpu/build/reg-apps',
-        recompute=True):
+def niftyreg_images_in_dir(image_dir,
+                           reference_dir,
+                           nifty_reg_function='reg_resample',
+                           input_transformation_dir=None,
+                           result_dir=None,
+                           result_transformation_dir=None,
+                           interpolation=None,
+                           same_floating=False,
+                           same_reference=False,
+                           same_transformation=False,
+                           path_nifty_reg='/home/benjamin/Softwares/niftyreg-gpu/build/reg-apps',
+                           recompute=True):
     """This function launches one of niftyreg functions (reg_aladin, reg_f3d, reg_resample) on all images contained
     in image_dir.
     :param image_dir: path of directory with images to register. Can also be a single image, in that case set
@@ -1827,11 +1892,8 @@ def upsample_anisotropic_images(image_dir,
         loop_info.update(idx)
 
         # upsample image
-        _, _, n_dims, _, _, image_res = utils.get_volume_info(
-            path_image, return_volume=False)
-        image_res = np.array(image_res)
-        path_im_upsampled = os.path.join(resample_image_result_dir,
-                                         os.path.basename(path_image))
+        _, _, n_dims, _, _, image_res = utils.get_volume_info(path_image, return_volume=False)
+        path_im_upsampled = os.path.join(resample_image_result_dir, os.path.basename(path_image))
         if (not os.path.isfile(path_im_upsampled)) | recompute:
             cmd = utils.mkcmd(mri_convert, path_image, path_im_upsampled,
                               '-rl', path_ref, '-odt float')
@@ -2039,7 +2101,7 @@ def simulate_upsampled_anisotropic_images(
                 utils.save_volume(dist, aff, h, path_dist_map)
 
 
-def check_images_in_dir(image_dir, check_values=False, keep_unique=True):
+def check_images_in_dir(image_dir, check_values=False, keep_unique=True, max_channels=10):
     """Check if all volumes within the same folder share the same characteristics: shape, affine matrix, resolution.
     Also have option to check if all volumes have the same intensity values (useful for label maps).
     :return four lists, each containing the different values detected for a specific parameter among those to check."""
@@ -2048,6 +2110,7 @@ def check_images_in_dir(image_dir, check_values=False, keep_unique=True):
     list_shape = list()
     list_aff = list()
     list_res = list()
+    list_axes = list()
     if check_values:
         list_unique_values = list()
     else:
@@ -2060,24 +2123,27 @@ def check_images_in_dir(image_dir, check_values=False, keep_unique=True):
         loop_info.update(idx)
 
         # get info
-        im, im_shape, aff, _, _, h, data_res = utils.get_volume_info(
-            path_image, return_volume=True)
-        aff = np.round(aff[:3, :3], 2).tolist()
-        data_res = np.round(np.array(data_res), 2).tolist()
+        im, shape, aff, n_dims, _, h, res = utils.get_volume_info(path_image, True, np.eye(4), max_channels)
+        axes = get_ras_axes(aff, n_dims=n_dims).tolist()
+        aff[:, np.arange(3)] = aff[:, axes]
+        aff = (np.int32(np.round(np.array(aff[:3, :3]), 2) * 100) / 100).tolist()
+        res = (np.int32(np.round(np.array(res), 2) * 100) / 100).tolist()
 
         # add values to list if not already there
-        if (im_shape not in list_shape) | (not keep_unique):
-            list_shape.append(im_shape)
+        if (shape not in list_shape) | (not keep_unique):
+            list_shape.append(shape)
         if (aff not in list_aff) | (not keep_unique):
             list_aff.append(aff)
-        if (data_res not in list_res) | (not keep_unique):
-            list_res.append(data_res)
+        if (res not in list_res) | (not keep_unique):
+            list_res.append(res)
+        if (axes not in list_axes) | (not keep_unique):
+            list_axes.append(axes)
         if list_unique_values is not None:
             uni = np.unique(im).tolist()
             if (uni not in list_unique_values) | (not keep_unique):
                 list_unique_values.append(uni)
 
-    return list_shape, list_aff, list_res, list_unique_values
+    return list_shape, list_aff, list_res, list_axes, list_unique_values
 
 
 # ----------------------------------------------- edit label maps in dir -----------------------------------------------
@@ -2242,11 +2308,7 @@ def smooth_labels_in_dir(labels_dir,
                         labels, labels_to_keep, return_mask=True)
                     labels = smoothing_model.predict(utils.add_axis(labels))
                     labels = np.where(mask_new_labels, new_labels, labels)
-                utils.save_volume(np.squeeze(labels),
-                                  aff,
-                                  h,
-                                  path_result,
-                                  dtype='int')
+                utils.save_volume(np.squeeze(labels), aff, h, path_result, dtype='int32')
 
     else:
         # build kernel
@@ -2265,7 +2327,7 @@ def smooth_labels_in_dir(labels_dir,
             if (not os.path.isfile(path_result)) | recompute:
                 volume, aff, h = utils.load_volume(path, im_only=False)
                 new_volume = smooth_label_map(volume, kernel, labels_list)
-                utils.save_volume(new_volume, aff, h, path_result, dtype='int')
+                utils.save_volume(new_volume, aff, h, path_result, dtype='int32')
 
 
 def smoothing_gpu_model(label_shape, label_list, connectivity=1):
@@ -2384,9 +2446,7 @@ def upsample_labels_in_dir(labels_dir,
                                        for r in target_res]) + ' -odt float'
 
     # load label list and corresponding LUT to make sure that labels go from 0 to N-1
-    label_list, _ = utils.get_list_labels(path_label_list,
-                                          labels_dir=path_labels,
-                                          FS_sort=True)
+    label_list, _ = utils.get_list_labels(path_label_list, labels_dir=path_labels, FS_sort=False)
     new_label_list = np.arange(len(label_list), dtype='int32')
     lut = utils.get_mapping_lut(label_list)
 
@@ -2435,7 +2495,7 @@ def upsample_labels_in_dir(labels_dir,
                 idx = prob > probmax
                 labels[idx] = label
                 probmax[idx] = prob[idx]
-            utils.save_volume(label_list[labels], aff, h, path_result)
+            utils.save_volume(label_list[labels], aff, h, path_result, dtype='int32')
 
 
 def compute_hard_volumes_in_dir(labels_dir,
@@ -2643,11 +2703,7 @@ def check_images_and_labels(image_dir, labels_dir):
             print('')
 
 
-def crop_dataset_to_minimum_size(labels_dir,
-                                 result_dir,
-                                 image_dir=None,
-                                 image_result_dir=None,
-                                 margin=5):
+def crop_dataset_to_minimum_size(labels_dir, result_dir, image_dir=None, image_result_dir=None, margin=5):
     """Crop all label maps in a directory to the minimum possible common size, with a margin.
     This is achieved by cropping each label map individually to the minimum size, and by padding all the cropped maps to
     the same size (taken to be the maximum size of the cropped maps).
@@ -2719,6 +2775,179 @@ def crop_dataset_to_minimum_size(labels_dir,
             image, aff, h = utils.load_volume(path_result, im_only=False)
             image, aff = pad_volume(image, maximum_size, aff=aff)
             utils.save_volume(image, aff, h, path_result)
+
+
+def crop_dataset_around_region_of_same_size(labels_dir,
+                                            result_dir,
+                                            image_dir=None,
+                                            image_result_dir=None,
+                                            margin=0,
+                                            recompute=True):
+
+    # create result dir
+    utils.mkdir(result_dir)
+    if image_dir is not None:
+        assert image_result_dir is not None, 'image_result_dir should not be None if image_dir is specified'
+        utils.mkdir(image_result_dir)
+
+    # list labels and images
+    path_labels = utils.list_images_in_folder(labels_dir)
+    path_images = utils.list_images_in_folder(image_dir) if image_dir is not None else [None] * len(path_labels)
+    _, _, n_dims, _, _, _ = utils.get_volume_info(path_labels[0])
+
+    recompute_labels = any([not os.path.isfile(os.path.join(result_dir, os.path.basename(path)))
+                            for path in path_labels])
+    if (image_dir is not None) & (not recompute_labels):
+        recompute_labels = any([not os.path.isfile(os.path.join(image_result_dir, os.path.basename(path)))
+                                for path in path_images])
+
+    # get minimum patch shape so that no labels are left out when doing the cropping later on
+    if recompute_labels:
+        max_crop_shape = np.zeros(n_dims)
+        for path_label in path_labels:
+            label, aff, _ = utils.load_volume(path_label, im_only=False)
+            label = align_volume_to_ref(label, aff, aff_ref=np.eye(4))
+            label = get_largest_connected_component(label > 0, structure=np.ones((3, 3, 3)))
+            _, cropping = crop_volume_around_region(label)
+            max_crop_shape = np.maximum(cropping[n_dims:] - cropping[:n_dims], max_crop_shape)
+        max_crop_shape += np.array(utils.reformat_to_list(margin, length=n_dims, dtype='int'))
+        print('max_crop_shape: ', max_crop_shape)
+
+    # crop shapes (possibly with padding if images are smaller than crop shape)
+    for path_label, path_image in zip(path_labels, path_images):
+
+        path_label_result = os.path.join(result_dir, os.path.basename(path_label))
+        path_image_result = os.path.join(image_result_dir, os.path.basename(path_image))
+
+        if (not os.path.isfile(path_image_result)) | (not os.path.isfile(path_label_result)) | recompute:
+            # load labels
+            label, aff, h_la = utils.load_volume(path_label, im_only=False, dtype='int32')
+            label, aff_new = align_volume_to_ref(label, aff, aff_ref=np.eye(4), return_aff=True)
+            vol_shape = np.array(label.shape[:n_dims])
+            if path_image is not None:
+                image, _, h_im = utils.load_volume(path_image, im_only=False)
+                image = align_volume_to_ref(image, aff, aff_ref=np.eye(4))
+            else:
+                image = h_im = None
+
+            # mask labels
+            mask = get_largest_connected_component(label > 0, structure=np.ones((3, 3, 3)))
+            label[np.logical_not(mask)] = 0
+
+            # find cropping indices
+            indices = np.nonzero(mask)
+            min_idx = np.maximum(np.array([np.min(idx) for idx in indices]) - margin, 0)
+            max_idx = np.minimum(np.array([np.max(idx) for idx in indices]) + 1 + margin, vol_shape)
+
+            # expand/retract (depending on the desired shape) the cropping region around the centre
+            intermediate_vol_shape = max_idx - min_idx
+            min_idx = min_idx - np.int32(np.ceil((max_crop_shape - intermediate_vol_shape) / 2))
+            max_idx = max_idx + np.int32(np.floor((max_crop_shape - intermediate_vol_shape) / 2))
+
+            # check if we need to pad the output to the desired shape
+            min_padding = np.abs(np.minimum(min_idx, 0))
+            max_padding = np.maximum(max_idx - vol_shape, 0)
+            if np.any(min_padding > 0) | np.any(max_padding > 0):
+                pad_margins = tuple([(min_padding[i], max_padding[i]) for i in range(n_dims)])
+            else:
+                pad_margins = None
+            cropping = np.concatenate([np.maximum(min_idx, 0), np.minimum(max_idx, vol_shape)])
+
+            # crop volume
+            label = crop_volume_with_idx(label, cropping, n_dims=n_dims)
+            if path_image is not None:
+                image = crop_volume_with_idx(image, cropping, n_dims=n_dims)
+
+            # pad volume if necessary
+            if pad_margins is not None:
+                label = np.pad(label, pad_margins, mode='constant', constant_values=0)
+                if path_image is not None:
+                    _, n_channels = utils.get_dims(image.shape)
+                    pad_margins = tuple(list(pad_margins) + [(0, 0)]) if n_channels > 1 else pad_margins
+                    image = np.pad(image, pad_margins, mode='constant', constant_values=0)
+
+            # update aff
+            if n_dims == 2:
+                min_idx = np.append(min_idx, 0)
+            aff_new[0:3, -1] = aff_new[0:3, -1] + aff_new[:3, :3] @ min_idx
+
+            # write labels
+            label, aff_final = align_volume_to_ref(label, aff_new, aff_ref=aff, return_aff=True)
+            utils.save_volume(label, aff_final, h_la, path_label_result, dtype='int32')
+            if path_image is not None:
+                image = align_volume_to_ref(image, aff_new, aff_ref=aff)
+                utils.save_volume(image, aff_final, h_im, path_image_result)
+
+
+def crop_dataset_around_region(image_dir, labels_dir, image_result_dir, labels_result_dir, margin=0,
+                               cropping_shape_div_by=None, recompute=True):
+
+    # create result dir
+    utils.mkdir(image_result_dir)
+    utils.mkdir(labels_result_dir)
+
+    # list volumes and masks
+    path_images = utils.list_images_in_folder(image_dir)
+    path_labels = utils.list_images_in_folder(labels_dir)
+    _, _, n_dims, n_channels, _, _ = utils.get_volume_info(path_labels[0])
+
+    # loop over images and labels
+    loop_info = utils.LoopInfo(len(path_images), 10, 'cropping', True)
+    for idx, (path_image, path_label) in enumerate(zip(path_images, path_labels)):
+        loop_info.update(idx)
+
+        path_label_result = os.path.join(labels_result_dir, os.path.basename(path_label))
+        path_image_result = os.path.join(image_result_dir, os.path.basename(path_image))
+
+        if (not os.path.isfile(path_label_result)) | (not os.path.isfile(path_image_result)) | recompute:
+
+            image, aff, h_im = utils.load_volume(path_image, im_only=False)
+            label, _, h_lab = utils.load_volume(path_label, im_only=False)
+            mask = get_largest_connected_component(label > 0, structure=np.ones((3, 3, 3)))
+            label[np.logical_not(mask)] = 0
+            vol_shape = np.array(label.shape[:n_dims])
+
+            # find cropping indices
+            indices = np.nonzero(mask)
+            min_idx = np.maximum(np.array([np.min(idx) for idx in indices]) - margin, 0)
+            max_idx = np.minimum(np.array([np.max(idx) for idx in indices]) + 1 + margin, vol_shape)
+
+            # expand/retract (depending on the desired shape) the cropping region around the centre
+            intermediate_vol_shape = max_idx - min_idx
+            cropping_shape = np.array([utils.find_closest_number_divisible_by_m(s, cropping_shape_div_by,
+                                                                                answer_type='higher')
+                                       for s in intermediate_vol_shape])
+            min_idx = min_idx - np.int32(np.ceil((cropping_shape - intermediate_vol_shape) / 2))
+            max_idx = max_idx + np.int32(np.floor((cropping_shape - intermediate_vol_shape) / 2))
+
+            # check if we need to pad the output to the desired shape
+            min_padding = np.abs(np.minimum(min_idx, 0))
+            max_padding = np.maximum(max_idx - vol_shape, 0)
+            if np.any(min_padding > 0) | np.any(max_padding > 0):
+                pad_margins = tuple([(min_padding[i], max_padding[i]) for i in range(n_dims)])
+            else:
+                pad_margins = None
+            cropping = np.concatenate([np.maximum(min_idx, 0), np.minimum(max_idx, vol_shape)])
+
+            # crop volume
+            label = crop_volume_with_idx(label, cropping, n_dims=n_dims)
+            image = crop_volume_with_idx(image, cropping, n_dims=n_dims)
+
+            # pad volume if necessary
+            if pad_margins is not None:
+                print('padding', idx + 1)
+                label = np.pad(label, pad_margins, mode='constant', constant_values=0)
+                pad_margins = tuple(list(pad_margins) + [(0, 0)]) if n_channels > 1 else pad_margins
+                image = np.pad(image, pad_margins, mode='constant', constant_values=0)
+
+            # update aff
+            if n_dims == 2:
+                min_idx = np.append(min_idx, 0)
+            aff[0:3, -1] = aff[0:3, -1] + aff[:3, :3] @ min_idx
+
+            # write results
+            utils.save_volume(image, aff, h_im, path_image_result)
+            utils.save_volume(label, aff, h_lab, path_label_result, dtype='int32')
 
 
 def subdivide_dataset_to_patches(patch_shape,

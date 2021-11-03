@@ -24,11 +24,8 @@ def fast_dice(x, y, labels):
         labels_sorted = np.sort(labels)
 
         # build bins for histograms
-        label_edges = np.sort(
-            np.concatenate([labels_sorted - 0.1, labels_sorted + 0.1]))
-        label_edges = np.insert(
-            label_edges, [0, len(label_edges)],
-            [labels_sorted[0] - 0.1, labels_sorted[-1] + 0.1])
+        label_edges = np.sort(np.concatenate([labels_sorted - 0.1, labels_sorted + 0.1]))
+        label_edges = np.insert(label_edges, [0, len(label_edges)], [labels_sorted[0] - 0.1, labels_sorted[-1] + 0.1])
 
         # compute Dice and re-arange scores in initial order
         hst = np.histogram2d(x.flatten(), y.flatten(), bins=label_edges)[0]
