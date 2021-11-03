@@ -10,6 +10,7 @@ DT := $(shell date +"%Y%m%d")
 
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
+RESULTS_DIR := $(PROJ_DIR)/results
 CMD = sbatch submit.sh
 # {echo | python | sbatch submit.sh}
 
@@ -190,8 +191,8 @@ predict-scans:
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 
 	python $(PROJ_DIR)/scripts/commands/SynthSeg_predict.py \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/ \
+		--i /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans \
+		--o /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/ \
 		--vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/
 
 predict-soft:
@@ -200,14 +201,14 @@ predict-soft:
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 
 	python scripts/commands/predict.py \
-		--model /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
-		--label_list /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy \
 		--smoothing 0.5 \
 		--biggest_component \
 		--padding 256 \
-		--out_seg /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.segmentations.jei/ \
-		--out_vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.volumes.jei \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon/
+		--vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.segmentations.jei \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon/ \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.segmentations.jei/ \
+		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
+		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
 
 predict-hard:
 	$(ACTIVATE_ENV)
@@ -215,11 +216,11 @@ predict-hard:
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 
 	python scripts/commands/predict.py \
-		--model /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
-		--label_list /cluster/scratch/monday/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy \
 		--smoothing 0.5 \
 		--biggest_component \
 		--padding 256 \
-		--out_seg /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.segmentations.jei/ \
-		--out_vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.volumes.jei \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon/
+		--vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.segmentations.jei \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon/ \
+		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.segmentations.jei/ \
+		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
+		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy

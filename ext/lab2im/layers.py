@@ -551,8 +551,6 @@ class SampleResolution(Layer):
     U(min_resolution, resolution).
 
     """
-
-    """
     def __init__(self,
                  min_resolution,
                  max_res_iso=None,

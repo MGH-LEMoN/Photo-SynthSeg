@@ -26,7 +26,7 @@ rcParams.update({'figure.autolayout': True})
 sns.set(style="whitegrid", rc={'text.usetex': True})
 
 # TODO: this file is work in progress
-# plt.rcParams.update({"text.usetex": False, 'font.family': 'sans-serif'})
+plt.rcParams.update({"text.usetex": True, 'font.family': 'sans-serif'})
 
 LUT, REVERSE_LUT = fs_lut()
 
@@ -62,8 +62,8 @@ HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE = HARD_RECON_SYNTHSEG + '.in_mri_space'
 SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE = SOFT_RECON_SYNTHSEG + '.in_samseg_space'
 
 mri_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.mri.scans.segmentations.csv'
-soft_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.soft.recon.volumes.jei.csv'
-hard_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.hard.recon.volumes.jei.csv'
+soft_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.soft.recon.segmentations.jei.csv'
+hard_synthseg_vols_file = f'{SYNTHSEG_RESULTS}/UW.photos.hard.recon.segmentations.jei.csv'
 
 #### Extract SAMSEG Volumes
 HARD_SAMSEG_STATS = f'{UW_HARD_RECON}/SAMSEG/'
@@ -696,51 +696,61 @@ if __name__ == '__main__':
     # print('\nCombining MRI_Seg Volume and MRI_Vol Header')
     # perform_overlay()
 
-    # print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
-    # perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
-    #                      MRI_SYNTHSEG_IN_SAMSEG_SPACE)
-    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
-    #                'mri_synth_vs_hard_samseg_in_sam_space.json')
-    # dice_box_plot('mri_synth_vs_hard_samseg_in_sam_space.json',
-    #                     'mri_synth_vs_hard_samseg_in_sam_space.pdf')
+    print('3D Hard')
+    print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
+    perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
+                         MRI_SYNTHSEG_IN_SAMSEG_SPACE)
+    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
+                   'mri_synth_vs_hard_samseg_in_sam_space.json')
 
-    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    # perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
-    #                      HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
+    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
+                         HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
     # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
     #                HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
     #                'mri_synth_vs_hard_synth_in_sam_space.json')
-    # dice_box_plot('mri_synth_vs_hard_synth_in_sam_space.json',
-    #                     'mri_synth_vs_hard_synth_in_sam_space.pdf')
 
-    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    # perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
-    #                      HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
+    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
+                         HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
     # calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
     #                'mri_synth_vs_hard_synth_in_mri_space.json')
-    # dice_box_plot('mri_synth_vs_hard_synth_in_mri_space.json',
-    #                     'mri_synth_vs_hard_synth_in_mri_space.pdf')
 
-    # print('Extracting SYNTHSEG Volumes')
-    # mri_synthseg_vols = extract_synthseg_vols(mri_synthseg_vols_file, 'mri')
-    # hard_synthseg_vols = extract_synthseg_vols(hard_synthseg_vols_file, 'hard')
-    # soft_synthseg_vols = extract_synthseg_vols(soft_synthseg_vols_file, 'soft')
+    print('3D Soft')
+    print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
+    perform_registration(MRI_SCANS_SEG_REG_RES, SOFT_RECON_SAMSEG,
+                         MRI_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, SOFT_RECON_SAMSEG,
+    #                'mri_synth_vs_soft_samseg_in_sam_space.json')
 
-    # print('Extracting SAMSEG Volumes')
-    # hard_samseg_vols = extract_samseg_volumes(HARD_SAMSEG_STATS, 'hard')
-    # soft_samseg_vols = extract_samseg_volumes(SOFT_SAMSEG_STATS, 'soft')
+    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    perform_registration(SOFT_RECON_SYNTHSEG, SOFT_RECON_SAMSEG,
+                         SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                'mri_synth_vs_soft_synth_in_sam_space.json')
 
-    # print('Writing Correlations to File')
-    # print_correlation_pairs(mri_synthseg_vols,
-    #                         hard_samseg_vols,
-    #                         hard_synthseg_vols,
-    #                         flag='HARD')
-    # print_correlation_pairs(mri_synthseg_vols,
-    #                         soft_samseg_vols,
-    #                         soft_synthseg_vols,
-    #                         flag='SOFT')
 
-    ### Work for Hard segmentations
+    print('Extracting SYNTHSEG Volumes')
+    mri_synthseg_vols = extract_synthseg_vols(mri_synthseg_vols_file, 'mri')
+    hard_synthseg_vols = extract_synthseg_vols(hard_synthseg_vols_file, 'hard')
+    soft_synthseg_vols = extract_synthseg_vols(soft_synthseg_vols_file, 'soft')
+
+    print('Extracting SAMSEG Volumes')
+    hard_samseg_vols = extract_samseg_volumes(HARD_SAMSEG_STATS, 'hard')
+    soft_samseg_vols = extract_samseg_volumes(SOFT_SAMSEG_STATS, 'soft')
+
+    print('Writing Correlations to File')
+    print_correlation_pairs(mri_synthseg_vols,
+                            hard_samseg_vols,
+                            hard_synthseg_vols,
+                            flag='HARD')
+    print_correlation_pairs(mri_synthseg_vols,
+                            soft_samseg_vols,
+                            soft_synthseg_vols,
+                            flag='SOFT')
+
+    # ### Work for Hard segmentations
     print('Printing 2D Hard Dices')
     print('Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space')
     calculate_dice_2d(HARD_MANUAL_LABELS_MERGED,
@@ -766,7 +776,7 @@ if __name__ == '__main__':
         'hard_manual_vs_hard_synth_in_sam_space_merge.json', 1, 'hard',
         'hard_reconstruction_merge.png')
 
-    # ### Work for Soft segmentations
+    # # ### Work for Soft segmentations
     print('Printing 2D Soft Dices')
     print('Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space')
     calculate_dice_2d(SOFT_MANUAL_LABELS_MERGED,
