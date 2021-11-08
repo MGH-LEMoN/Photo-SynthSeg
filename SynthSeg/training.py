@@ -345,6 +345,8 @@ def train_model(model,
             model = models.load_model(path_checkpoint,
                                       custom_objects=custom_objects)
             compile_model = False
+        else:
+            model.load_weights(path_checkpoint, by_name=True)
         # else:
         # path_checkpoint = '/space/calico/1/users/Harsha/SynthSeg/models/SynthSeg.h5'
         # try:
