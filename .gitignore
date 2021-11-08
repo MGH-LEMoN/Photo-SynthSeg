@@ -1,5 +1,5 @@
 venv
-**/__pycache__/
+__pycache__
 .idea
 
 ext/neuron/models_*
@@ -19,12 +19,11 @@ SynthSeg/predict_*
 # Ignore from photos-project
 data/SynthSeg*
 data/instructions.txt
-misc/*
-!misc/.gitkeep
-logs/*
-!logs/.gitkeep
-models/*
-!models/.gitkeep
+misc
+logs
+models
+results
+!*/.gitkeep
 .vscode
 **/*.pyc
 .ipynb_checkpoints
