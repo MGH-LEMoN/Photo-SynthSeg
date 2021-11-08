@@ -27,3 +27,4 @@ models/*
 !models/.gitkeep
 .vscode
 **/*.pyc
+.ipynb_checkpoints
