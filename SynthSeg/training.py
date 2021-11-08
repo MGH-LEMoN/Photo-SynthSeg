@@ -252,7 +252,7 @@ def training(labels_dir,
                                      blur_range=blur_range,
                                      bias_field_std=bias_field_std,
                                      bias_shape_factor=bias_shape_factor,
-                                     same_bias_for_all_channels=self.same_bias_for_all_channels)
+                                     same_bias_for_all_channels=same_bias_for_all_channels)
 
     # generation model
     labels_to_image_model = brain_generator.labels_to_image_model
