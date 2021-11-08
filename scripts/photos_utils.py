@@ -4,9 +4,9 @@ import os
 
 import nibabel as nib
 import numpy as np
-from ext.lab2im import utils
 
 import scripts.photos_config as config
+from ext.lab2im import utils
 
 NUM_COPIES = 50
 
