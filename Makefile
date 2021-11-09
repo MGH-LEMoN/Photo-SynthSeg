@@ -92,6 +92,13 @@ remove-subject-copies:
 create-subject-copies:
 	python scripts/photos_utils.py
 
+resume-training:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+	
+	python $(PROJ_DIR)/scripts/commands/training.py resume-train /cluster/scratch/friday/for_harsha/20211108-657797
+
 # training: PATH := $(PATH):/usr/pubsw/packages/CUDA/10.0/extras/CUPTI/lib64
 training:
 	$(ACTIVATE_ENV)
