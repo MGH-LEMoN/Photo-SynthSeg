@@ -199,12 +199,10 @@ elif sys.argv[1] == 'resume-train':
     assert isinstance(data, dict), 'Invalid Object Type'
 
     data.pop('message', 'Key Error')
+    data['wl2_epochs'] = 0
     
     dice_list = sorted(glob.glob(os.path.join(chkpt_folder, 'dice*.h5')))
     wl2_list = sorted(glob.glob(os.path.join(chkpt_folder, 'wl2*.h5')))
-
-    print(dice_list)
-    print(wl2_list)
 
     if dice_list:
         data['checkpoint'] = dice_list[-1]
@@ -213,7 +211,6 @@ elif sys.argv[1] == 'resume-train':
     else:
         sys.exit('No checkpoints exist to resume training')
 
-    print(data)
     training(**data)
 
 else:
