@@ -111,7 +111,7 @@ training-default:
 			/space/calico/1/users/Harsha/SynthSeg/data/training_label_maps \
 			/space/calico/1/users/Harsha/SynthSeg/models/SynthSeg_training_BB_resume \
 			\
-			--generation_labels $(DATA_DIR/labels_classes_priors/generation_labels.npy 		\
+			--generation_labels $(DATA_DIR)/labels_classes_priors/generation_labels.npy 		\
 			--segmentation_labels $(DATA_DIR)/labels_classes_priors/segmentation_labels.npy 	\
 			--batch_size 1 			\
 			--channels 1 			\

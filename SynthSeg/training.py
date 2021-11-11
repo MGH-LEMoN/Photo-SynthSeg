@@ -18,6 +18,8 @@ from keras.optimizers import Adam
 from . import metrics_model as metrics
 from .brain_generator import BrainGenerator
 
+physical_devices = tf.config.list_physical_devices('GPU')
+print("Num GPUs:", len(physical_devices))
 
 def training(labels_dir,
              model_dir,
