@@ -15,7 +15,7 @@ RESULTS_DIR := $(PROJ_DIR)/results
 CMD = python
 # {echo | python | sbatch submit.sh}
 
-ACTIVATE_ENV = source /space/calico/1/users/Harsha/synthseg-venv/bin/activate
+ACTIVATE_ENV = source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 
 # variables for SynthSeg
 labels_dir = /space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
@@ -98,7 +98,7 @@ resume-training:
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 	
-	python $(PROJ_DIR)/scripts/commands/training.py resume-train /cluster/scratch/friday/for_harsha/20211110-665818
+	python $(PROJ_DIR)/scripts/commands/training.py resume-train /cluster/scratch/friday/for_harsha/test-668939/
 
 
 # Running this target is equivalent to running tutorials/3-training.py
@@ -239,7 +239,7 @@ training:
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
 		--message 'New training on 20211004' \
-		--checkpoint /cluster/scratch/friday/for_harsha/20211110-665818/dice_005.h5 \
+		--checkpoint /cluster/scratch/friday/for_harsha/test-668939/dice_005.h5 \
 		;
 
 predict:
@@ -254,12 +254,6 @@ predict:
 	--biggest_component \
 	--out_seg /tmp/seg4mm.mgz  /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/17-0333/17-0333.hard.recon.grayscale.mgz
 
-test:
-	for dir in /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/*     # list directories in the form "/tmp/dirname/"
-	do
-		echo $$dir/*.hard.recon.grayscale.mgz
-	done
-
 predict1:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
@@ -273,7 +267,7 @@ predict1:
 		--smoothing 0.5 \
 		--biggest_component \
 		/space/calico/1/users/Harsha/SynthSeg/results/UW_photos/
-
+		;
 
 predict-scans:
 	$(ACTIVATE_ENV)
