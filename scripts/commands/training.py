@@ -87,71 +87,6 @@ parser_b.add_argument("--checkpoint", type=str, dest="checkpoint", default=None)
 
 parser_b.add_argument("--message", type=str, dest="message", default=None)
 
-# import sys
-# sys.argv = ['/autofs/space/calico_001/users/Harsha/SynthSeg/scripts/commands/training.py',
-#  '/space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem',
-#  '/space/calico/1/users/Harsha/SynthSeg/models',
-#  '--generation_labels',
-#  '/autofs/space/calico_001/users/Harsha/SynthSeg/data/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_charm_choroid_lesions.npy',
-#  '--segmentation_labels',
-#  '/autofs/space/calico_001/users/Harsha/SynthSeg/data/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/segmentation_new_charm_choroid_lesions.npy',
-#  '--noisy_patches',
-#  '--batch_size',
-#  '1',
-#  '--channels',
-#  '3',
-#  '--target_res',
-#  '--output_shape',
-#  '96',
-#  '--generation_classes',
-#  '/autofs/space/calico_001/users/Harsha/SynthSeg/data/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_classes_charm_choroid_lesions_gm.npy',
-#  '--prior_type',
-#  'uniform',
-#  '--prior_means',
-#  '--prior_std',
-#  '--no_flipping',
-#  '--scaling',
-#  '--rotation',
-#  '--shearing',
-#  '--translation',
-#  '--nonlin_std',
-#  '(4, 0, 4)',
-#  '--nonlin_shape_factor',
-#  '(0.0625, 0.25, 0.0625)',
-#  '--data_res',
-#  '(1, 4, 1)',
-#  '--thickness',
-#  '(1, 0.001,1)',
-#  '--downsample',
-#  '--blur_range',
-#  '1.03',
-#  '--bias_std',
-#  '.5',
-#  '--bias_shape_factor',
-#  '(0.025, 0.25, 0.025)',
-#  '--n_levels',
-#  '5',
-#  '--conv_per_level',
-#  '2',
-#  '--conv_size',
-#  '3',
-#  '--unet_feat',
-#  '24',
-#  '--feat_mult',
-#  '2',
-#  '--activation',
-#  'elu',
-#  '--lr',
-#  '1e-4',
-#  '--lr_decay',
-#  '0',
-#  '--wl2_epochs',
-#  '1',
-#  '--dice_epochs',
-#  '100',
-#  '--steps_per_epoch',
-#  '5000']
-
 args = parser.parse_args()
 
 if sys.argv[1] == 'train':
@@ -196,21 +131,27 @@ elif sys.argv[1] == 'resume-train':
     with open(config_file) as json_file:
         data = json.load(json_file)
 
+    os.rename(config_file, os.path.join(chkpt_folder, 'config_train.json'))
+
     assert isinstance(data, dict), 'Invalid Object Type'
 
     data.pop('message', 'Key Error')
-    data['wl2_epochs'] = 0
     
     dice_list = sorted(glob.glob(os.path.join(chkpt_folder, 'dice*.h5')))
     wl2_list = sorted(glob.glob(os.path.join(chkpt_folder, 'wl2*.h5')))
 
     if dice_list:
         data['checkpoint'] = dice_list[-1]
+        data['wl2_epochs'] = 0
     elif wl2_list:
         data['checkpoint'] = wl2_list[-1]
+        data['wl2_epochs'] -= len(data['checkpoint'])
     else:
         sys.exit('No checkpoints exist to resume training')
 
+    write_config(data)
+    os.rename(config_file, os.path.join(chkpt_folder, 'config_resume.json'))
+    
     training(**data)
 
 else:

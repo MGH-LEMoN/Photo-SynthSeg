@@ -11,14 +11,15 @@ DT := $(shell date +"%Y%m%d")
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
 RESULTS_DIR := $(PROJ_DIR)/results
-CMD = sbatch submit.sh
+# MODEL_DIR := $(PROJ_DIR)/models
+CMD = python
 # {echo | python | sbatch submit.sh}
 
 ACTIVATE_ENV = source /space/calico/1/users/Harsha/synthseg-venv/bin/activate
 
 # variables for SynthSeg
 labels_dir = /space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
-model_dir = /cluster/scratch/friday/for_harsha/$(DT)
+model_dir = /cluster/scratch/friday/for_harsha/test
 
 ## label maps parameters ##
 generation_labels = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_charm_choroid_lesions.npy
@@ -74,9 +75,9 @@ feat_mult = 2    # if feat_multiplier is set to 1, we will keep the number of fe
 lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
-dice_epochs = 100       # number of training epochs
-steps_per_epoch = 2000  # number of iteration per epoch
-checkpoint = '20211004-model' 		# checkpoint name
+dice_epochs = 10       # number of training epochs
+steps_per_epoch = 5  # number of iteration per epoch
+# checkpoint = '20211004-model' 		# checkpoint name
 
 .PHONY: help
 help:
@@ -97,15 +98,97 @@ resume-training:
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 	
-	python $(PROJ_DIR)/scripts/commands/training.py resume-train /cluster/scratch/friday/for_harsha/20211108-657797
+	python $(PROJ_DIR)/scripts/commands/training.py resume-train /cluster/scratch/friday/for_harsha/20211110-665818
 
-# training: PATH := $(PATH):/usr/pubsw/packages/CUDA/10.0/extras/CUPTI/lib64
+
+# Running this target is equivalent to running tutorials/3-training.py
+training-default:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+
+	python /autofs/space/calico_001/users/Harsha/SynthSeg/scripts/commands/training.py train\
+			/space/calico/1/users/Harsha/SynthSeg/data/training_label_maps \
+			/space/calico/1/users/Harsha/SynthSeg/models/SynthSeg_training_BB_resume \
+			\
+			--generation_labels $(DATA_DIR/labels_classes_priors/generation_labels.npy 		\
+			--segmentation_labels $(DATA_DIR)/labels_classes_priors/segmentation_labels.npy 	\
+			--batch_size 1 			\
+			--channels 1 			\
+			--target_res  			\
+			--output_shape 96 		\
+			--generation_classes $(DATA_DIR)/labels_classes_priors/generation_classes.npy 		\
+			--prior_type 'uniform' 	\
+			--scaling .15 			\
+			--rotation 15 			\
+			--shearing .012 		\
+			--translation  			\
+			--nonlin_std '3' 		\
+			--randomise_res 		\
+			--blur_range 1.03 		\
+			--bias_std .5 			\
+			--n_levels 5            \
+			--conv_per_level 2   	\
+			--conv_size 3           \
+			--unet_feat 24    		\
+			--feat_mult 2     		\
+			--activation 'elu'      \
+			--lr 1e-4               \
+			--lr_decay 0            \
+			--wl2_epochs 1          \
+			--dice_epochs 10       	\
+			--steps_per_epoch 5   	\
+			;
+
+
+# Running this target is equivalent to resuming training using a model trained in the above target
+resume-training-default:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+
+	python $(PROJ_DIR)/scripts/commands/training.py resume-train 	\
+			$(DATA_DIR)/training_label_maps 						\
+			$(PROJ_DIR)/models/SynthSeg_training_BB_resume 			\
+			\
+			--generation_labels $(DATA_DIR)/labels_classes_priors/generation_labels.npy 			\
+			--segmentation_labels $(DATA_DIR)/labels_classes_priors/segmentation_labels.npy 		\
+			--batch_size 1 			\
+			--channels 1 			\
+			--target_res  			\
+			--output_shape 96 		\
+			--generation_classes $(DATA_DIR)/labels_classes_priors/generation_classes.npy 			\
+			--prior_type 'uniform' 	\
+			--scaling .15 			\
+			--rotation 15 			\
+			--shearing .012 		\
+			--translation  			\
+			--nonlin_std '3' 		\
+			--randomise_res 		\
+			--blur_range 1.03 		\
+			--bias_std .5 			\
+			--n_levels 5            \
+			--conv_per_level 2   	\
+			--conv_size 3           \
+			--unet_feat 24    		\
+			--feat_mult 2     		\
+			--activation 'elu'      \
+			--lr 1e-4               \
+			--lr_decay 0            \
+			--wl2_epochs 0          \
+			--dice_epochs 10       	\
+			--steps_per_epoch 5   	\
+			--checkpoint /space/calico/1/users/Harsha/SynthSeg/models/SynthSeg_training_BB-665785/dice_005.h5                				\
+			;
+
+
+# This is the target that should be used to train/resume training models
 training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 	
-	$(CMD) $(PROJ_DIR)/scripts/commands/training.py \
+	$(CMD) $(PROJ_DIR)/scripts/commands/training.py train\
 		$(labels_dir) \
 		$(model_dir) \
 		\
@@ -152,10 +235,11 @@ training:
 		\
 		--lr $(lr) \
 		--lr_decay $(lr_decay) \
-		--wl2_epochs $(wl2_epochs) \
+		--wl2_epochs 0 \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
 		--message 'New training on 20211004' \
+		--checkpoint /cluster/scratch/friday/for_harsha/20211110-665818/dice_005.h5 \
 		;
 
 predict:
@@ -169,7 +253,6 @@ predict:
 	--smoothing 0.5
 	--biggest_component \
 	--out_seg /tmp/seg4mm.mgz  /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/17-0333/17-0333.hard.recon.grayscale.mgz
-
 
 test:
 	for dir in /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/*     # list directories in the form "/tmp/dirname/"
