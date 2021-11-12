@@ -5,16 +5,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib import rcParams
-
 from dice_config import *
+from matplotlib import rcParams
 
 rcParams.update({'figure.autolayout': True})
 
-sns.set(style="whitegrid", rc={'text.usetex': True})
+sns.set(style="whitegrid", rc={
+    'text.usetex': True,
+    'font.family': 'serif',
+})
 
-# TODO: this file is work in progress
-plt.rcParams.update({"text.usetex": True, 'font.family': 'sans-serif'})
+# # TODO: this file is work in progress
+# plt.rcParams.update({"text.usetex": True,
+# 'font.family': 'serif'})
 
 
 def dice_plot_from_df(df, out_file_name, flag):
@@ -24,26 +27,54 @@ def dice_plot_from_df(df, out_file_name, flag):
                      y="score",
                      hue="type",
                      data=df,
-                     palette="Set3")
-    ax.set_xlim(-0.5, 8.49)
-    ax.set_ylim(-0.025, 1.025)
+                     palette="Greys_r")
+
+    # Setting width and color of outer box
+    [i.set_linewidth(1.5) for i in ax.spines.values()]
+    [i.set_edgecolor('k') for i in ax.spines.values()]
+
+    # Set y-ticks
+    ax.set_yticks(np.arange(0, 1.01, 0.1), minor=True)
+    ax.tick_params(axis="y",
+                   direction="in",
+                   which='both',
+                   left='on',
+                   right='on',
+                   length=5,
+                   width=1.25)
+    plt.grid(axis='y', which='minor')
+
+    ax.set_ylim(-0.0, 1.0)
+    ax.set_xlim(-1, 9)
     [
         ax.axvline(x + .5, color='k', linestyle=':', lw=0.5)
         for x in ax.get_xticks()
     ]
-    [i.set_linewidth(1) for i in ax.spines.values()]
-    [i.set_edgecolor('k') for i in ax.spines.values()]
+    [ax.axvline(x, 0, 0.020, color='k', lw=1) for x in ax.get_xticks()]
+    [ax.axvline(x, 0.98, 1, color='k', lw=1) for x in ax.get_xticks()]
 
     # Adding title
     plt.title(f"2D Dice Scores (For {flag} reconstruction)", fontsize=20)
-    plt.yticks(fontsize=15)
     ax.set_xlabel('')
-    ax.set_ylabel('')
-    ax.set_xticklabels(LABEL_PAIR_NAMES, fontsize=15, rotation=45)
+    ax.set_ylabel('Dice Overlap', fontsize=20, fontweight='bold')
+    # LABEL_PAIR_NAMES = [fr"\textbf{{{item}}}" for item in LABEL_PAIR_NAMES]
+    ax.set_xticklabels(LABEL_PAIR_NAMES,
+                       rotation=45,
+                       color='k',
+                       fontweight='bold',
+                       ha='right')
 
+    plt.yticks(fontsize=15)
+    plt.xticks(fontsize=15)
+
+    # Working with Legend
     handles, labels = ax.get_legend_handles_labels()
     ax.get_legend().remove()
-    ax.legend(handles=handles, labels=labels, fontsize=20, frameon=False)
+    ax.legend(handles=handles,
+              labels=labels,
+              fontsize=20,
+              frameon=True,
+              edgecolor='black')
 
     plt.savefig(os.path.join(SYNTHSEG_RESULTS, out_file_name))
 

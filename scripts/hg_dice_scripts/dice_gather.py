@@ -4,10 +4,10 @@ import re
 from shutil import copyfile
 
 import numpy as np
-from ext.lab2im import utils
-
 from dice_config import *
 from dice_utils import files_at_path
+
+from ext.lab2im import utils
 
 
 def copy_uw_recon_vols(src_path, dest_path, flag_list):

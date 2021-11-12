@@ -1,7 +1,7 @@
-from fs_lut import fs_lut
+from scripts.fs_lut import fs_lut
 
 SYNTHSEG_PRJCT = '/space/calico/1/users/Harsha/SynthSeg'
-SYNTHSEG_RESULTS = f'{SYNTHSEG_PRJCT}/results'
+SYNTHSEG_RESULTS = f'{SYNTHSEG_PRJCT}/results/jei-model'
 
 UW_HARD_RECON = '/cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard'
 UW_SOFT_RECON = '/cluster/vive/UW_photo_recon/recons/results_Henry/Results_soft'

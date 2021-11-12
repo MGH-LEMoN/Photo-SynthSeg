@@ -5,15 +5,15 @@ import json
 import os
 
 import numpy as np
-from ext.lab2im import utils
-from SynthSeg.evaluate import fast_dice
-
 from dice_config import *
 from dice_gather import copy_relevant_files, files_at_path
 from dice_mri_utils import perform_overlay, run_mri_convert
 from dice_plots import write_plots
 from dice_utils import id_check, return_common_subjects
 from dice_volumes import write_correlations_to_file
+
+from ext.lab2im import utils
+from SynthSeg.evaluate import fast_dice
 
 
 def run_make_target(flag):
@@ -86,52 +86,52 @@ def combine_pairs(df, pair_list):
 
 if __name__ == '__main__':
 
-    copy_relevant_files()
+    # copy_relevant_files()
 
-    run_make_target('hard')  # Run this on mlsc
-    run_make_target('soft')  # Run this on mlsc
-    run_make_target('scans')  # Run this on mlsc
+    # run_make_target('hard')  # Run this on mlsc
+    # run_make_target('soft')  # Run this on mlsc
+    # run_make_target('scans')  # Run this on mlsc
 
-    print('\nPut MRI SynthSeg Segmentation in the same space as MRI')
-    perform_registration(MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
+    # print('\nPut MRI SynthSeg Segmentation in the same space as MRI')
+    # perform_registration(MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
 
-    print('\nCombining MRI_Seg Volume and MRI_Vol Header')
-    perform_overlay()
+    # print('\nCombining MRI_Seg Volume and MRI_Vol Header')
+    # perform_overlay()
 
-    print('3D Hard')
-    print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
-    perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
-                         MRI_SYNTHSEG_IN_SAMSEG_SPACE)
-    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
-                   'mri_synth_vs_hard_samseg_in_sam_space.json')
+    # print('3D Hard')
+    # print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
+    # perform_registration(MRI_SCANS_SEG_REG_RES, HARD_RECON_SAMSEG,
+    #                      MRI_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, HARD_RECON_SAMSEG,
+    #                'mri_synth_vs_hard_samseg_in_sam_space.json')
 
-    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
-                         HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
-    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
-                   HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
-                   'mri_synth_vs_hard_synth_in_sam_space.json')
+    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    # perform_registration(HARD_RECON_SYNTHSEG, HARD_RECON_SAMSEG,
+    #                      HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                'mri_synth_vs_hard_synth_in_sam_space.json')
 
-    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
-                         HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
-    calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
-                   'mri_synth_vs_hard_synth_in_mri_space.json')
+    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    # perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
+    #                      HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
+    # calculate_dice(MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,
+    #                'mri_synth_vs_hard_synth_in_mri_space.json')
 
-    print('3D Soft')
-    print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
-    perform_registration(MRI_SCANS_SEG_REG_RES, SOFT_RECON_SAMSEG,
-                         MRI_SYNTHSEG_IN_SAMSEG_SPACE)
-    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, SOFT_RECON_SAMSEG,
-                   'mri_synth_vs_soft_samseg_in_sam_space.json')
+    # print('3D Soft')
+    # print('\nDice(MRI_Seg, PhotoReconSAMSEG) in PhotoReconSAMSEG space')
+    # perform_registration(MRI_SCANS_SEG_REG_RES, SOFT_RECON_SAMSEG,
+    #                      MRI_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE, SOFT_RECON_SAMSEG,
+    #                'mri_synth_vs_soft_samseg_in_sam_space.json')
 
-    print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
-    perform_registration(SOFT_RECON_SYNTHSEG, SOFT_RECON_SAMSEG,
-                         SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
-    calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
-                   HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
-                   'mri_synth_vs_soft_synth_in_sam_space.json')
+    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    # perform_registration(SOFT_RECON_SYNTHSEG, SOFT_RECON_SAMSEG,
+    #                      SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE)
+    # calculate_dice(MRI_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
+    #                'mri_synth_vs_soft_synth_in_sam_space.json')
 
-    write_correlations_to_file()
+    # write_correlations_to_file()
 
     write_plots()
