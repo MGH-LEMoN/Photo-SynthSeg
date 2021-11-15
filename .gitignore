@@ -19,6 +19,7 @@ SynthSeg/predict_*
 # Ignore from photos-project
 data/SynthSeg*
 data/instructions.txt
+data/test*
 misc
 logs
 models

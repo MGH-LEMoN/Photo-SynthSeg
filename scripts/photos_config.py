@@ -1,5 +1,4 @@
 import os
-
 """
 This file contains all the static parameters needed for the project
 """
