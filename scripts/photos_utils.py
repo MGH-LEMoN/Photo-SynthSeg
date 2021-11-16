@@ -55,16 +55,18 @@ def make_data_copy():
     return
 
 
-def write_config(dictionary):
+def write_config(dictionary, file_name=None):
     """Write configuration to a file
     Args:
         CONFIG (dict): configuration
     """
+    file_name = 'config.json' if file_name is None else file_name
+
     json_object = json.dumps(dictionary, sort_keys=True, indent=4)
 
     utils.mkdir(dictionary['model_dir'])
 
-    config_file = os.path.join(dictionary['model_dir'], 'config.json')
+    config_file = os.path.join(dictionary['model_dir'], file_name)
 
     with open(config_file, "w") as outfile:
         outfile.write(json_object)
