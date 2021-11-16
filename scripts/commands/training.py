@@ -131,8 +131,6 @@ elif sys.argv[1] == 'resume-train':
     with open(config_file) as json_file:
         data = json.load(json_file)
 
-    os.rename(config_file, os.path.join(chkpt_folder, 'config_train.json'))
-
     assert isinstance(data, dict), 'Invalid Object Type'
 
     data.pop('message', 'Key Error')
@@ -149,8 +147,7 @@ elif sys.argv[1] == 'resume-train':
     else:
         sys.exit('No checkpoints exist to resume training')
 
-    write_config(data)
-    os.rename(config_file, os.path.join(chkpt_folder, 'config_resume.json'))
+    write_config(data, 'config_resume.json')
     
     training(**data)
 
