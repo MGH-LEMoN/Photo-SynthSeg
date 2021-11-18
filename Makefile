@@ -8,22 +8,34 @@
 USR := $(shell whoami | head -c 2)
 DT := $(shell date +"%Y%m%d")
 
+# Fixed
+HOME := /space/calico/1/users/Harsha
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
 RESULTS_DIR := $(PROJ_DIR)/results
-# MODEL_DIR := $(PROJ_DIR)/models
+MODEL_DIR := $(PROJ_DIR)/models
+SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
+ENV_DIR := $(HOME)/venvs
+
+# Dynamic
 CMD = python
 # {echo | python | sbatch submit.sh}
+ENV_NAME := synthseg-venv
+# {synthseg-venv | synthseg-venv1}
+CUDA_V := 10.1
+# {10.0 (for synthseg-venv1) | 10.1 (for synthseg-venv)}
+PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
+MODEL_NAME := test
 
-ACTIVATE_ENV = source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
+ACTIVATE_ENV = source $(ENV_DIR)/$(ENV_NAME)/bin/activate
 
 # variables for SynthSeg
-labels_dir = /space/calico/1/users/Harsha/SynthSeg/data/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
-model_dir = /cluster/scratch/friday/for_harsha/test
+labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
+MODEL_PATH = $(SCRATCH_MODEL_DIR)/$(MODEL_NAME)
 
 ## label maps parameters ##
-generation_labels = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_charm_choroid_lesions.npy
-segmentation_labels = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/segmentation_new_charm_choroid_lesions.npy
+generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
+segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions.npy
 noisy_patches =
 
 ## output-related parameters ##
@@ -33,7 +45,7 @@ target_res =
 output_shape = 192
 
 # GMM-sampling parameters
-generation_classes = $(DATA_DIR)/SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem/generation_classes_charm_choroid_lesions_gm.npy
+generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm.npy
 prior_type = 'uniform'
 prior_means =
 prior_std =
@@ -52,7 +64,7 @@ nonlin_shape_factor = (0.04, 0.25, 0.04)
 ## blurring/resampling parameters ##
 # randomise_res = --randomise_res
 data_res = (1, 4, 1)
-thickness = (1, 0.01, 1)
+thickness = (1, 1, 1)
 downsample = --downsample
 blur_range = 1.03
 
@@ -77,7 +89,6 @@ lr_decay = 0            # learning rate decay (knowing that Adam already has its
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
 dice_epochs = 10       # number of training epochs
 steps_per_epoch = 5  # number of iteration per epoch
-# checkpoint = '20211004-model' 		# checkpoint name
 
 .PHONY: help
 help:
@@ -93,23 +104,15 @@ remove-subject-copies:
 create-subject-copies:
 	python scripts/photos_utils.py
 
-resume-training:
-	$(ACTIVATE_ENV)
-	export PYTHONPATH=$(PROJ_DIR)
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
-	
-	python $(PROJ_DIR)/scripts/commands/training.py resume-train /cluster/scratch/friday/for_harsha/test-668939/
-
-
 # Running this target is equivalent to running tutorials/3-training.py
 training-default:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
 
 	python /autofs/space/calico_001/users/Harsha/SynthSeg/scripts/commands/training.py train\
-			/space/calico/1/users/Harsha/SynthSeg/data/training_label_maps \
-			/space/calico/1/users/Harsha/SynthSeg/models/SynthSeg_training_BB_resume \
+			$(DATA_DIR)/training_label_maps \
+			$(MODEL_DIR)/SynthSeg_training_BB_resume \
 			\
 			--generation_labels $(DATA_DIR)/labels_classes_priors/generation_labels.npy 		\
 			--segmentation_labels $(DATA_DIR)/labels_classes_priors/segmentation_labels.npy 	\
@@ -140,57 +143,15 @@ training-default:
 			--steps_per_epoch 5   	\
 			;
 
-
-# Running this target is equivalent to resuming training using a model trained in the above target
-resume-training-default:
-	$(ACTIVATE_ENV)
-	export PYTHONPATH=$(PROJ_DIR)
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
-
-	python $(PROJ_DIR)/scripts/commands/training.py resume-train 	\
-			$(DATA_DIR)/training_label_maps 						\
-			$(PROJ_DIR)/models/SynthSeg_training_BB_resume 			\
-			\
-			--generation_labels $(DATA_DIR)/labels_classes_priors/generation_labels.npy 			\
-			--segmentation_labels $(DATA_DIR)/labels_classes_priors/segmentation_labels.npy 		\
-			--batch_size 1 			\
-			--channels 1 			\
-			--target_res  			\
-			--output_shape 96 		\
-			--generation_classes $(DATA_DIR)/labels_classes_priors/generation_classes.npy 			\
-			--prior_type 'uniform' 	\
-			--scaling .15 			\
-			--rotation 15 			\
-			--shearing .012 		\
-			--translation  			\
-			--nonlin_std '3' 		\
-			--randomise_res 		\
-			--blur_range 1.03 		\
-			--bias_std .5 			\
-			--n_levels 5            \
-			--conv_per_level 2   	\
-			--conv_size 3           \
-			--unet_feat 24    		\
-			--feat_mult 2     		\
-			--activation 'elu'      \
-			--lr 1e-4               \
-			--lr_decay 0            \
-			--wl2_epochs 0          \
-			--dice_epochs 10       	\
-			--steps_per_epoch 5   	\
-			--checkpoint /space/calico/1/users/Harsha/SynthSeg/models/SynthSeg_training_BB-665785/dice_005.h5                				\
-			;
-
-
-# This is the target that should be used to train/resume training models
+# Use this target to train custom models
 training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+	# export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
 	
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py train\
 		$(labels_dir) \
-		$(model_dir) \
+		$(MODEL_DIR)/$(MODEL_NAME) \
 		\
 		--generation_labels $(generation_labels) \
 		--segmentation_labels $(segmentation_labels) \
@@ -241,6 +202,15 @@ training:
 		--message 'New training on 20211004' \
 		--checkpoint /cluster/scratch/friday/for_harsha/test-668939/dice_005.h5 \
 		;
+
+## Use this target to resume training
+resume-training:
+	$(ACTIVATE_ENV)
+	export PYTHONPATH=$(PROJ_DIR)
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
+	
+	python $(PROJ_DIR)/scripts/commands/training.py resume-train $(MODEL_PATH)
+
 
 predict:
 	$(ACTIVATE_ENV)
