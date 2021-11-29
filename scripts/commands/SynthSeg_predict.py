@@ -1,3 +1,19 @@
+"""
+If you use this code, please cite one of the SynthSeg papers:
+https://github.com/BBillot/SynthSeg/blob/master/bibtex.bib
+
+Copyright 2020 Benjamin Billot
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the
+License.
+"""
+
+
 """This script enables to launch predictions with SynthSeg from the terminal."""
 
 # print information
@@ -55,14 +71,11 @@ tf.config.threading.set_intra_op_parallelism_threads(args['threads'])
 del args['threads']
 
 # default parameters
-path_label_list = os.path.join(synthseg_home, 'data/labels_classes_priors/segmentation_labels.npy')
-path_names_list = os.path.join(synthseg_home, 'data/labels_classes_priors/segmentation_names.npy')
-path_topology_classes = os.path.join(synthseg_home, 'data/labels_classes_priors/topological_classes.npy')
-path_model = os.path.join(synthseg_home, 'models/SynthSeg.h5')
-args['segmentation_label_list'] = path_label_list
-args['segmentation_names_list'] = path_names_list
-args['topology_classes'] = path_topology_classes
-args['path_model'] = path_model
+args['segmentation_labels'] = os.path.join(synthseg_home, 'data/labels_classes_priors/segmentation_labels.npy')
+args['n_neutral_labels'] = 18
+args['segmentation_label_names'] = os.path.join(synthseg_home, 'data/labels_classes_priors/segmentation_names.npy')
+args['topology_classes'] = os.path.join(synthseg_home, 'data/labels_classes_priors/topological_classes.npy')
+args['path_model'] = os.path.join(synthseg_home, 'models/SynthSeg.h5')
 args['padding'] = args['cropping']
 
 # call predict

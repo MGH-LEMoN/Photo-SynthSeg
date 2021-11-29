@@ -1,3 +1,19 @@
+"""
+If you use this code, please cite one of the SynthSeg papers:
+https://github.com/BBillot/SynthSeg/blob/master/bibtex.bib
+
+Copyright 2020 Benjamin Billot
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the
+License.
+"""
+
+
 # imports
 import os
 
@@ -12,17 +28,18 @@ parser = ArgumentParser()
 parser.add_argument("path_images", type=str, help="path single image or path of the folders with training labels")
 parser.add_argument("path_segmentations", type=str, help="segmentations folder/path")
 parser.add_argument("path_model", type=str, help="model file path")
-parser.add_argument("segmentation_label_list", type=str, help="path label list")
+parser.add_argument("segmentation_labels", type=str, help="path label list")
 
 # Saving paths
 parser.add_argument("--post", type=str, dest="path_posteriors", default=None, help="posteriors folder/path")
 parser.add_argument("--resampled", type=str, dest="path_resampled", default=None,
                     help="path/folder of the resampled images (1mm isotropic resolution)")
 parser.add_argument("--vol", type=str, dest="path_volumes", default=None, help="path volume file")
-parser.add_argument("--names_list", type=str, dest="segmentation_names_list", default=None,
+parser.add_argument("--names_list", type=str, dest="segmentation_label_names", default=None,
                     help="path list of label names, only used if --vol is specified")
 
 # Processing parameters
+parser.add_argument("--neutral_labels", type=int, dest="n_neutral_labels", default=None)
 parser.add_argument("--padding", type=int, dest="padding", default=None,
                     help="margin of the padding")
 parser.add_argument("--cropping", type=int, dest="cropping", default=None,
@@ -57,7 +74,7 @@ parser.add_argument("--incorrect_labels", type=str, default=None, dest="list_inc
                     help="path list labels to correct.")
 parser.add_argument("--correct_labels", type=str, default=None, dest="list_correct_labels",
                     help="path list correct labels.")
-parser.add_argument("--eval_label_list", type=str, dest="evaluation_label_list", default=None,
+parser.add_argument("--eval_label_list", type=str, dest="evaluation_labels", default=None,
                     help="labels to evaluate Dice scores on if gt is provided. Default is the same as label_list.")
 
 parser.add_argument("--cpu", action="store_true", help="enforce running with CPU rather than GPU.")

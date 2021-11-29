@@ -1,3 +1,19 @@
+"""
+If you use this code, please cite one of the SynthSeg papers:
+https://github.com/BBillot/SynthSeg/blob/master/bibtex.bib
+
+Copyright 2020 Benjamin Billot
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the
+License.
+"""
+
+
 # python imports
 import os
 
@@ -23,6 +39,7 @@ def supervised_training(image_dir,
                         labels_dir,
                         model_dir,
                         segmentation_labels=None,
+                        n_neutral_labels=None,
                         batchsize=1,
                         target_res=None,
                         output_shape=None,
@@ -63,8 +80,7 @@ def supervised_training(image_dir,
         path_labels), "There should be as many images as label maps."
 
     # get label lists
-    label_list, n_neutral_labels = utils.get_list_labels(
-        label_list=segmentation_labels, labels_dir=labels_dir, FS_sort=True)
+    label_list, _ = utils.get_list_labels(label_list=segmentation_labels, labels_dir=labels_dir)
     n_labels = np.size(label_list)
 
     # create augmentation model

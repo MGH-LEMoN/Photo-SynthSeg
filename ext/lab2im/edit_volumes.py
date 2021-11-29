@@ -1,4 +1,5 @@
-"""This file contains functions to edit/preprocess volumes (i.e. not tensors!).
+"""
+This file contains functions to edit/preprocess volumes (i.e. not tensors!).
 These functions are sorted in five categories:
 1- volume editting: this can be applied to any volume (i.e. images or label maps). It contains:
         -mask_volume
@@ -51,7 +52,22 @@ in a given folder. Thus we provide folder paths rather than numpy arrays as inpu
 5- dataset editting: functions for editting datasets (i.e. images with corresponding label maps). It contains:
         -check_images_and_labels
         -crop_dataset_to_minimum_size
-        -subdivide_dataset_to_patches"""
+        -subdivide_dataset_to_patches
+
+
+If you use this code, please cite the first SynthSeg paper:
+https://github.com/BBillot/lab2im/blob/master/bibtex.bib
+
+Copyright 2020 Benjamin Billot
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the
+License.
+"""
 
 import csv
 # python imports
@@ -2438,7 +2454,7 @@ def upsample_labels_in_dir(labels_dir,
 
     # list label maps
     path_labels = utils.list_images_in_folder(labels_dir)
-    labels_shape, aff, n_dims, _, h, _ = utils.get_volume_info(path_labels[0])
+    labels_shape, aff, n_dims, _, h, _ = utils.get_volume_info(path_labels[0], max_channels=3)
 
     # build command
     target_res = utils.reformat_to_list(target_res, length=n_dims)
@@ -2802,8 +2818,8 @@ def crop_dataset_around_region_of_same_size(labels_dir,
                                 for path in path_images])
 
     # get minimum patch shape so that no labels are left out when doing the cropping later on
+    max_crop_shape = np.zeros(n_dims)
     if recompute_labels:
-        max_crop_shape = np.zeros(n_dims)
         for path_label in path_labels:
             label, aff, _ = utils.load_volume(path_label, im_only=False)
             label = align_volume_to_ref(label, aff, aff_ref=np.eye(4))
@@ -2935,7 +2951,6 @@ def crop_dataset_around_region(image_dir, labels_dir, image_result_dir, labels_r
 
             # pad volume if necessary
             if pad_margins is not None:
-                print('padding', idx + 1)
                 label = np.pad(label, pad_margins, mode='constant', constant_values=0)
                 pad_margins = tuple(list(pad_margins) + [(0, 0)]) if n_channels > 1 else pad_margins
                 image = np.pad(image, pad_margins, mode='constant', constant_values=0)

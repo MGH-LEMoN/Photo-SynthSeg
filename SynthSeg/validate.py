@@ -1,3 +1,19 @@
+"""
+If you use this code, please cite one of the SynthSeg papers:
+https://github.com/BBillot/SynthSeg/blob/master/bibtex.bib
+
+Copyright 2020 Benjamin Billot
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the
+License.
+"""
+
+
 # python imports
 import logging
 import os
@@ -17,8 +33,9 @@ def validate_training(image_dir,
                       gt_dir,
                       models_dir,
                       validation_main_dir,
-                      segmentation_label_list,
-                      evaluation_label_list=None,
+                      segmentation_labels,
+                      n_neutral_labels=None,
+                      evaluation_labels=None,
                       step_eval=1,
                       padding=None,
                       cropping=None,
@@ -44,8 +61,9 @@ def validate_training(image_dir,
     These are matched to the validation images by sorting order.
     :param models_dir: path of the folder with the models to validate.
     :param validation_main_dir: path of the folder where all the models validation subfolders will be saved.
-    :param segmentation_label_list: path of the numpy array containing all the segmentation labels used during training.
-    :param evaluation_label_list: (optional) label values to validate on. Must be a subset of the segmentation labels.
+    :param segmentation_labels: path of the numpy array containing all the segmentation labels used during training.
+    :param n_neutral_labels: (optional) value of n_neutral_labels used during training. Used only if flip is True.
+    :param evaluation_labels: (optional) label values to validate on. Must be a subset of the segmentation labels.
     Can be a sequence, a 1d numpy array, or the path to a numpy 1d array. Default is the same as segmentation_label_list
     :param step_eval: (optional) If step_eval > 1 skips models when validating, by validating on models step_eval apart.
     :param padding: (optional) pad the images to the specified shape before predicting the segmentation maps.
@@ -83,6 +101,7 @@ def validate_training(image_dir,
 
     # loop over models
     list_models = utils.list_files(models_dir, expr=['dice', '.h5'], cond_type='and')[::step_eval]
+    # list_models = [p for p in list_models if int(os.path.basename(p)[-6:-3]) % 10 == 0]
     loop_info = utils.LoopInfo(len(list_models), 1, 'validating', True)
     for model_idx, path_model in enumerate(list_models):
 
@@ -97,7 +116,8 @@ def validate_training(image_dir,
             loop_info.update(model_idx)
             predict(path_images=image_dir,
                     path_model=path_model,
-                    segmentation_label_list=segmentation_label_list,
+                    segmentation_labels=segmentation_labels,
+                    n_neutral_labels=n_neutral_labels,
                     path_segmentations=model_val_dir,
                     padding=padding,
                     cropping=cropping,
@@ -114,7 +134,7 @@ def validate_training(image_dir,
                     activation=activation,
                     gt_folder=gt_dir,
                     mask_folder=mask_dir,
-                    evaluation_label_list=evaluation_label_list,
+                    evaluation_labels=evaluation_labels,
                     compute_distances=compute_distances,
                     recompute=recompute,
                     verbose=False)
@@ -135,8 +155,8 @@ def plot_validation_curves(list_validation_dirs,
     It takes as input a list of validation folders (one for each network), each containing subfolders with dice scores
     for the corresponding validated epoch.
     :param list_validation_dirs: list of all the validation folders of the trainings to plot.
-    :param eval_indices: (optional) compute the average Dice loss on a subset of labels indicated by the specified
-    indices. Can be a sequence, 1d numpy array, or the path to such an array.
+    :param eval_indices: (optional) compute the average Dice on a subset of labels indicated by the specified indices.
+    Can be a 1d numpy array, the path to such an array, or a list of 1d numpy arrays as long as list_validation_dirs.
     :param skip_first_dice_row: if eval_indices is None, skip the first row of the dice matrices (usually background)
     :param size_max_circle: (optional) size of the marker for epochs achieveing the best validation scores.
     :param figsize: (optional) size of the figure to draw.
@@ -145,7 +165,21 @@ def plot_validation_curves(list_validation_dirs,
     n_curves = len(list_validation_dirs)
 
     if eval_indices is not None:
-        eval_indices = utils.reformat_to_list(eval_indices, load_as_numpy=True)
+        if isinstance(eval_indices, (np.ndarray, str)):
+            if isinstance(eval_indices, str):
+                eval_indices = np.load(eval_indices)
+            eval_indices = np.squeeze(utils.reformat_to_n_channels_array(eval_indices, n_dims=len(eval_indices)))
+            eval_indices = [eval_indices] * len(list_validation_dirs)
+        elif isinstance(eval_indices, list):
+            for (i, e) in enumerate(eval_indices):
+                if isinstance(e, np.ndarray):
+                    eval_indices[i] = np.squeeze(utils.reformat_to_n_channels_array(e, n_dims=len(e)))
+                else:
+                    raise TypeError('if provided as a list, eval_indices should only contain numpy arrays')
+        else:
+            raise TypeError('eval_indices can be a numpy array, a path to a numpy array, or a list of numpy arrays.')
+    else:
+        eval_indices = [None] * len(list_validation_dirs)
 
     # reformat model names
     if architecture_names is None:
@@ -182,10 +216,12 @@ def plot_validation_curves(list_validation_dirs,
 
     # loop over architectures
     plt.figure(figsize=figsize)
-    for idx, (net_val_dir, net_name, linestyle, colour,
-              legend_label) in enumerate(
-                  zip(list_validation_dirs, architecture_names,
-                      list_linestyles, list_colours, list_legend_labels)):
+    for idx, (net_val_dir, net_name, linestyle, colour, legend_label, eval_idx) in enumerate(zip(list_validation_dirs,
+                                                                                                 architecture_names,
+                                                                                                 list_linestyles,
+                                                                                                 list_colours,
+                                                                                                 list_legend_labels,
+                                                                                                 eval_indices)):
 
         list_epochs_dir = utils.list_subfolders(net_val_dir, whole_path=False)
 
@@ -197,9 +233,8 @@ def plot_validation_curves(list_validation_dirs,
             # build names and create folders
             path_epoch_dice = os.path.join(net_val_dir, epoch_dir, 'dice.npy')
             if os.path.isfile(path_epoch_dice):
-                if eval_indices is not None:
-                    list_net_dice_scores.append(
-                        np.mean(np.load(path_epoch_dice)[eval_indices, :]))
+                if eval_idx is not None:
+                    list_net_dice_scores.append(np.mean(np.load(path_epoch_dice)[eval_idx, :]))
                 else:
                     if skip_first_dice_row:
                         list_net_dice_scores.append(

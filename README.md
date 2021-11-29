@@ -31,7 +31,7 @@ Once all the python packages are installed (see below), you can simply test Synt
 python ./scripts/commands/SynthSeg_predict.py --i <image> --o <segmentation> --post <post> --resample <resample> --vol <vol>
 ```
 where:
-- `<image>` is the path to an image to segment. \
+- `<image>` is the path to an image to segment (supported formats are .nii, .nii.gz, and .mgz). \
 This can also be a folder, in which case all the image inside that folder will be segmented.
 - `<segmentation>` is the path where the output segmentation(s) will be saved. \
 This must be a folder if `<image>` designates a folder.
@@ -71,7 +71,8 @@ corresponding values. This table also details the order in which the posteriors 
 
 All the python requirements are listed in requirements.txt. We list here the important dependencies:
 
-- tensorflow-gpu 2.0.2
+- Python 3.6 (this is important to have access to the right keras and tensorflow versions!)
+- tensorflow-gpu 2.0.1
 - keras 2.3.1
 - nibabel
 - numpy, scipy, sklearn, tqdm, pillow, matplotlib, ipython, ...
@@ -138,11 +139,14 @@ how the synthetic data is formed before you start training your own models.
 - [3-training](scripts/tutorials/3-training.py): This scripts re-uses the parameters explained in the previous tutorial
 and focuses on the learning/architecture parameters. The script here is the very one we used to train SynthSeg !
 
-- [4-generation_advanced](scripts/tutorials/4-generation_advanced.py): Here we detail more advanced generation options, 
+- [4-training](scripts/tutorials/4-prediction.py): This scripts shows how to make predictions, once the network has been 
+trained.
+
+- [5-generation_advanced](scripts/tutorials/5-generation_advanced.py): Here we detail more advanced generation options, 
 in the case of training a version of SynthSeg that is specific to a given contrast and/or resolution (although these
 types of variants were shown to be outperformed by the SynthSeg model trained in the 3rd tutorial).
 
-- [5-intensity_estimation](scripts/tutorials/5-intensity_estimation.py): Finally, this script shows how to estimate the 
+- [6-intensity_estimation](scripts/tutorials/6-intensity_estimation.py): Finally, this script shows how to estimate the 
 Gaussian priors of the GMM when training a contrast-specific version of SynthSeg.
 
 These tutorials cover a lot of materials and will enable you to train your own SynthSeg model. Moreover, even more 
@@ -180,22 +184,23 @@ detailed information is provided in the docstrings of all functions, so don't he
 
 ### Citation/Contact
 
-If you use this code, please cite the following papers:
+This code is under [Apache 2.0](LICENSE.txt) licensing. \
+If you use it, please cite one of the following papers:
 
 **SynthSeg: Domain Randomisation for Segmentation of Brain MRI Scans of any Contrast and Resolution** \
 B. Billot, D.N. Greve, O. Puonti, A. Thielscher, K. Van Leemput, B. Fischl, A.V. Dalca, J.E. Iglesias \
-[[arxiv](https://arxiv.org/abs/2107.09559)]
+[[arxiv](https://arxiv.org/abs/2107.09559) | [bibtex](bibtex.bib)]
 
 **A Learning Strategy for Contrast-agnostic MRI Segmentation** \
 B. Billot, D.N. Greve, K. Van Leemput, B. Fischl, J.E. Iglesias*, A.V. Dalca* \
 *contributed equally \
 MIDL 2020 \
-[[link](http://proceedings.mlr.press/v121/billot20a.html) | [arxiv](https://arxiv.org/abs/2003.01995) | [bibtex](bibtex.txt)]
+[[link](http://proceedings.mlr.press/v121/billot20a.html) | [arxiv](https://arxiv.org/abs/2003.01995) | [bibtex](bibtex.bib)]
 
 **Partial Volume Segmentation of Brain MRI Scans of any Resolution and Contrast** \
 B. Billot, E.D. Robinson, A.V. Dalca, J.E. Iglesias \
 MICCAI 2020 \
-[[link](https://link.springer.com/chapter/10.1007/978-3-030-59728-3_18) | [arxiv](https://arxiv.org/abs/2004.10221) | [bibtex](bibtex.txt)]
+[[link](https://link.springer.com/chapter/10.1007/978-3-030-59728-3_18) | [arxiv](https://arxiv.org/abs/2004.10221) | [bibtex](bibtex.bib)]
 
 If you have any question regarding the usage of this code, or any suggestions to improve it, you can contact us at: \
 benjamin.billot.18@ucl.ac.uk

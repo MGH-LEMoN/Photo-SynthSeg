@@ -1,10 +1,27 @@
 """
+
 This script explains how the different parameters controlling the generation of the synthetic data.
 These parameters will be reused in the training function, but we describe them here, as the synthetic images are saved,
 and thus can be visualised.
 Note that most of the parameters here are set to their default value, but we show them nonetheless, just to explain
 their effect. Moreover, we encourage the user to play with them to get a sense of their impact on the generation.
+
+
+
+If you use this code, please cite one of the SynthSeg papers:
+https://github.com/BBillot/SynthSeg/blob/master/bibtex.bib
+
+Copyright 2020 Benjamin Billot
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the
+License.
 """
+
 
 import os
 from ext.lab2im import utils
@@ -22,8 +39,12 @@ path_label_map = '../../data/training_label_maps'
 
 # Here we specify the structures in the label maps for which we want to generate intensities.
 # This is given as a list of label values, which do not necesseraly need to be present in every label map.
-# However, these labels must follow a specific order: first the non-sided labels, then all the left labels, and finally
-# the corresponding right labels in the same order as the left ones.
+# However, these labels must follow a specific order: first the background, and then all the other labels. Moreover, if
+# 1) the label maps contain some right/left-specific label values, and 2) we activate flipping augmentation (which is
+# true by default), then the rest of the labels must follow a strict order:
+# first the non-sided labels (i.e. those which are not right/left specific), then all the left labels, and finally the
+# corresponding right labels (in the same order as the left ones). Please make sure each that each sided label has a
+# right and a left value (this is essential!!!).
 #
 # Example: generation_labels = [0,    # background
 #                               24,   # CSF

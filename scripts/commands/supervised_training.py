@@ -1,3 +1,19 @@
+"""
+If you use this code, please cite one of the SynthSeg papers:
+https://github.com/BBillot/SynthSeg/blob/master/bibtex.bib
+
+Copyright 2020 Benjamin Billot
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the
+License.
+"""
+
+
 # imports
 from argparse import ArgumentParser
 from SynthSeg.supervised_training import supervised_training
@@ -12,6 +28,7 @@ parser.add_argument("labels_dir", type=str)
 parser.add_argument("model_dir", type=str)
 
 parser.add_argument("--segmentation_labels", type=str, dest="segmentation_labels", default=None)
+parser.add_argument("--neutral_labels", type=int, dest="n_neutral_labels", default=None)
 parser.add_argument("--batch_size", type=int, dest="batchsize", default=1)
 parser.add_argument("--target_res", type=int, dest="target_res", default=None)
 parser.add_argument("--output_shape", type=int, dest="output_shape", default=None)
