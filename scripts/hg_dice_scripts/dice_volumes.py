@@ -5,12 +5,14 @@ import sys
 
 import numpy as np
 import pandas as pd
-from dice_config import *
-from dice_stats import calculate_pval
 from scipy.stats.stats import pearsonr
+from scripts.fs_lut import fs_lut
+
+from dice_config import Configuration
+from dice_stats import calculate_pval
 
 
-def extract_synthseg_vols(file_name, flag):
+def extract_synthseg_vols(config, file_name, flag):
     skiprows = 1 if flag == 'mri' else None
     df = pd.read_csv(file_name, skiprows=skiprows, header=0)
 
@@ -22,15 +24,15 @@ def extract_synthseg_vols(file_name, flag):
 
     df.index.name = None
 
-    df = combine_pairs(df, LABEL_PAIRS)
+    df = combine_pairs(df, config.LABEL_PAIRS)
     df = df.drop(
         columns=[column for column in df.columns if '(' not in column])
-    df = df.drop(labels=IGNORE_SUBJECTS)
+    df = df.drop(labels=config.IGNORE_SUBJECTS)
 
     return df
 
 
-def print_correlation_pairs(x, y, z, file_name=None, flag=None):
+def print_correlation_pairs(config, x, y, z, file_name=None, flag=None):
     common_labels = x.index.intersection(y.index).intersection(z.index)
     x = x.loc[common_labels]
     y = y.loc[common_labels]
@@ -39,7 +41,7 @@ def print_correlation_pairs(x, y, z, file_name=None, flag=None):
     col_names = x.columns
 
     original_stdout = sys.stdout  # Save a reference to the original standard output
-    with open(os.path.join(SYNTHSEG_RESULTS, 'volume_correlations'),
+    with open(os.path.join(config.SYNTHSEG_RESULTS, 'volume_correlations'),
               'a+') as f:
         sys.stdout = f  # Change the standard output to the file we created.
 
@@ -49,7 +51,7 @@ def print_correlation_pairs(x, y, z, file_name=None, flag=None):
         print('=' * 65)
         print('CORRELATIONS')
         print('=' * 65)
-        for col_name, name in zip(col_names, LABEL_PAIR_NAMES):
+        for col_name, name in zip(col_names, config.LABEL_PAIR_NAMES):
             a = pearsonr(x[col_name], y[col_name])[0]
             b = pearsonr(x[col_name], z[col_name])[0]
             k = pearsonr(y[col_name], z[col_name])[0]
@@ -60,7 +62,7 @@ def print_correlation_pairs(x, y, z, file_name=None, flag=None):
 
         print('MEAN ABSOLUTE RESIDUALS')
         print('=' * 45)
-        for col_name, name in zip(col_names, LABEL_PAIR_NAMES):
+        for col_name, name in zip(col_names, config.LABEL_PAIR_NAMES):
             a = np.mean(np.abs(x[col_name] - y[col_name]) / x[col_name]) * 100
             b = np.mean(np.abs(x[col_name] - z[col_name]) / x[col_name]) * 100
 
@@ -69,7 +71,7 @@ def print_correlation_pairs(x, y, z, file_name=None, flag=None):
 
         print('MEAN RESIDUALS')
         print('=' * 45)
-        for col_name, name in zip(col_names, LABEL_PAIR_NAMES):
+        for col_name, name in zip(col_names, config.LABEL_PAIR_NAMES):
             a = np.mean((x[col_name] - y[col_name]) / x[col_name]) * 100
             b = np.mean((x[col_name] - z[col_name]) / x[col_name]) * 100
 
@@ -90,7 +92,7 @@ def combine_pairs(df, pair_list):
     return df
 
 
-def extract_samseg_volumes(folder_path, flag):
+def extract_samseg_volumes(config, folder_path, flag):
     df_list = []
 
     hard_folder_list = sorted(glob.glob(os.path.join(folder_path, '*')))
@@ -105,7 +107,7 @@ def extract_samseg_volumes(folder_path, flag):
         else:
             raise Exception('Incorrect Flag')
 
-        if subject_id in IGNORE_SUBJECTS:
+        if subject_id in config.IGNORE_SUBJECTS:
             continue
 
         df = pd.read_csv(os.path.join(folder, 'samseg.stats'),
@@ -119,7 +121,7 @@ def extract_samseg_volumes(folder_path, flag):
         df['label'] = df['label'].str.replace(r'# Measure ', '')
 
         # map 'label' to 'idx'
-        df['idx'] = df['label'].map(REVERSE_LUT)
+        df['idx'] = df['label'].map(fs_lut()[1])
 
         # drop 'label' column
         df = df.drop(columns=['label'])
@@ -139,14 +141,14 @@ def extract_samseg_volumes(folder_path, flag):
     df1 = pd.concat(df_list, axis=1)
     df2 = df1.T
 
-    df2 = combine_pairs(df2, LABEL_PAIRS)
+    df2 = combine_pairs(df2, config.LABEL_PAIRS)
     hard_samseg_df = df2.drop(
         columns=[column for column in df2.columns if '(' not in column])
 
     return hard_samseg_df
 
 
-def print_correlations(x, y, file_name=None):
+def print_correlations(config, x, y, file_name=None):
     if file_name is None:
         raise Exception('Please enter a file name to print correlations')
     col_names = x.columns
@@ -155,20 +157,29 @@ def print_correlations(x, y, file_name=None):
     for col_name in col_names:
         corr_dict[col_name] = pearsonr(x[col_name], y[col_name])[0]
 
-    with open(os.path.join(SYNTHSEG_RESULTS, file_name), 'w',
+    with open(os.path.join(config.SYNTHSEG_RESULTS, file_name),
+              'w',
               encoding='utf-8') as fp:
         json.dump(corr_dict, fp, sort_keys=True, indent=4)
 
 
-def write_correlations_to_file():
+def write_correlations_to_file(config):
     print('Extracting SYNTHSEG Volumes')
-    mri_synthseg_vols = extract_synthseg_vols(mri_synthseg_vols_file, 'mri')
-    hard_synthseg_vols = extract_synthseg_vols(hard_synthseg_vols_file, 'hard')
-    soft_synthseg_vols = extract_synthseg_vols(soft_synthseg_vols_file, 'soft')
+    mri_synthseg_vols = extract_synthseg_vols(config,
+                                              config.mri_synthseg_vols_file,
+                                              'mri')
+    hard_synthseg_vols = extract_synthseg_vols(config,
+                                               config.hard_synthseg_vols_file,
+                                               'hard')
+    soft_synthseg_vols = extract_synthseg_vols(config,
+                                               config.soft_synthseg_vols_file,
+                                               'soft')
 
     print('Extracting SAMSEG Volumes')
-    hard_samseg_vols = extract_samseg_volumes(HARD_SAMSEG_STATS, 'hard')
-    soft_samseg_vols = extract_samseg_volumes(SOFT_SAMSEG_STATS, 'soft')
+    hard_samseg_vols = extract_samseg_volumes(config, config.HARD_SAMSEG_STATS,
+                                              'hard')
+    soft_samseg_vols = extract_samseg_volumes(config, config.SOFT_SAMSEG_STATS,
+                                              'soft')
 
     print('Writing Correlations to File')
     print_correlation_pairs(mri_synthseg_vols,
@@ -183,4 +194,5 @@ def write_correlations_to_file():
 
 
 if __name__ == '__main__':
-    write_correlations_to_file()
+    config = Configuration()
+    write_correlations_to_file(config)

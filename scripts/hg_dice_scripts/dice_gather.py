@@ -4,10 +4,10 @@ import re
 from shutil import copyfile
 
 import numpy as np
-from dice_config import *
-from dice_utils import files_at_path
-
 from ext.lab2im import utils
+
+from dice_config import Configuration
+from dice_utils import files_at_path
 
 
 def copy_uw_recon_vols(src_path, dest_path, flag_list):
@@ -98,7 +98,7 @@ def copy_uw_mri_scans(src_path, dest_path):
     print(f'Copied {count} files')
 
 
-def copy_relevant_files():
+def copy_relevant_files(config):
     src_file_suffix = {
         'hard1': ['*.hard.recon.mgz'],
         'soft1': ['soft', '*_soft.mgz'],
@@ -111,36 +111,41 @@ def copy_relevant_files():
     }
 
     print('\nCopying MRI Scans')
-    copy_uw_mri_scans(UW_MRI_SCAN, MRI_SCANS)
+    copy_uw_mri_scans(config.UW_MRI_SCAN, config.MRI_SCANS)
 
     print('\nCopying Hard Reconstructions')
-    copy_uw_recon_vols(UW_HARD_RECON, HARD_RECONS, src_file_suffix['hard1'])
+    copy_uw_recon_vols(config.UW_HARD_RECON, config.HARD_RECONS,
+                       src_file_suffix['hard1'])
 
     print('\nCopying Soft Reconstructions')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECONS, src_file_suffix['soft1'])
+    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_RECONS,
+                       src_file_suffix['soft1'])
 
     print('\nCopying Registered (to hard) MRI Scans')
-    copy_uw_recon_vols(UW_HARD_RECON, MRI_SCANS_REG, src_file_suffix['hard2'])
+    copy_uw_recon_vols(config.UW_HARD_RECON, config.MRI_SCANS_REG,
+                       src_file_suffix['hard2'])
 
     print('\nCopying I really dont know what this is')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_REG, src_file_suffix['soft2'])
+    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_RECON_REG,
+                       src_file_suffix['soft2'])
 
     print('\nCopying SAMSEG Segmentations (Hard)')
-    copy_uw_recon_vols(UW_HARD_RECON, HARD_RECON_SAMSEG,
+    copy_uw_recon_vols(config.UW_HARD_RECON, config.HARD_RECON_SAMSEG,
                        src_file_suffix['hard3'])
 
     print('\nCopying SAMSEG Segmentations (Soft)')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_RECON_SAMSEG,
+    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_RECON_SAMSEG,
                        src_file_suffix['soft3'])
 
     print('\nCopying Hard Manual Labels')
-    copy_uw_recon_vols(UW_HARD_RECON, HARD_MANUAL_LABELS_MERGED,
+    copy_uw_recon_vols(config.UW_HARD_RECON, config.HARD_MANUAL_LABELS_MERGED,
                        src_file_suffix['hard4'])
 
     print('\nCopying Soft Manual Labels')
-    copy_uw_recon_vols(UW_SOFT_RECON, SOFT_MANUAL_LABELS_MERGED,
+    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_MANUAL_LABELS_MERGED,
                        src_file_suffix['soft4'])
 
 
 if __name__ == '__main__':
-    copy_relevant_files()
+    config = Configuration()
+    copy_relevant_files(config)

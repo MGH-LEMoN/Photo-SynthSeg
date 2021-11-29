@@ -8,13 +8,13 @@ def files_at_path(path_str):
     return sorted(glob.glob(os.path.join(path_str, '*')))
 
 
-def id_check(scan_reg, mri_resampled_seg):
+def id_check(config, scan_reg, mri_resampled_seg):
     scan_reg_fn = os.path.split(scan_reg)[-1]
     mri_resampled_seg_fn = os.path.split(mri_resampled_seg)[-1]
 
     assert scan_reg_fn[:7] == mri_resampled_seg_fn[:7], 'File MisMatch'
 
-    if scan_reg_fn[:7] in IGNORE_SUBJECTS:
+    if scan_reg_fn[:7] in config.IGNORE_SUBJECTS:
         return 0
     else:
         print(scan_reg_fn[:7])
