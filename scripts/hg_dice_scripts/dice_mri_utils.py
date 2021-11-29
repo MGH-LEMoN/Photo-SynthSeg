@@ -1,10 +1,10 @@
 import os
 
-from ext.lab2im import utils
-from nipype.interfaces.freesurfer import MRIConvert
-
 from dice_config import *
 from dice_utils import files_at_path, id_check, return_common_subjects
+from nipype.interfaces.freesurfer import MRIConvert
+
+from ext.lab2im import utils
 
 
 def run_mri_convert(in_file, ref_file, out_file):

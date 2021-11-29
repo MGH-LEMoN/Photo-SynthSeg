@@ -5,15 +5,15 @@ import json
 import os
 
 import numpy as np
-from ext.lab2im import utils
-from SynthSeg.evaluate import fast_dice
-
 from dice_config import Configuration
 from dice_gather import copy_relevant_files, files_at_path
 from dice_mri_utils import perform_overlay, run_mri_convert
 from dice_plots import write_plots
 from dice_utils import id_check, return_common_subjects
 from dice_volumes import write_correlations_to_file
+
+from ext.lab2im import utils
+from SynthSeg.evaluate import fast_dice
 
 
 def run_make_target(config, flag):
@@ -136,4 +136,4 @@ if __name__ == '__main__':
 
     # write_correlations_to_file()
 
-    write_plots()
+    # write_plots()

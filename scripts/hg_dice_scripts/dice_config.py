@@ -2,6 +2,7 @@ import json
 import os
 
 import numpy as np
+
 from ext.lab2im import utils
 
 
@@ -60,19 +61,19 @@ class Configuration():
         ]
         self.IGNORE_SUBJECTS = ['18-1343', '18-2260', '19-0019']
 
-        config_dict = vars()
-        self._write_config(config_dict, 'config.json')
+        self._write_config()
 
-        required_labels = np.array(
+        self.required_labels = np.array(
             list(set(self.ALL_LABELS) - set(self.IGNORE_LABELS)))
 
-    def _write_config(self, dictionary, file_name=None):
+    def _write_config(self, file_name=None):
         """Write configuration to a file
         Args:
             CONFIG (dict): configuration
         """
         file_name = 'config.json' if file_name is None else file_name
 
+        dictionary = self.__dict__
         json_object = json.dumps(dictionary, sort_keys=True, indent=4)
 
         utils.mkdir(dictionary['SYNTHSEG_RESULTS'])
@@ -81,3 +82,7 @@ class Configuration():
 
         with open(config_file, "w") as outfile:
             outfile.write(json_object)
+
+
+if __name__ == '__main__':
+    config = Configuration()
