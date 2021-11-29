@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import sys
 
@@ -17,6 +18,10 @@ import sys
 def fs_lut():
     # Extract contents from look-up table
     LUT_FILE = '/usr/local/freesurfer/dev/FreeSurferColorLUT.txt'
+
+    if not os.path.exists(LUT_FILE):
+        LUT_FILE = '/usr/local/freesurfer/7.2.0/FreeSurferColorLUT.txt'
+
     with open(LUT_FILE, 'r') as f:
         lines = f.read().splitlines()
 
