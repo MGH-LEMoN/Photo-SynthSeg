@@ -8,6 +8,7 @@ from scipy import ndimage
 from ext.lab2im import utils
 from scripts.fs_lut import fs_lut
 from scripts.photos_config import *
+from ext.lab2im import edit_volumes, utils
 
 LUT, REVERSE_LUT = fs_lut()
 
@@ -371,6 +372,24 @@ def main1():
         np.save(new_file_name, np_array)
 
 
+def pad_hemispheres():
+    labels_dir = os.path.join(LABEL_MAPS_DIR + '_*')
+    file_list = sorted(glob.glob(os.path.join(LABEL_MAPS_DIR + '_*', '*.nii.gz')))
+
+    im_shapes = []
+    for file in file_list[:15]:
+        im_shapes.append(utils.load_volume(file).shape)
+
+    im_shapes = np.vstack(im_shapes)
+    max_shape = np.max(im_shapes, axis=0)
+
+    # compute the closest number (higher) to max_shape that is divisible by 32
+    max_shape = max_shape + (32 - max_shape % 32)
+
+    edit_volumes.pad_images_in_dir()
+    
+
 if __name__ == "__main__":
     # main()
-    main1()
+    # main1()
+    pad_hemispheres()
