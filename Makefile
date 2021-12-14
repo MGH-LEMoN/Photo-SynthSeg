@@ -12,7 +12,7 @@ DT := $(shell date +"%Y%m%d")
 HOME := /space/calico/1/users/Harsha
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
-RESULTS_DIR := $(PROJ_DIR)/results
+RESULTS_DIR := $(PROJ_DIR)/recon-results/old
 MODEL_DIR := $(PROJ_DIR)/models
 SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
 ENV_DIR := $(HOME)/venvs
@@ -28,6 +28,7 @@ PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainste
 MODEL_NAME := test
 
 ACTIVATE_ENV = source $(ENV_DIR)/$(ENV_NAME)/bin/activate
+ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
 
 # variables for SynthSeg
 labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
@@ -245,9 +246,9 @@ predict-scans:
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
 
 	python $(PROJ_DIR)/scripts/commands/SynthSeg_predict.py \
-		--i /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans \
-		--o /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/ \
-		--vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.mri.scans.segmentations/
+		--i $(RESULTS_DIR)/UW.mri.scans/ \
+		--o $(RESULTS_DIR)/UW.mri.synthseg/ \
+		--vol $(RESULTS_DIR)/UW.mri.synthseg.volumes
 
 predict-soft:
 	$(ACTIVATE_ENV)
@@ -258,11 +259,11 @@ predict-soft:
 		--smoothing 0.5 \
 		--biggest_component \
 		--padding 256 \
-		--vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.segmentations.jei \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon/ \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.soft.recon.segmentations.jei/ \
-		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
-		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
+		--vol $(RESULTS_DIR)/UW.soft.synthseg.volumes \
+		$(RESULTS_DIR)/UW.soft.recon/ \
+		$(RESULTS_DIR)/UW.soft.synthseg/ \
+		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
+		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
 
 predict-hard:
 	$(ACTIVATE_ENV)
@@ -273,8 +274,69 @@ predict-hard:
 		--smoothing 0.5 \
 		--biggest_component \
 		--padding 256 \
-		--vol /space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.segmentations.jei \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon/ \
-		/space/calico/1/users/Harsha/SynthSeg/results/UW.photos.hard.recon.segmentations.jei/ \
-		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
-		/space/calico/1/users/Harsha/4harsha/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
+		--vol $(RESULTS_DIR)/UW.hard.synthseg.volumes \
+		$(RESULTS_DIR)/UW.hard.recon/ \
+		$(RESULTS_DIR)/UW.hard.synthseg/ \
+		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
+		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
+
+
+samseg-%: SUB_ID = 18-0086 18-0444 18-0817 18-1045 18-1132 18-1196 18-1274 18-1327 18-1343 18-1470 18-1680 18-1690 18-1704 18-1705 18-1724 18-1754 18-1913 18-1930 18-2056 18-2128 18-2259 18-2260 19-0019 19-0037 19-0100 19-0138 19-0148
+# 17-0333 
+samseg-%: FSDEV = /space/calico/1/users/Harsha/photo-samseg
+samseg-hard-new-recons:
+	$(ACTIVATE_FS)
+	export PYTHONPATH=$(FSDEV)/python/packages
+	
+	for sub_id in $(SUB_ID); do \
+		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask/photo_recon.mgz \
+		-o /space/calico/1/users/Harsha/SynthSeg/results/jei-model-new-recons/UW.hard.samseg.segmentations/$$sub_id \
+		--threads 64 \
+		--dissection-photo both \
+		--atlas $(FSDEV)/atlas; \
+	done
+
+samseg-soft-new-recons:
+	$(ACTIVATE_FS)
+	export PYTHONPATH=$(FSDEV)/python/packages
+	
+	for sub_id in $(SUB_ID); do \
+		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask/photo_recon.mgz \
+			-o $(RESULTS_DIR)/jei-model-new-recons/UW.soft.samseg.segmentations/$$sub_id \
+			--threads 64 \
+			--dissection-photo both \
+			--atlas $(FSDEV)/atlas; \
+	done
+
+# stupid mri_convert does not create directories for us and thus
+# the use of mkdir (:grimace:)
+samseg-hard-on-old-recons:
+	$(ACTIVATE_FS)
+	export PYTHONPATH=$(FSDEV)/python/packages
+	
+	for sub_id in $(SUB_ID); do \
+		mkdir -p $(RESULTS_DIR)/UW.hard.samseg.new_code/$$sub_id
+		mri_convert /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/$$sub_id/$$sub_id".hard.recon.mgz" $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD/$$sub_id/input.mgz
+		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+		-i $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD/$$sub_id/input.mgz \
+		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD/$$sub_id \
+		--threads 64 \
+		--dissection-photo both \
+		--atlas $(FSDEV)/atlas; \
+	done
+
+samseg-soft-on-old-recons:
+	$(ACTIVATE_FS)
+	export PYTHONPATH=$(FSDEV)/python/packages
+	
+	for sub_id in $(SUB_ID); do \
+		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+			-i /cluster/vive/UW_photo_recon/recons/results_Henry/Results_soft/$$sub_id/soft/$$sub_id"_soft.mgz" \
+			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT/$$sub_id \
+			--threads 64 \
+			--dissection-photo both \
+			--atlas $(FSDEV)/atlas; \
+	done
+
