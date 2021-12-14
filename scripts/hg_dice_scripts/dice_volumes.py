@@ -5,11 +5,11 @@ import sys
 
 import numpy as np
 import pandas as pd
+from scipy.stats.stats import pearsonr
+from scripts.fs_lut import fs_lut
+
 from dice_config import Configuration
 from dice_stats import calculate_pval
-from scipy.stats.stats import pearsonr
-
-from scripts.fs_lut import fs_lut
 
 
 def extract_synthseg_vols(config, file_name, flag):

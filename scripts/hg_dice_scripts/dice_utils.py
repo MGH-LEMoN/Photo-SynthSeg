@@ -8,36 +8,35 @@ def files_at_path(path_str):
     return sorted(glob.glob(os.path.join(path_str, '*')))
 
 
-def id_check(config, scan_reg, mri_resampled_seg):
-    scan_reg_fn = os.path.split(scan_reg)[-1]
-    mri_resampled_seg_fn = os.path.split(mri_resampled_seg)[-1]
+def id_check(config, *args):
+    fn_list = set([os.path.split(item)[-1][:7] for item in args])
 
-    assert scan_reg_fn[:7] == mri_resampled_seg_fn[:7], 'File MisMatch'
+    assert len(fn_list) == 1, 'File MisMatch'
 
-    if scan_reg_fn[:7] in config.IGNORE_SUBJECTS:
-        return 0
+    if config.IGNORE_SUBJECTS:
+        if not fn_list.intersection(set(config.IGNORE_SUBJECTS)):
+            return 0
+        else:
+            raise Exception('Something is off')
     else:
-        print(scan_reg_fn[:7])
-        return 1
+        print(list(fn_list)[0])
+
+    return 1
 
 
-def return_common_subjects(file_list1, file_list2):
-    if len(file_list1) != len(file_list2):
-        print('Mismatch: Length of input files != Length of Reference files')
+def return_common_subjects(*args):
+    if len(set([len(item) for item in args])) > 1:
 
-        input_names = {
+        args = [{
             os.path.split(input_file)[-1][:7]: input_file
-            for input_file in file_list1
-        }
-        reference_names = {
-            os.path.split(reference_file)[-1][:7]: reference_file
-            for reference_file in file_list2
-        }
+            for input_file in file_list
+        } for file_list in args]
 
-        common_names = set(input_names.keys()).intersection(
-            reference_names.keys())
+        lst = [set(lst.keys()) for lst in args]
 
-        file_list1 = [input_names[key] for key in common_names]
-        file_list2 = [reference_names[key] for key in common_names]
+        # One-Liner to intersect a list of sets
+        common_names = sorted(lst[0].intersection(*lst))
 
-    return file_list1, file_list2
+        args = [[lst[key] for key in common_names] for lst in args]
+
+    return args

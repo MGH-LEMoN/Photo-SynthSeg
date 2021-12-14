@@ -1,10 +1,10 @@
 import os
 
-from dice_config import *
-from dice_utils import files_at_path, id_check, return_common_subjects
+from ext.lab2im import utils
 from nipype.interfaces.freesurfer import MRIConvert
 
-from ext.lab2im import utils
+from dice_config import *
+from dice_utils import files_at_path, id_check, return_common_subjects
 
 
 def run_mri_convert(in_file, ref_file, out_file):
@@ -20,14 +20,14 @@ def run_mri_convert(in_file, ref_file, out_file):
     mc.run()
 
 
-def perform_overlay():
-    mri_scans_reg = files_at_path(MRI_SCANS_REG)
-    mri_resampled_segs = files_at_path(MRI_SCANS_SEG_RESAMPLED)
+def perform_overlay(config):
+    mri_scans_reg = files_at_path(config.MRI_SCANS_REG)
+    mri_resampled_segs = files_at_path(config.MRI_SCANS_SEG_RESAMPLED)
 
     mri_scans_reg, mri_resampled_segs = return_common_subjects(
         mri_scans_reg, mri_resampled_segs)
 
-    os.makedirs(MRI_SCANS_SEG_REG_RES, exist_ok=True)
+    os.makedirs(config.MRI_SCANS_SEG_REG_RES, exist_ok=True)
 
     print('Creating...')
     for scan_reg, mri_resampled_seg in zip(mri_scans_reg, mri_resampled_segs):
@@ -41,7 +41,7 @@ def perform_overlay():
         file_name, file_ext = os.path.splitext(file_name)
 
         out_file = file_name + '.reg' + file_ext
-        out_file = os.path.join(MRI_SCANS_SEG_REG_RES, out_file)
+        out_file = os.path.join(config.MRI_SCANS_SEG_REG_RES, out_file)
 
         # We can now combine the segmentation voxels with the registered header.
         utils.save_volume(mrs_im, scan_reg_aff, scan_reg_head, out_file)

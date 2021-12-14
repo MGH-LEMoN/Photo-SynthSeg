@@ -2,11 +2,11 @@ import json
 import os
 
 import numpy as np
-from dice_config import Configuration
-from dice_utils import files_at_path, id_check, return_common_subjects
-
 from ext.lab2im import utils
 from SynthSeg.evaluate import fast_dice
+
+from dice_config import Configuration
+from dice_utils import files_at_path, id_check, return_common_subjects
 
 
 def calculate_dice_2d(config, folder1, folder2, file_name, merge=0):

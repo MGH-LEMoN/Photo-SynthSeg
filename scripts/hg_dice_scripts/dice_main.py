@@ -5,6 +5,9 @@ import json
 import os
 
 import numpy as np
+from ext.lab2im import utils
+from SynthSeg.evaluate import fast_dice
+
 from dice_config import Configuration
 from dice_gather import copy_relevant_files, files_at_path
 from dice_mri_utils import perform_overlay, run_mri_convert
@@ -12,15 +15,12 @@ from dice_plots import write_plots
 from dice_utils import id_check, return_common_subjects
 from dice_volumes import write_correlations_to_file
 
-from ext.lab2im import utils
-from SynthSeg.evaluate import fast_dice
-
 
 def run_make_target(config, flag):
     os.system(f'make -C {config.SYNTHSEG_PRJCT} predict-{flag}')
 
 
-def perform_registration(input_path, reference_path, output_path):
+def perform_registration(config, input_path, reference_path, output_path):
     input_files = files_at_path(input_path)
     reference_files = files_at_path(reference_path)
 
@@ -31,7 +31,7 @@ def perform_registration(input_path, reference_path, output_path):
 
     print('Creating...')
     for input_file, reference_file in zip(input_files, reference_files):
-        id_check(input_file, reference_file)
+        id_check(config, input_file, reference_file)
 
         _, file_name = os.path.split(input_file)
         file_name, file_ext = os.path.splitext(file_name)
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     # run_make_target(config, 'scans')  # Run this on mlsc
 
     # print('\nPut MRI SynthSeg Segmentation in the same space as MRI')
-    # perform_registration(MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
+    # perform_registration(config, MRI_SCANS_SEG, MRI_SCANS, MRI_SCANS_SEG_RESAMPLED)
 
     # print('\nCombining MRI_Seg Volume and MRI_Vol Header')
     # perform_overlay()
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     #                HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE,
     #                'mri_synth_vs_hard_synth_in_sam_space.json')
 
-    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in PhotoReconSAMSEG space')
+    # print('\nDice(MRI_Seg, PhotoReconSYNTHSEG) in MRISYNTHSEG space')
     # perform_registration(HARD_RECON_SYNTHSEG, MRI_SCANS_SEG_REG_RES,
     #                      HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE)
     # calculate_dice(config, MRI_SCANS_SEG_REG_RES, HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE,

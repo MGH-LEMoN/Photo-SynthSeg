@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from dice_config import *
 from matplotlib import rcParams
+
+from dice_config import *
 
 rcParams.update({'figure.autolayout': True})
 
