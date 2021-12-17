@@ -17,7 +17,7 @@ from dice_volumes import write_correlations_to_file
 
 
 def run_make_target(config, flag):
-    os.system(f'make -C {config.SYNTHSEG_PRJCT} predict-{flag}')
+    os.system(f"make -C {config.SYNTHSEG_PRJCT} predict-{flag}")
 
 
 def perform_registration(config, input_path, reference_path, output_path):
@@ -29,14 +29,14 @@ def perform_registration(config, input_path, reference_path, output_path):
 
     os.makedirs(output_path, exist_ok=True)
 
-    print('Creating...')
+    print("Creating...")
     for input_file, reference_file in zip(input_files, reference_files):
         id_check(config, input_file, reference_file)
 
         _, file_name = os.path.split(input_file)
         file_name, file_ext = os.path.splitext(file_name)
 
-        out_file = file_name + '.res' + file_ext
+        out_file = file_name + ".res" + file_ext
         out_file = os.path.join(output_path, out_file)
 
         run_mri_convert(input_file, reference_file, out_file)
@@ -67,26 +67,26 @@ def calculate_dice(config, ground_truth_segs_path, estimated_segs_path,
         dice_coeff = fast_dice(ground_truth_vol, estimated_seg_vol,
                                required_labels)
 
-        required_labels = required_labels.astype('int').tolist()
+        required_labels = required_labels.astype("int").tolist()
 
         final_dice_scores[subject_id] = dict(zip(required_labels, dice_coeff))
 
     with open(os.path.join(config.SYNTHSEG_RESULTS, file_name),
-              'w',
-              encoding='utf-8') as fp:
+              "w",
+              encoding="utf-8") as fp:
         json.dump(final_dice_scores, fp, sort_keys=True, indent=4)
 
 
 def combine_pairs(df, pair_list):
     for label_pair in pair_list:
         label_pair = tuple(str(item) for item in label_pair)
-        df[f'{label_pair}'] = df[label_pair[0]] + df[label_pair[1]]
+        df[f"{label_pair}"] = df[label_pair[0]] + df[label_pair[1]]
         df = df.drop(columns=list(label_pair))
 
     return df
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     config = Configuration()
     # copy_relevant_files(config)
 

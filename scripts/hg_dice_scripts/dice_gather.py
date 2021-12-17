@@ -3,149 +3,81 @@ import os
 import re
 from shutil import copyfile
 
-import numpy as np
-from ext.lab2im import utils
 
-from dice_config import Configuration
-from dice_utils import files_at_path
+def list_files(source, expr):
+    if len(expr) == 1:
+        file_list = glob.glob(os.path.join(source, *expr))
+        if not file_list:
+            file_list = glob.glob(os.path.join(source, "*", expr[-1]))
+    else:
+        file_list = glob.glob(os.path.join(source, "*", *expr[:-1], expr[-1]))
+
+    return sorted(file_list)
 
 
-def copy_uw_recon_vols(src_path, dest_path, flag_list):
+# def list_files(source, expr):
+#     file_list = sorted(
+#         glob.glob(os.path.join(source, "**", *expr), recursive=True))
+#     return file_list
+
+
+def create_destination_name(source):
+    file_name = os.path.basename(source)
+    subject_id = re.findall(r"\d+(?:-|_)\d+", file_name)
+
+    if not subject_id:
+        subject_id = re.findall(r"\d+(?:-|_)\d+", source)[0]
+        file_name = "-".join([subject_id, file_name])
+
+    file_name = file_name.strip("NP").replace("_", "-")
+    print(file_name)
+
+    return file_name
+
+
+def copy_files_from_source(source, destination, expr):
     """[summary]
 
     Args:
-        src_path (Path String)
-        dest_path (Path String)
-        flag_list ([type]): [description]
+        source ([type]): [description]
+        destination ([type]): [description]
+        expr ([type]): [description]
 
     Raises:
         Exception: [description]
     """
-    os.makedirs(dest_path, exist_ok=True)
+    os.makedirs(destination, exist_ok=True)
+    file_list = list_files(source, expr)
 
-    folder_list = files_at_path(src_path)
+    print(f"Copying {len(file_list)} files from source...")
 
-    subject_list = [
-        folder for folder in folder_list
-        if os.path.split(folder)[-1][0].isdigit()
-    ]
+    for file in file_list:
+        dest_fn = create_destination_name(file)
+        dst_scan_file = os.path.join(destination, dest_fn)
+        copyfile(file, dst_scan_file)
 
-    print('Copying...')
-    count = 0
-    for subject in subject_list:
-        reconstructed_file = glob.glob(os.path.join(subject, *flag_list))
-
-        if not len(reconstructed_file):
-            continue
-
-        if len(reconstructed_file) > 1:
-            raise Exception('There are more than one reconstructed volumes')
-
-        _, file_name = os.path.split(reconstructed_file[0])
-        file_name, file_ext = os.path.splitext(file_name)
-
-        print(file_name)
-        new_file_name = '.'.join([file_name, 'grayscale']) + file_ext
-
-        im, aff, header = utils.load_volume(reconstructed_file[0],
-                                            im_only=False)
-
-        # If n_channels = 3 convert to 1 channel by averaging
-        if im.ndim == 4 and im.shape[-1] == 3:
-            im = np.mean(im, axis=-1).astype('int')
-
-        save_path = os.path.join(dest_path, new_file_name)
-        utils.save_volume(im, aff, header, save_path)
-
-        count += 1
-
-    print(f'Copied {count} files')
+    return
 
 
-def copy_uw_mri_scans(src_path, dest_path):
-    """Copy MRI Scans from {src_path} to {dest_path}
+def copy_relevant_files(config, some_dict):
 
-    Args:
-        src_path (Path String)
-        dest_path (Path String)
+    for key in some_dict.keys():
+        if some_dict[key]["expr"]:
+            print(f'Copying {some_dict[key]["message"]}')
+            src_name = some_dict[key]["source"]
+            src_path = getattr(config, src_name, None)
 
-    Notes:
-        The 'NP' prefix for files at {src_path} has been
-        removed and replaced '_' with '-' for consistency
-        across hard and soft reconstruction names
-    """
-    os.makedirs(dest_path, exist_ok=True)
+            if not src_path:
+                src_path = os.path.join(config.SYNTHSEG_RESULTS, src_name)
+                if os.path.isdir(src_path):
+                    setattr(config, src_name, src_path)
+                else:
+                    raise Exception("Source Directory Does not Exist")
 
-    src_scan_files = sorted(glob.glob(os.path.join(src_path, '*.rotated.mgz')))
+            destinations = some_dict[key]["destination"]
+            if isinstance(destinations, str):
+                destinations = [destinations]
 
-    print('Copying...')
-    count = 0
-    for src_scan_file in src_scan_files:
-        _, file_name = os.path.split(src_scan_file)
-
-        if not re.search('^NP[0-9]*', file_name):
-            continue
-
-        print(file_name)
-
-        dest_scan_file = file_name[2:].replace('_', '-')
-        dst_scan_file = os.path.join(dest_path, dest_scan_file)
-
-        copyfile(src_scan_file, dst_scan_file)
-
-        count += 1
-
-    print(f'Copied {count} files')
-
-
-def copy_relevant_files(config):
-    src_file_suffix = {
-        'hard1': ['*.hard.recon.mgz'],
-        'soft1': ['soft', '*_soft.mgz'],
-        'hard2': ['*.hard.warped_ref.mgz'],
-        'soft2': ['soft', '*_soft_regatlas.mgz'],
-        'hard3': ['*samseg*.mgz'],
-        'soft3': ['soft', '*samseg*.mgz'],
-        'hard4': ['*manualLabel_merged.mgz'],
-        'soft4': ['soft', '*manualLabel_merged.mgz']
-    }
-
-    print('\nCopying MRI Scans')
-    copy_uw_mri_scans(config.UW_MRI_SCAN, config.MRI_SCANS)
-
-    print('\nCopying Hard Reconstructions')
-    copy_uw_recon_vols(config.UW_HARD_RECON, config.HARD_RECONS,
-                       src_file_suffix['hard1'])
-
-    print('\nCopying Soft Reconstructions')
-    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_RECONS,
-                       src_file_suffix['soft1'])
-
-    print('\nCopying Registered (to hard) MRI Scans')
-    copy_uw_recon_vols(config.UW_HARD_RECON, config.MRI_SCANS_REG,
-                       src_file_suffix['hard2'])
-
-    print('\nCopying I really dont know what this is')
-    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_RECON_REG,
-                       src_file_suffix['soft2'])
-
-    print('\nCopying SAMSEG Segmentations (Hard)')
-    copy_uw_recon_vols(config.UW_HARD_RECON, config.HARD_RECON_SAMSEG,
-                       src_file_suffix['hard3'])
-
-    print('\nCopying SAMSEG Segmentations (Soft)')
-    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_RECON_SAMSEG,
-                       src_file_suffix['soft3'])
-
-    print('\nCopying Hard Manual Labels')
-    copy_uw_recon_vols(config.UW_HARD_RECON, config.HARD_MANUAL_LABELS_MERGED,
-                       src_file_suffix['hard4'])
-
-    print('\nCopying Soft Manual Labels')
-    copy_uw_recon_vols(config.UW_SOFT_RECON, config.SOFT_MANUAL_LABELS_MERGED,
-                       src_file_suffix['soft4'])
-
-
-if __name__ == '__main__':
-    config = Configuration()
-    copy_relevant_files(config)
+            for destination in destinations:
+                dest = getattr(config, destination, None)
+                copy_files_from_source(src_path, dest, some_dict[key]["expr"])

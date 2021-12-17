@@ -35,13 +35,12 @@ def calculate_dice(config, folder1, folder2, file_name, slice=False, merge=0):
             x, y, required_labels = merge_labels_in_image(config, x, y)
 
         dice_coeff = fast_dice(x, y, required_labels)
-        required_labels = required_labels.astype("int").tolist()
         final_dice_scores[subject_id] = dict(zip(required_labels, dice_coeff))
 
     merge_tag = "merge" if merge else "no-merge"
 
     with open(
-            os.path.join(config.SYNTHSEG_RESULTS,
+            os.path.join(config.SYNTHSEG_RESULTS, "dice_files",
                          f"{file_name}_{merge_tag}.json"),
             "w",
             encoding="utf-8",
@@ -50,13 +49,41 @@ def calculate_dice(config, folder1, folder2, file_name, slice=False, merge=0):
 
 
 def merge_labels_in_image(config, x, y):
-    merge_required_labels = []
     for (id1, id2) in config.LABEL_PAIRS:
         x[x == id2] = id1
         y[y == id2] = id1
 
-        merge_required_labels.append(id1)
-
-    merge_required_labels = np.array(merge_required_labels)
+    merge_required_labels = [int(item[0]) for item in config.LABEL_PAIRS]
 
     return x, y, merge_required_labels
+
+
+def calculate_dice_for_dict(config, item_list):
+    for item in item_list:
+        source = getattr(config, item["source"], None)
+        target = getattr(config, item["target"], None)
+
+        output_file = item["output_name"]
+        slice_bool = item["slice_bool"]
+        merge_bool = item["merge_bool"]
+
+        if not source:
+            print(f'Source folder {item["source"]} does not exist')
+            continue
+
+        if not target:
+            print(f'Target folder {item["target"]} does not exist')
+            continue
+
+        if not output_file:
+            raise Exception("Output File Name Cannot be Empty")
+
+        os.makedirs(os.path.join(config.SYNTHSEG_RESULTS, "dice_files"),
+                    exist_ok=True)
+
+        calculate_dice(config,
+                       source,
+                       target,
+                       output_file,
+                       slice=slice_bool,
+                       merge=merge_bool)

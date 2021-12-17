@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -12,11 +13,13 @@ from dice_config import Configuration
 from dice_stats import calculate_pval
 
 
-def extract_synthseg_vols(config, file_name, flag):
-    skiprows = 1 if flag == "mri" else None
-    df = pd.read_csv(file_name, skiprows=skiprows, header=0)
+def extract_synthseg_vols(config, file_name):
+    flag = 1 if "mri" in os.path.basename(file_name) else 0
+    df = pd.read_csv(file_name, skiprows=flag, header=0)
 
-    if flag == "mri":
+    # TODO: this flag is annoying, either see if I can change it myself or
+    # ask BB for help
+    if flag:
         df = df.rename(columns={"Unnamed: 0": "subjects"})
 
     df["subjects"] = df["subjects"].str.slice(0, 7)
@@ -25,14 +28,17 @@ def extract_synthseg_vols(config, file_name, flag):
     df.index.name = None
 
     df = combine_pairs(df, config.LABEL_PAIRS)
-    df = df.drop(columns=[column for column in df.columns if "(" not in column])
-    df = df.drop(labels=config.IGNORE_SUBJECTS)
+    df = df.drop(
+        columns=[column for column in df.columns if "(" not in column])
 
     return df
 
 
-def print_correlation_pairs(config, x, y, z, flag=None, suffix=""):
+def print_correlation_pairs(config, *args, flag=None, suffix=""):
+    x, y, z = args
     common_labels = x.index.intersection(y.index).intersection(z.index)
+    common_labels = sorted(set(common_labels) - set(config.IGNORE_SUBJECTS))
+
     x = x.loc[common_labels]
     y = y.loc[common_labels]
     z = z.loc[common_labels]
@@ -41,15 +47,15 @@ def print_correlation_pairs(config, x, y, z, flag=None, suffix=""):
 
     original_stdout = sys.stdout  # Save a reference to the original standard output
     with open(
-        os.path.join(config.SYNTHSEG_RESULTS, "volume_correlations" + "_" + suffix),
-        "a+",
+            os.path.join(config.SYNTHSEG_RESULTS, "volumes",
+                         "volume_correlations" + "_" + suffix),
+            "a+",
     ) as f:
         sys.stdout = f  # Change the standard output to the file we created.
 
-        print(f"{flag} RECONSTRUCTIONS")
-        print(
-            "{:^15}{:^15}{:^15}{:^15}".format("label", "SAMSEG", "SYNTHSEG", "p-value")
-        )
+        print(f"{flag} RECONSTRUCTIONS (n = {len(x)})")
+        print("{:^15}{:^15}{:^15}{:^15}".format("label", "SAMSEG", "SYNTHSEG",
+                                                "p-value"))
         print("=" * 65)
         print("CORRELATIONS")
         print("=" * 65)
@@ -94,22 +100,19 @@ def combine_pairs(df, pair_list):
     return df
 
 
-def extract_samseg_volumes(config, folder_path, flag):
+def extract_samseg_volumes(config, folder_path):
+    # TODO: worst written function; clean this mess
     df_list = []
 
-    hard_folder_list = sorted(glob.glob(os.path.join(folder_path, "*")))
+    folders = sorted(glob.glob(os.path.join(folder_path, "*")))
 
-    for folder in hard_folder_list:
-        _, folder_name = os.path.split(folder)
+    for folder in folders:
+        folder_name = os.path.basename(folder)
 
-        if flag == "hard":
-            subject_id = folder_name.split(".")[0]
-        elif flag == "soft":
-            subject_id = folder_name.split("_")[0]
-        else:
-            raise Exception("Incorrect Flag")
-
-        if subject_id in config.IGNORE_SUBJECTS:
+        try:
+            subject_id = re.findall("\d+(?:-|_)\d+",
+                                    folder_name)[0].replace("_", "-")
+        except IndexError:
             continue
 
         df = pd.read_csv(
@@ -150,8 +153,7 @@ def extract_samseg_volumes(config, folder_path, flag):
 
     df2 = combine_pairs(df2, config.LABEL_PAIRS)
     hard_samseg_df = df2.drop(
-        columns=[column for column in df2.columns if "(" not in column]
-    )
+        columns=[column for column in df2.columns if "(" not in column])
 
     return hard_samseg_df
 
@@ -165,55 +167,96 @@ def print_correlations(config, x, y, file_name=None):
     for col_name in col_names:
         corr_dict[col_name] = pearsonr(x[col_name], y[col_name])[0]
 
-    with open(
-        os.path.join(config.SYNTHSEG_RESULTS, file_name), "w", encoding="utf-8"
-    ) as fp:
+    with open(os.path.join(config.SYNTHSEG_RESULTS, file_name),
+              "w",
+              encoding="utf-8") as fp:
         json.dump(corr_dict, fp, sort_keys=True, indent=4)
 
 
-def write_correlations_to_file(config, suffix=None):
-    print("Extracting SYNTHSEG Volumes")
-    mri_synthseg_vols = extract_synthseg_vols(
-        config, config.mri_synthseg_vols_file, "mri"
-    )
-    hard_synthseg_vols = extract_synthseg_vols(
-        config, config.hard_synthseg_vols_file, "hard"
-    )
-    soft_synthseg_vols = extract_synthseg_vols(
-        config, config.soft_synthseg_vols_file, "soft"
-    )
+# def write_correlations_to_file0(config, suffix=None):
+#     print("Extracting SYNTHSEG Volumes")
+#     mri_synthseg_vols = extract_synthseg_vols(config, config.mri_synthseg_vols_file)
+#     hard_synthseg_vols = extract_synthseg_vols(config, config.hard_synthseg_vols_file)
+#     soft_synthseg_vols = extract_synthseg_vols(config, config.soft_synthseg_vols_file)
 
-    print("Extracting SAMSEG Volumes")
-    hard_samseg_vols = extract_samseg_volumes(config, config.HARD_SAMSEG_STATS, "hard")
-    soft_samseg_vols = extract_samseg_volumes(config, config.SOFT_SAMSEG_STATS, "soft")
+#     print("Extracting SAMSEG Volumes")
+#     hard_samseg_vols = extract_samseg_volumes(config, config.HARD_SAMSEG_STATS)
+#     soft_samseg_vols = extract_samseg_volumes(config, config.SOFT_SAMSEG_STATS)
 
-    file_name = os.path.join(config.SYNTHSEG_RESULTS, "volumes.xlsx")
-    mode = "a" if os.path.exists(file_name) else "w"
-    with pd.ExcelWriter(file_name, engine="openpyxl", mode=mode) as writer:
-        mri_synthseg_vols.to_excel(writer, sheet_name="MRI_SynthSeg")
-        hard_synthseg_vols.to_excel(writer, sheet_name="Hard_SynthSeg")
-        soft_synthseg_vols.to_excel(writer, sheet_name="Soft_SynthSeg")
-        hard_samseg_vols.to_excel(writer, sheet_name="Hard_SamSeg_c2")
-        soft_samseg_vols.to_excel(writer, sheet_name="Soft_SamSeg_c2")
+#     print("Writing Correlations to File")
+#     print_correlation_pairs(
+#         mri_synthseg_vols,
+#         hard_samseg_vols,
+#         hard_synthseg_vols,
+#         flag="HARD",
+#         suffix=suffix,
+#     )
 
-    print("Writing Correlations to File")
-    print_correlation_pairs(
-        mri_synthseg_vols,
-        hard_samseg_vols,
-        hard_synthseg_vols,
-        flag="HARD",
-        suffix=suffix,
-    )
-
-    print_correlation_pairs(
-        mri_synthseg_vols,
-        soft_samseg_vols,
-        soft_synthseg_vols,
-        flag="SOFT",
-        suffix=suffix,
-    )
+#     print_correlation_pairs(
+#         mri_synthseg_vols,
+#         soft_samseg_vols,
+#         soft_synthseg_vols,
+#         flag="SOFT",
+#         suffix=suffix,
+#     )
 
 
-if __name__ == "__main__":
-    config = Configuration()
-    write_correlations_to_file(config)
+def get_volumes(config, item):
+    source = item["source"]
+    if hasattr(config, source):
+        source = config.__dict__.get(source)
+    else:
+        print(f"{source} not found")
+        return None
+
+    if item["type"] == "samseg":
+        volumes = extract_samseg_volumes(config, source)
+    elif item["type"] == "synthseg":
+        volumes = extract_synthseg_vols(config, source)
+
+    return volumes
+
+
+# Note: separating volume extraction, printing and corrlation analysis.
+# The goal is to ignore subjects in the last phase rather than the first phase
+# (which is the case at the moment)
+# DONE: separating printing
+# TODO: ignoring subjects in correlation analysis
+def write_volumes_to_file(config, item_list):
+    file_name = os.path.join(config.SYNTHSEG_RESULTS, "volumes",
+                             "volumes.xlsx")
+    for item in item_list:
+        volumes = get_volumes(config, item)
+        if volumes is None:
+            continue
+
+        mode = "a" if os.path.exists(file_name) else "w"
+        with pd.ExcelWriter(file_name, engine="openpyxl", mode=mode) as writer:
+            volumes.to_excel(writer, sheet_name=item["tag"])
+
+    return
+
+
+def write_correlations_to_file(config, item_list, tags, flag=None, suffix=""):
+
+    # TODO: tags must be unique in the list and also in the item list
+    if not flag:
+        raise Exception()
+
+    # for loop tp preserve order
+    filtered_item_list = []
+    for tag in tags:
+        filtered_item_list.append(
+            *[item for item in item_list if item["tag"] == tag])
+
+    vols_list = [get_volumes(config, item) for item in filtered_item_list]
+
+    if len(list(filter(lambda x: x is not None, vols_list))) == 3:
+        print_correlation_pairs(
+            config,
+            *vols_list,
+            flag=flag.upper(),
+            suffix=suffix,
+        )
+
+    return
