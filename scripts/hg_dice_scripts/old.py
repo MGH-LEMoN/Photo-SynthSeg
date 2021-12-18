@@ -8,8 +8,13 @@ from dice_gather import copy_relevant_files
 from dice_mri_utils import move_volumes_into_target_spaces, perform_overlay
 from dice_plots import write_plots
 from dice_volumes import write_correlations_to_file, write_volumes_to_file
-from uw_config import (CORRELATIONS_LIST, DICE2D_LIST, PLOTS_LIST,
-                       SAMSEG_GATHER_DICT, VOLUMES_LIST)
+from uw_config import (
+    CORRELATIONS_LIST,
+    DICE2D_LIST,
+    PLOTS_LIST,
+    SAMSEG_GATHER_DICT,
+    VOLUMES_LIST,
+)
 
 # use this dictionary to gather files from source to destination
 file_gather_dict = {

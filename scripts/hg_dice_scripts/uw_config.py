@@ -125,14 +125,14 @@ CORRELATIONS_LIST = [
     [["MRI-Synthseg", "Hard-Samseg-Old", "Hard-Synthseg"], "hard", "old"],
 ]
 
-merge_bool = [1]
+merge = [1]
 DICE2D_LIST = [
     {
         "source": "HARD_MANUAL_LABELS_MERGED",
         "target": "HARD_SYNTHSEG_IN_SAMSEG_SPACE",
         "output_name": "hard_manual_vs_hard_synth_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space",
     },
@@ -140,8 +140,8 @@ DICE2D_LIST = [
         "source": "HARD_MANUAL_LABELS_MERGED",
         "target": "HARD_SAMSEG",
         "output_name": "hard_manual_vs_hard_sam_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
@@ -149,8 +149,8 @@ DICE2D_LIST = [
         "source": "HARD_MANUAL_LABELS_MERGED",
         "target": "HARD_SAMSEG_C0",
         "output_name": "hard_manual_vs_hard_sam_c0_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
@@ -158,8 +158,8 @@ DICE2D_LIST = [
         "source": "HARD_MANUAL_LABELS_MERGED",
         "target": "HARD_SAMSEG_C1",
         "output_name": "hard_manual_vs_hard_sam_c1_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
@@ -167,8 +167,8 @@ DICE2D_LIST = [
         "source": "HARD_MANUAL_LABELS_MERGED",
         "target": "HARD_SAMSEG_C2",
         "output_name": "hard_manual_vs_hard_sam_c2_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
@@ -176,8 +176,8 @@ DICE2D_LIST = [
         "source": "SOFT_MANUAL_LABELS_MERGED",
         "target": "SOFT_SYNTHSEG_IN_SAMSEG_SPACE",
         "output_name": "soft_manual_vs_soft_synth_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space",
     },
@@ -185,8 +185,8 @@ DICE2D_LIST = [
         "source": "SOFT_MANUAL_LABELS_MERGED",
         "target": "SOFT_SAMSEG",
         "output_name": "soft_manual_vs_soft_sam_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
@@ -194,8 +194,8 @@ DICE2D_LIST = [
         "source": "SOFT_MANUAL_LABELS_MERGED",
         "target": "SOFT_SAMSEG_C0",
         "output_name": "soft_manual_vs_soft_sam_c0_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
@@ -203,8 +203,8 @@ DICE2D_LIST = [
         "source": "SOFT_MANUAL_LABELS_MERGED",
         "target": "SOFT_SAMSEG_C1",
         "output_name": "soft_manual_vs_soft_sam_c1_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
@@ -212,15 +212,15 @@ DICE2D_LIST = [
         "source": "SOFT_MANUAL_LABELS_MERGED",
         "target": "SOFT_SAMSEG_C2",
         "output_name": "soft_manual_vs_soft_sam_c2_in_sam_space",
-        "slice_bool": 1,
-        "merge_bool": merge_bool,
+        "slice": 1,
+        "merge": merge,
         "message":
         "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
 ]
 
 # TODO:
-# DICE2D_LIST = [dict(**{"merge_bool":val}, **item) for val in merge_bool for item in DICE2D_LIST_TEMPLATE]
+# DICE2D_LIST = [dict(**{"merge":val}, **item) for val in merge for item in DICE2D_LIST_TEMPLATE]
 
 PLOTS_LIST = [
     [

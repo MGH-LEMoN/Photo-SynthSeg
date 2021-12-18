@@ -8,8 +8,13 @@ from dice_gather import copy_relevant_files
 from dice_mri_utils import move_volumes_into_target_spaces, perform_overlay
 from dice_plots import write_plots
 from dice_volumes import write_correlations_to_file, write_volumes_to_file
-from uw_config import (CORRELATIONS_LIST, DICE2D_LIST, PLOTS_LIST,
-                       SAMSEG_GATHER_DICT, VOLUMES_LIST)
+from uw_config import (
+    CORRELATIONS_LIST,
+    DICE2D_LIST,
+    PLOTS_LIST,
+    SAMSEG_GATHER_DICT,
+    VOLUMES_LIST,
+)
 
 # use this dictionary to gather files from source to destination
 file_gather_dict = {
@@ -249,6 +254,13 @@ class Configuration:
     def __setattr__(self, key, value):
         self.__dict__[key] = value
         self._write_config()
+
+    def _make_dirs(self):
+        self.dice_dir = os.path.join(self.SYNTHSEG_RESULTS, "dice_files")
+        self.volumes_dir = os.path.join(self.SYNTHSEG_RESULTS, "volumes")
+
+        os.makedirs(self.dice_dir, exist_ok=True)
+        os.makedirs(self.volumes_dir, exist_ok=True)
 
 
 if __name__ == "__main__":
