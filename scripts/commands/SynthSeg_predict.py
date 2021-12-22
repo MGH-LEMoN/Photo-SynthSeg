@@ -26,8 +26,6 @@ import os
 import sys
 from argparse import ArgumentParser
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
 # add main folder to python path and import ./SynthSeg/predict.py
 synthseg_home = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0]))))
 sys.path.append(synthseg_home)
