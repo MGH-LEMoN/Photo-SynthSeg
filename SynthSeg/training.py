@@ -374,18 +374,6 @@ def train_model(model,
             compile_model = False
         else:
             model.load_weights(path_checkpoint, by_name=True)
-        # else:
-        # path_checkpoint = '/space/calico/1/users/Harsha/SynthSeg/models/SynthSeg.h5'
-        # try:
-        #     model.load_weights(path_checkpoint, by_name=True)
-        # except:
-        #     for l in model.layers:
-        #         if l.name=='unet_likelihood':
-        #             l.name='unet_likelihood_'
-        #     model.load_weights(path_checkpoint, by_name=True)
-        # for l in model.layers:
-        #     if l.name=='unet_likelihood_':
-        #         l.name='unet_likelihood'
 
     # compile
     if compile_model:
