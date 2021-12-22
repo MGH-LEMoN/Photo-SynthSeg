@@ -20,7 +20,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 from SynthSeg.estimate_priors import build_intensity_stats
 
 # ----------------------------------------------- simple uni-modal case ------------------------------------------------

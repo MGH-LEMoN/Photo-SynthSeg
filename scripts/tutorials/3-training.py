@@ -20,10 +20,8 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # project imports
 from SynthSeg.training import training
-
 
 # path training label maps
 path_training_label_maps = '../../data/training_label_maps'
@@ -31,22 +29,21 @@ path_model_dir = '../../models/SynthSeg_training'
 batchsize = 1
 
 # architecture parameters
-n_levels = 5           # number of resolution levels
+n_levels = 5  # number of resolution levels
 nb_conv_per_level = 2  # number of convolution per level
-conv_size = 3          # size of the convolution kernel (e.g. 3x3x3)
-unet_feat_count = 24   # number of feature maps after the first convolution
-activation = 'elu'     # activation for all convolution layers except the last, which will use sofmax regardless
-feat_multiplier = 2    # if feat_multiplier is set to 1, we will keep the number of feature maps constant throughout the
+conv_size = 3  # size of the convolution kernel (e.g. 3x3x3)
+unet_feat_count = 24  # number of feature maps after the first convolution
+activation = 'elu'  # activation for all convolution layers except the last, which will use sofmax regardless
+feat_multiplier = 2  # if feat_multiplier is set to 1, we will keep the number of feature maps constant throughout the
 #                        network; 2 will double them(resp. half) after each max-pooling (resp. upsampling);
 #                        3 will triple them, etc.
 
 # training parameters
-lr = 1e-4               # learning rate
-lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
-wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
-dice_epochs = 100       # number of training epochs
+lr = 1e-4  # learning rate
+lr_decay = 0  # learning rate decay (knowing that Adam already has its own internal decay)
+wl2_epochs = 1  # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
+dice_epochs = 100  # number of training epochs
 steps_per_epoch = 5000  # number of iteration per epoch
-
 
 # ---------- Generation parameters ----------
 # these parameters are from the previous tutorial, and thus we do not explain them again here

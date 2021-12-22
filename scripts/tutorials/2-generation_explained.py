@@ -22,15 +22,14 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 import os
+
 from ext.lab2im import utils
 from SynthSeg.brain_generator import BrainGenerator
 
 # script parameters
 n_examples = 5  # number of examples to generate in this script
 result_dir = './generated_examples'  # folder where examples will be saved
-
 
 # ---------- Input label maps and associated values ----------
 
@@ -62,7 +61,6 @@ path_label_map = '../../data/training_label_maps'
 # Note that plenty of structures are not represented here..... but it's just an example ! :)
 generation_labels = '../../data/labels_classes_priors/generation_labels.npy'
 
-
 # We also have to specify the number of non-sided labels in order to differenciate them from the labels with
 # right/left values.
 # Example: (continuing the previous one): in this example it would be 3 (background, CSF, extra-cerebral soft tissues).
@@ -80,7 +78,6 @@ n_neutral_labels = 18
 # Also, the left and right lesions (labels 25 and 57) are segmented as left and right white matter (labels 2 and 41).
 output_labels = '../../data/labels_classes_priors/segmentation_labels.npy'
 
-
 # ---------- Shape and resolution of the outputs ----------
 
 # number of channel to synthesise for multi-modality settings. Set this to 1 (default) in the uni-modality scenario.
@@ -94,7 +91,6 @@ target_res = None
 # The generative model offers the possibility to randomly crop the training examples to a given size.
 # Here we crop them to 160^3, such that the produced images fit on the GPU during training.
 output_shape = 160
-
 
 # ---------- GMM sampling parameters ----------
 
@@ -114,7 +110,6 @@ prior_distributions = 'uniform'
 # associated to the same Gaussian distribution when sampling the GMM.
 generation_classes = '../../data/labels_classes_priors/generation_classes.npy'
 
-
 # ---------- Spatial augmentation ----------
 
 # We now introduce some parameters concerning the spatial deformation. They enable to set the range of the uniform
@@ -127,7 +122,6 @@ shearing_bounds = 0.012  # the shearing coefficients will be sampled from U(-she
 translation_bounds = False  # no translation is performed, as this is already modelled by the random cropping
 nonlin_std = 3.  # this controls the maximum elastic deformation (higher = more deformation)
 bias_field_std = 0.5  # his controls the maximum bias field corruption (higher = more bias)
-
 
 # ---------- Resolution parameters ----------
 
@@ -142,7 +136,6 @@ randomise_res = True
 # This is achieved by multiplying the standard deviation of the Gaussian blurring kernel by a random coefficient
 # "blur_range", which is drawn in the uniform distribution U(1/blur_range; blur_range)
 blur_range = 1.03
-
 
 # ------------------------------------------------------ Generate ------------------------------------------------------
 

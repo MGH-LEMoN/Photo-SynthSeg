@@ -27,9 +27,10 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 import os
+
 import numpy as np
+
 from ext.lab2im import utils
 from SynthSeg.brain_generator import BrainGenerator
 
@@ -37,14 +38,12 @@ from SynthSeg.brain_generator import BrainGenerator
 n_examples = 5  # number of examples to generate in this script
 result_dir = './generated_examples'  # folder where examples will be saved
 
-
 # path training label maps
 path_label_map = '../../data/training_label_maps'
 generation_labels = '../../data/labels_classes_priors/generation_labels.npy'
 output_labels = '../../data/labels_classes_priors/segmentation_labels.npy'
 n_neutral_labels = 18
 output_shape = 160
-
 
 # ---------- GMM sampling parameters ----------
 
@@ -99,7 +98,6 @@ thickness = np.array([1., 1., 3.])  # slice thickness
 # enables to reproduce the process that will happen at test time: real LR scans will be upsampled to HR, and run through
 # the network to obtain the HR regressed scan.
 downsample = True
-
 
 # ------------------------------------------------------ Generate ------------------------------------------------------
 
