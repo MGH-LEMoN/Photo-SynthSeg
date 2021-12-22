@@ -89,7 +89,6 @@ class RandomSpatialDeformation(Layer):
                  nonlin_shape_factor=.0625,
                  inter_method='linear',
                  **kwargs):
-        print('Initializing: RandomSpatialDeformation')
         # shape attributes
         self.n_inputs = 1
         self.inshape = None
@@ -218,7 +217,6 @@ class RandomCrop(Layer):
     cropping indices.
     """
     def __init__(self, crop_shape, **kwargs):
-        print('Initializing: RandomCrop')
         self.several_inputs = True
         self.crop_max_val = None
         self.crop_shape = crop_shape
@@ -330,7 +328,6 @@ class RandomFlip(Layer):
                  label_list=None,
                  n_neutral_labels=None,
                  **kwargs):
-        print('Initializing: RandomFlip')
         # shape attributes
         self.several_inputs = True
         self.n_dims = None
@@ -456,7 +453,6 @@ class SampleConditionalGMM(Layer):
     stds: same as means but for the standard deviations of the GMM.
     """
     def __init__(self, generation_labels, **kwargs):
-        print('Initializing: SampleConditionalGMM')
         self.generation_labels = generation_labels
         self.n_labels = None
         self.n_channels = None
@@ -575,7 +571,6 @@ class SampleResolution(Layer):
                  prob_min=0.05,
                  return_thickness=True,
                  **kwargs):
-        print('Initializing: SampleResolution')
         self.min_res = min_resolution
         self.max_res_iso_input = max_res_iso
         self.max_res_iso = None
@@ -759,7 +754,6 @@ class GaussianBlur(Layer):
                  random_blur_range=None,
                  use_mask=False,
                  **kwargs):
-        print('Initializing: GaussianBlur')
         self.sigma = utils.reformat_to_list(sigma)
         assert np.all(np.array(self.sigma) >= 0
                       ), 'sigma should be superior or equal to 0'
@@ -877,7 +871,6 @@ class DynamicGaussianBlur(Layer):
     values lower than 5 for each axis) is multiplied by a random coefficient uniformly sampled from [1/1.15; 1.15].
     """
     def __init__(self, max_sigma, random_blur_range=None, **kwargs):
-        print('Initializing: DynamicGaussianBlur')
         self.max_sigma = max_sigma
         self.n_dims = None
         self.n_channels = None
@@ -983,7 +976,6 @@ class MimicAcquisition(Layer):
                  build_dist_map=False,
                  noise_std=0,
                  **kwargs):
-        print('Initializing: MimicAcquisition')
         # resolutions and dimensions
         self.volume_res = volume_res
         self.min_subsample_res = min_subsample_res
@@ -1157,7 +1149,6 @@ class BiasFieldCorruption(Layer):
                  bias_shape_factor=.025,
                  same_bias_for_all_channels=False,
                  **kwargs):
-        print("Initializing: BiasFieldCorruption")
         # input shape
         self.several_inputs = False
         self.inshape = None
@@ -1272,7 +1263,6 @@ class IntensityAugmentation(Layer):
                  gamma_std=0,
                  separate_channels=True,
                  **kwargs):
-        print('Initializing: IntensityAugmentation')
         # shape attributes
         self.n_dims = None
         self.n_channels = None
@@ -1406,7 +1396,6 @@ class DiceLoss(Layer):
     2) be probabilistic, i.e. they must have the same shape [batchsize, size_dim1, ..., size_dimN, n_labels] where
     n_labels is the number of labels for which we compute the Dice loss."""
     def __init__(self, enable_checks=True, **kwargs):
-        print('Initializing: Dice loss')
         self.inshape = None
         self.enable_checks = enable_checks
         super(DiceLoss, self).__init__(**kwargs)
@@ -1452,7 +1441,6 @@ class WeightedL2Loss(Layer):
     where n_labels is the number of labels for which we compute the loss.
     Importantly, the first input tensor is the GT, whereas the second is the prediction."""
     def __init__(self, target_value, background_weight=1e-4, **kwargs):
-        print('Initializing: WeightedL2Loss')
         self.target_value = target_value
         self.background_weight = background_weight
         self.n_labels = None
@@ -1538,7 +1526,6 @@ class ConvertLabels(Layer):
     which enables to remap label maps to [0, ..., N-1].
     """
     def __init__(self, source_values, dest_values=None, **kwargs):
-        print('Initializing: ConvertLabels')
         self.source_values = source_values
         self.dest_values = dest_values
         self.lut = None
