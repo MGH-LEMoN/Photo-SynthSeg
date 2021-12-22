@@ -15,12 +15,8 @@ License.
 
 
 # imports
-import os
-
 from argparse import ArgumentParser
 from SynthSeg.predict import predict
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 parser = ArgumentParser()
 
@@ -77,21 +73,5 @@ parser.add_argument("--correct_labels", type=str, default=None, dest="list_corre
 parser.add_argument("--eval_label_list", type=str, dest="evaluation_labels", default=None,
                     help="labels to evaluate Dice scores on if gt is provided. Default is the same as label_list.")
 
-parser.add_argument("--cpu", action="store_true", help="enforce running with CPU rather than GPU.")
-parser.add_argument("--threads", type=int, default=1, dest="threads",
-                    help="number of threads to be used by tensorflow when running on CPU.")
-
-args = vars(parser.parse_args())
-
-# enforce CPU processing if necessary
-if args['cpu']:
-    print('using CPU, hiding all CUDA_VISIBLE_DEVICES')
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-del args['cpu']
-
-# limit the number of threads to be used if running on CPU
-import tensorflow as tf
-tf.config.threading.set_intra_op_parallelism_threads(args['threads'])
-del args['threads']
-
-predict(**args)
+args = parser.parse_args()
+predict(**vars(args))
