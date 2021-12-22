@@ -89,6 +89,7 @@ class RandomSpatialDeformation(Layer):
                  nonlin_shape_factor=.0625,
                  inter_method='linear',
                  **kwargs):
+
         # shape attributes
         self.n_inputs = 1
         self.inshape = None
@@ -217,6 +218,7 @@ class RandomCrop(Layer):
     cropping indices.
     """
     def __init__(self, crop_shape, **kwargs):
+
         self.several_inputs = True
         self.crop_max_val = None
         self.crop_shape = crop_shape
@@ -328,6 +330,7 @@ class RandomFlip(Layer):
                  label_list=None,
                  n_neutral_labels=None,
                  **kwargs):
+
         # shape attributes
         self.several_inputs = True
         self.n_dims = None
@@ -571,6 +574,7 @@ class SampleResolution(Layer):
                  prob_min=0.05,
                  return_thickness=True,
                  **kwargs):
+
         self.min_res = min_resolution
         self.max_res_iso_input = max_res_iso
         self.max_res_iso = None
@@ -976,6 +980,7 @@ class MimicAcquisition(Layer):
                  build_dist_map=False,
                  noise_std=0,
                  **kwargs):
+
         # resolutions and dimensions
         self.volume_res = volume_res
         self.min_subsample_res = min_subsample_res
@@ -1149,6 +1154,7 @@ class BiasFieldCorruption(Layer):
                  bias_shape_factor=.025,
                  same_bias_for_all_channels=False,
                  **kwargs):
+
         # input shape
         self.several_inputs = False
         self.inshape = None
@@ -1263,6 +1269,7 @@ class IntensityAugmentation(Layer):
                  gamma_std=0,
                  separate_channels=True,
                  **kwargs):
+
         # shape attributes
         self.n_dims = None
         self.n_channels = None
@@ -1401,7 +1408,6 @@ class DiceLoss(Layer):
         super(DiceLoss, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        print('Dice loss: build')
         assert len(
             input_shape
         ) == 2, 'DiceLoss expects 2 inputs to compute the Dice loss.'
@@ -1412,7 +1418,7 @@ class DiceLoss(Layer):
         super(DiceLoss, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
-        print('Dice loss: call')
+
         # make sure tensors are probabilistic
         x = inputs[0]
         y = inputs[1]
