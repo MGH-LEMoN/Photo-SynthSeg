@@ -13,7 +13,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import keras.layers as KL
 import numpy as np
@@ -129,7 +128,9 @@ def lab2im_model(labels_shape,
         labels = resample_tensor(labels, output_shape, interp_method='nearest')
 
     # reset unwanted labels to zero
-    labels = layers.ConvertLabels(generation_labels, dest_values=output_labels, name='labels_out')(labels)
+    labels = layers.ConvertLabels(generation_labels,
+                                  dest_values=output_labels,
+                                  name='labels_out')(labels)
 
     # build model (dummy layer enables to keep the labels when plugging this model to other models)
     image = KL.Lambda(lambda x: x[0], name='image_out')([image, labels])
@@ -171,8 +172,10 @@ def get_shapes(labels_shape, output_shape, atlas_res, target_res,
 
         # make sure output shape is divisible by output_div_by_n
         if output_div_by_n is not None:
-            tmp_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n)
-                         for s in output_shape]
+            tmp_shape = [
+                utils.find_closest_number_divisible_by_m(s, output_div_by_n)
+                for s in output_shape
+            ]
             if output_shape != tmp_shape:
                 print('output shape {0} not divisible by {1}, changed to {2}'.
                       format(output_shape, output_div_by_n, tmp_shape))
@@ -199,7 +202,11 @@ def get_shapes(labels_shape, output_shape, atlas_res, target_res,
             output_shape = cropping_shape
         # make sure output shape is divisible by output_div_by_n
         if output_div_by_n is not None:
-            output_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n, answer_type='closer')
-                            for s in output_shape]
+            output_shape = [
+                utils.find_closest_number_divisible_by_m(s,
+                                                         output_div_by_n,
+                                                         answer_type='closer')
+                for s in output_shape
+            ]
 
     return cropping_shape, output_shape

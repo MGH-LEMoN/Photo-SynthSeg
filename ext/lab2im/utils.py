@@ -55,8 +55,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
-import os
 import glob
 import math
 import os
@@ -166,7 +164,10 @@ def save_volume(volume, aff, header, path, res=None, dtype=None, n_dims=3):
         nib.save(nifty, path)
 
 
-def get_volume_info(path_volume, return_volume=False, aff_ref=None, max_channels=10):
+def get_volume_info(path_volume,
+                    return_volume=False,
+                    aff_ref=None,
+                    max_channels=10):
     """
     Gather information about a volume: shape, affine matrix, number of dimensions and channels, header, and resolution.
     :param path_volume: path of the volume to get information form.
@@ -264,11 +265,14 @@ def get_list_labels(label_list=None,
     # sort labels in neutral/left/right according to FS labels
     n_neutral_labels = 0
     if FS_sort:
-        neutral_FS_labels = [0, 14, 15, 16, 21, 22, 23, 24, 72, 77, 80, 85, 100, 101, 102, 103, 104, 105, 106, 107, 108,
-                             109, 165, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210,
-                             251, 252, 253, 254, 255, 258, 259, 260, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340,
-                             502, 506, 507, 508, 509, 511, 512, 514, 515, 516, 517, 530,
-                             531, 532, 533, 534, 535, 536, 537]
+        neutral_FS_labels = [
+            0, 14, 15, 16, 21, 22, 23, 24, 72, 77, 80, 85, 100, 101, 102, 103,
+            104, 105, 106, 107, 108, 109, 165, 200, 201, 202, 203, 204, 205,
+            206, 207, 208, 209, 210, 251, 252, 253, 254, 255, 258, 259, 260,
+            331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 502, 506, 507,
+            508, 509, 511, 512, 514, 515, 516, 517, 530, 531, 532, 533, 534,
+            535, 536, 537
+        ]
         neutral = list()
         left = list()
         right = list()
@@ -363,7 +367,7 @@ def reformat_to_list(var, length=None, load_as_numpy=False, dtype=None):
     elif isinstance(var, tuple):
         var = list(var)
     elif isinstance(var, np.ndarray):
-        if var.shape == (1,):
+        if var.shape == (1, ):
             var = [var[0]]
         else:
             var = np.squeeze(var).tolist()
@@ -1108,7 +1112,9 @@ def find_closest_number_divisible_by_m(n, m, answer_type='lower'):
         elif answer_type == 'closer':
             return lower if (n - lower) < (higher - n) else higher
         else:
-            raise Exception('answer_type should be lower, higher, or closer, had : %s' % answer_type)
+            raise Exception(
+                'answer_type should be lower, higher, or closer, had : %s' %
+                answer_type)
 
 
 def build_binary_structure(connectivity, n_dims, shape=None):

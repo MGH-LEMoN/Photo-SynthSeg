@@ -32,15 +32,15 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
+import keras.backend as K
 # python imports
 import numpy as np
 import tensorflow as tf
-import keras.backend as K
+from keras.layers import Layer
+
+import ext.neuron.layers as nrn_layers
 # third-party imports
 from ext.neuron import utils as nrn_utils
-from keras.layers import Layer
-import ext.neuron.layers as nrn_layers
 
 # project imports
 from . import edit_tensors as l2i_et
@@ -976,8 +976,13 @@ class MimicAcquisition(Layer):
     the matching resolution in res, and resanpling them all to half the initial resolution.
     Note that the provided res must have higher values than min_low_res.
     """
-
-    def __init__(self, volume_res, min_subsample_res, resample_shape, build_dist_map=False, noise_std=0, **kwargs):
+    def __init__(self,
+                 volume_res,
+                 min_subsample_res,
+                 resample_shape,
+                 build_dist_map=False,
+                 noise_std=0,
+                 **kwargs):
         print('Initializing: MimicAcquisition')
         # resolutions and dimensions
         self.volume_res = volume_res
@@ -1060,22 +1065,38 @@ class MimicAcquisition(Layer):
             dtype='float32')
 
         # downsample
-        down_loc = tf.tile(self.down_grid, tf.concat([batchsize, tf.ones([self.n_dims + 1], dtype='int32')], 0))
-        down_loc = tf.cast(down_loc, 'float32') / l2i_et.expand_dims(down_zoom_factor, axis=[1] * self.n_dims)
-        inshape_tens = tf.tile(tf.expand_dims(tf.convert_to_tensor(self.inshape[:-1]), 0), tile_shape)
+        down_loc = tf.tile(
+            self.down_grid,
+            tf.concat([batchsize,
+                       tf.ones([self.n_dims + 1], dtype='int32')], 0))
+        down_loc = tf.cast(down_loc, 'float32') / l2i_et.expand_dims(
+            down_zoom_factor, axis=[1] * self.n_dims)
+        inshape_tens = tf.tile(
+            tf.expand_dims(tf.convert_to_tensor(self.inshape[:-1]), 0),
+            tile_shape)
         inshape_tens = l2i_et.expand_dims(inshape_tens, axis=[1] * self.n_dims)
         down_loc = K.clip(down_loc, 0., tf.cast(inshape_tens, 'float32'))
         vol = tf.map_fn(self._single_down_interpn, [vol, down_loc], tf.float32)
 
         # add noise
         if self.noise_std > 0:
-            sample_shape = tf.concat([batchsize, tf.ones([self.n_dims], dtype='int32'),
-                                      self.n_channels * tf.ones([1], dtype='int32')], 0)
-            vol += tf.random.normal(tf.shape(vol), stddev=tf.random.uniform(sample_shape, maxval=self.noise_std))
+            sample_shape = tf.concat([
+                batchsize,
+                tf.ones([self.n_dims], dtype='int32'),
+                self.n_channels * tf.ones([1], dtype='int32')
+            ], 0)
+            vol += tf.random.normal(tf.shape(vol),
+                                    stddev=tf.random.uniform(
+                                        sample_shape, maxval=self.noise_std))
 
         # upsample
-        up_loc = tf.tile(self.up_grid, tf.concat([batchsize, tf.ones([self.n_dims + 1], dtype='int32')], axis=0))
-        up_loc = tf.cast(up_loc, 'float32') / l2i_et.expand_dims(up_zoom_factor, axis=[1] * self.n_dims)
+        up_loc = tf.tile(
+            self.up_grid,
+            tf.concat([batchsize,
+                       tf.ones([self.n_dims + 1], dtype='int32')],
+                      axis=0))
+        up_loc = tf.cast(up_loc, 'float32') / l2i_et.expand_dims(
+            up_zoom_factor, axis=[1] * self.n_dims)
         vol = tf.map_fn(self._single_up_interpn, [vol, up_loc], tf.float32)
 
         # return upsampled volume
@@ -1094,8 +1115,12 @@ class MimicAcquisition(Layer):
             c_dist = ceil - up_loc
 
             # keep minimum 1d distances, and compute 3d distance to nearest grid point
-            dist = tf.math.minimum(f_dist, c_dist) * l2i_et.expand_dims(subsample_res, axis=[1] * self.n_dims)
-            dist = tf.math.sqrt(tf.math.reduce_sum(tf.math.square(dist), axis=-1, keepdims=True))
+            dist = tf.math.minimum(f_dist, c_dist) * l2i_et.expand_dims(
+                subsample_res, axis=[1] * self.n_dims)
+            dist = tf.math.sqrt(
+                tf.math.reduce_sum(tf.math.square(dist),
+                                   axis=-1,
+                                   keepdims=True))
 
             return [vol, dist]
 
@@ -1380,7 +1405,6 @@ class DiceLoss(Layer):
     """This layer computes the Dice loss between two tensors. These tensors are expected to 1) have the same shape, and
     2) be probabilistic, i.e. they must have the same shape [batchsize, size_dim1, ..., size_dimN, n_labels] where
     n_labels is the number of labels for which we compute the Dice loss."""
-
     def __init__(self, enable_checks=True, **kwargs):
         print('Initializing: Dice loss')
         self.inshape = None
@@ -1548,7 +1572,6 @@ class PadAroundCentre(Layer):
     list/numpy array of length n_dims.
     :param value: value to pad the tensors with. Default is 0.
     """
-
     def __init__(self, pad_margin=None, pad_shape=None, value=0, **kwargs):
         self.pad_margin = pad_margin
         self.pad_shape = pad_shape
@@ -1575,7 +1598,9 @@ class PadAroundCentre(Layer):
             assert self.pad_shape is None, 'please do not provide a padding shape and margin at the same time.'
 
             # reformat padding margins
-            pad = np.transpose(np.array([[0] + utils.reformat_to_list(self.pad_margin, self.n_dims) + [0]] * 2))
+            pad = np.transpose(
+                np.array([[0] + utils.reformat_to_list(
+                    self.pad_margin, self.n_dims) + [0]] * 2))
             self.pad_margin_tens = tf.convert_to_tensor(pad, dtype='int32')
 
         elif self.pad_shape is not None:
@@ -1583,23 +1608,33 @@ class PadAroundCentre(Layer):
 
             # pad shape
             tensor_shape = tf.cast(tf.convert_to_tensor(input_shape), 'int32')
-            self.pad_shape_tens = np.array([0] + utils.reformat_to_list(self.pad_shape, length=self.n_dims) + [0])
-            self.pad_shape_tens = tf.convert_to_tensor(self.pad_shape_tens, dtype='int32')
-            self.pad_shape_tens = tf.math.maximum(tensor_shape, self.pad_shape_tens)
+            self.pad_shape_tens = np.array(
+                [0] +
+                utils.reformat_to_list(self.pad_shape, length=self.n_dims) +
+                [0])
+            self.pad_shape_tens = tf.convert_to_tensor(self.pad_shape_tens,
+                                                       dtype='int32')
+            self.pad_shape_tens = tf.math.maximum(tensor_shape,
+                                                  self.pad_shape_tens)
 
             # padding margin
             min_margins = (self.pad_shape_tens - tensor_shape) / 2
             max_margins = self.pad_shape_tens - tensor_shape - min_margins
-            self.pad_margin_tens = tf.stack([min_margins, max_margins], axis=-1)
+            self.pad_margin_tens = tf.stack([min_margins, max_margins],
+                                            axis=-1)
 
         else:
-            raise Exception('please either provide a padding shape or a padding margin.')
+            raise Exception(
+                'please either provide a padding shape or a padding margin.')
 
         self.built = True
         super(PadAroundCentre, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
-        return tf.pad(inputs, self.pad_margin_tens, mode='CONSTANT', constant_values=self.value)
+        return tf.pad(inputs,
+                      self.pad_margin_tens,
+                      mode='CONSTANT',
+                      constant_values=self.value)
 
 
 class MaskEdges(Layer):
@@ -1641,10 +1676,12 @@ class MaskEdges(Layer):
           [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
           [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]]])  # shape = [1,10,10,1]
     """
-
     def __init__(self, axes, boundaries, prob_mask=1, **kwargs):
         self.axes = utils.reformat_to_list(axes, dtype='int')
-        self.boundaries = utils.reformat_to_n_channels_array(boundaries, n_dims=4, n_channels=len(self.axes))
+        self.boundaries = utils.reformat_to_n_channels_array(boundaries,
+                                                             n_dims=4,
+                                                             n_channels=len(
+                                                                 self.axes))
         self.prob_mask = prob_mask
         self.inputshape = None
         super(MaskEdges, self).__init__(**kwargs)
@@ -1669,14 +1706,20 @@ class MaskEdges(Layer):
 
             # select restricting indices
             axis_boundaries = self.boundaries[i, :]
-            idx1 = tf.math.round(tf.random.uniform([1],
-                                                   minval=axis_boundaries[0] * self.inputshape[axis],
-                                                   maxval=axis_boundaries[1] * self.inputshape[axis]))
-            idx2 = tf.math.round(tf.random.uniform([1],
-                                                   minval=axis_boundaries[2] * self.inputshape[axis],
-                                                   maxval=axis_boundaries[3] * self.inputshape[axis] - 1) - idx1)
+            idx1 = tf.math.round(
+                tf.random.uniform(
+                    [1],
+                    minval=axis_boundaries[0] * self.inputshape[axis],
+                    maxval=axis_boundaries[1] * self.inputshape[axis]))
+            idx2 = tf.math.round(
+                tf.random.uniform(
+                    [1],
+                    minval=axis_boundaries[2] * self.inputshape[axis],
+                    maxval=axis_boundaries[3] * self.inputshape[axis] - 1) -
+                idx1)
             idx3 = self.inputshape[axis] - idx1 - idx2
-            split_idx = tf.cast(tf.concat([idx1, idx2, idx3], axis=0), dtype='int32')
+            split_idx = tf.cast(tf.concat([idx1, idx2, idx3], axis=0),
+                                dtype='int32')
 
             # update mask
             split_list = tf.split(inputs, split_idx, axis=axis)
@@ -1689,9 +1732,10 @@ class MaskEdges(Layer):
             mask = mask * tmp_mask
 
         # mask second_channel
-        tensor = K.switch(tf.squeeze(K.greater(tf.random.uniform([1], 0, 1), 1 - self.prob_mask)),
-                          inputs * mask,
-                          inputs)
+        tensor = K.switch(
+            tf.squeeze(
+                K.greater(tf.random.uniform([1], 0, 1), 1 - self.prob_mask)),
+            inputs * mask, inputs)
 
         return [tensor, mask]
 

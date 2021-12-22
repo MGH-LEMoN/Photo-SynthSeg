@@ -24,13 +24,14 @@ License.
 
 from itertools import combinations
 
-# third-party imports
-import ext.neuron.layers as nrn_layers
 import keras.backend as K
 import keras.layers as KL
 # python imports
 import numpy as np
 import tensorflow as tf
+
+# third-party imports
+import ext.neuron.layers as nrn_layers
 from ext.neuron.utils import volshape_to_meshgrid
 
 # project imports

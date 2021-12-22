@@ -13,7 +13,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import numpy as np
 import numpy.random as npr
