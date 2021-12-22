@@ -13,7 +13,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import keras.layers as KL
 import numpy as np
@@ -153,12 +152,18 @@ def labels_to_image_model(labels_shape,
     # reformat resolutions
     labels_shape = utils.reformat_to_list(labels_shape)
     n_dims, _ = utils.get_dims(labels_shape)
-    atlas_res = utils.reformat_to_n_channels_array(atlas_res, n_dims, n_channels)
-    data_res = atlas_res if data_res is None else utils.reformat_to_n_channels_array(data_res, n_dims, n_channels)
-    thickness = data_res if thickness is None else utils.reformat_to_n_channels_array(thickness, n_dims, n_channels)
-    downsample = utils.reformat_to_list(downsample, n_channels) if downsample else (np.min(thickness - data_res, 1) < 0)
+    atlas_res = utils.reformat_to_n_channels_array(atlas_res, n_dims,
+                                                   n_channels)
+    data_res = atlas_res if data_res is None else utils.reformat_to_n_channels_array(
+        data_res, n_dims, n_channels)
+    thickness = data_res if thickness is None else utils.reformat_to_n_channels_array(
+        thickness, n_dims, n_channels)
+    downsample = utils.reformat_to_list(
+        downsample,
+        n_channels) if downsample else (np.min(thickness - data_res, 1) < 0)
     atlas_res = atlas_res[0]
-    target_res = atlas_res if target_res is None else utils.reformat_to_n_channels_array(target_res, n_dims)[0]
+    target_res = atlas_res if target_res is None else utils.reformat_to_n_channels_array(
+        target_res, n_dims)[0]
 
     # get shapes
     crop_shape, output_shape = get_shapes(labels_shape, output_shape,
@@ -166,9 +171,13 @@ def labels_to_image_model(labels_shape,
                                           output_div_by_n)
 
     # define model inputs
-    labels_input = KL.Input(shape=labels_shape + [1], name='labels_input', dtype='int32')
-    means_input = KL.Input(shape=list(generation_labels.shape) + [n_channels], name='means_input')
-    stds_input = KL.Input(shape=list(generation_labels.shape) + [n_channels], name='std_devs_input')
+    labels_input = KL.Input(shape=labels_shape + [1],
+                            name='labels_input',
+                            dtype='int32')
+    means_input = KL.Input(shape=list(generation_labels.shape) + [n_channels],
+                           name='means_input')
+    stds_input = KL.Input(shape=list(generation_labels.shape) + [n_channels],
+                          name='std_devs_input')
     list_inputs = [labels_input, means_input, stds_input]
 
     # deform labels
@@ -221,8 +230,14 @@ def labels_to_image_model(labels_shape,
         channel._keras_shape = tuple(channel.get_shape().as_list())
 
         if randomise_res:
-            max_res_iso = np.array(utils.reformat_to_list(max_res_iso, length=n_dims, dtype='float'))
-            max_res_aniso = np.array(utils.reformat_to_list(max_res_aniso, length=n_dims, dtype='float'))
+            max_res_iso = np.array(
+                utils.reformat_to_list(max_res_iso,
+                                       length=n_dims,
+                                       dtype='float'))
+            max_res_aniso = np.array(
+                utils.reformat_to_list(max_res_aniso,
+                                       length=n_dims,
+                                       dtype='float'))
             max_res = np.maximum(max_res_iso, max_res_aniso)
             resolution, blur_res = layers.SampleResolution(
                 atlas_res, max_res_iso, max_res_aniso)(means_input)
@@ -262,7 +277,9 @@ def labels_to_image_model(labels_shape,
                                         interp_method='nearest')
 
     # map generation labels to segmentation values
-    labels = layers.ConvertLabels(generation_labels, dest_values=output_labels, name='labels_out')(labels)
+    labels = layers.ConvertLabels(generation_labels,
+                                  dest_values=output_labels,
+                                  name='labels_out')(labels)
 
     # build model (dummy layer enables to keep the labels when plugging this model to other models)
     image = KL.Lambda(lambda x: x[0], name='image_out')([image, labels])
@@ -306,7 +323,10 @@ def get_shapes(labels_shape, output_shape, atlas_res, target_res,
 
         # make sure output shape is divisible by output_div_by_n
         if output_div_by_n is not None:
-            tmp_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n) for s in output_shape]
+            tmp_shape = [
+                utils.find_closest_number_divisible_by_m(s, output_div_by_n)
+                for s in output_shape
+            ]
             if output_shape != tmp_shape:
                 print('output shape {0} not divisible by {1}, changed to {2}'.
                       format(output_shape, output_div_by_n, tmp_shape))
@@ -329,12 +349,24 @@ def get_shapes(labels_shape, output_shape, atlas_res, target_res,
 
             # if resampling, get the potential output_shape and check if it is divisible by n
             if resample_factor is not None:
-                output_shape = [int(labels_shape[i] * resample_factor[i]) for i in range(n_dims)]
-                output_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n) for s in output_shape]
-                cropping_shape = [int(np.around(output_shape[i] / resample_factor[i], 0)) for i in range(n_dims)]
+                output_shape = [
+                    int(labels_shape[i] * resample_factor[i])
+                    for i in range(n_dims)
+                ]
+                output_shape = [
+                    utils.find_closest_number_divisible_by_m(
+                        s, output_div_by_n) for s in output_shape
+                ]
+                cropping_shape = [
+                    int(np.around(output_shape[i] / resample_factor[i], 0))
+                    for i in range(n_dims)
+                ]
             # if no resampling, simply check if image_shape is divisible by n
             else:
-                cropping_shape = [utils.find_closest_number_divisible_by_m(s, output_div_by_n) for s in labels_shape]
+                cropping_shape = [
+                    utils.find_closest_number_divisible_by_m(
+                        s, output_div_by_n) for s in labels_shape
+                ]
                 output_shape = cropping_shape
 
         # if no need to be divisible by n, simply take cropping_shape as image_shape, and build output_shape

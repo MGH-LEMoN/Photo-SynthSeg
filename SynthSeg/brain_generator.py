@@ -13,7 +13,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import numpy as np
 
@@ -276,33 +275,34 @@ class BrainGenerator:
 
     def _build_labels_to_image_model(self):
         # build_model
-        lab_to_im_model = labels_to_image_model(labels_shape=self.labels_shape,
-                                                n_channels=self.n_channels,
-                                                generation_labels=self.generation_labels,
-                                                output_labels=self.output_labels,
-                                                n_neutral_labels=self.n_neutral_labels,
-                                                atlas_res=self.atlas_res,
-                                                target_res=self.target_res,
-                                                output_shape=self.output_shape,
-                                                output_div_by_n=self.output_div_by_n,
-                                                flipping=self.flipping,
-                                                aff=np.eye(4),
-                                                scaling_bounds=self.scaling_bounds,
-                                                rotation_bounds=self.rotation_bounds,
-                                                shearing_bounds=self.shearing_bounds,
-                                                translation_bounds=self.translation_bounds,
-                                                nonlin_std=self.nonlin_std,
-                                                nonlin_shape_factor=self.nonlin_shape_factor,
-                                                randomise_res=self.randomise_res,
-                                                max_res_iso=self.max_res_iso,
-                                                max_res_aniso=self.max_res_aniso,
-                                                data_res=self.data_res,
-                                                thickness=self.thickness,
-                                                downsample=self.downsample,
-                                                blur_range=self.blur_range,
-                                                bias_field_std=self.bias_field_std,
-                                                bias_shape_factor=self.bias_shape_factor,
-                                                same_bias_for_all_channels=self.same_bias_for_all_channels)
+        lab_to_im_model = labels_to_image_model(
+            labels_shape=self.labels_shape,
+            n_channels=self.n_channels,
+            generation_labels=self.generation_labels,
+            output_labels=self.output_labels,
+            n_neutral_labels=self.n_neutral_labels,
+            atlas_res=self.atlas_res,
+            target_res=self.target_res,
+            output_shape=self.output_shape,
+            output_div_by_n=self.output_div_by_n,
+            flipping=self.flipping,
+            aff=np.eye(4),
+            scaling_bounds=self.scaling_bounds,
+            rotation_bounds=self.rotation_bounds,
+            shearing_bounds=self.shearing_bounds,
+            translation_bounds=self.translation_bounds,
+            nonlin_std=self.nonlin_std,
+            nonlin_shape_factor=self.nonlin_shape_factor,
+            randomise_res=self.randomise_res,
+            max_res_iso=self.max_res_iso,
+            max_res_aniso=self.max_res_aniso,
+            data_res=self.data_res,
+            thickness=self.thickness,
+            downsample=self.downsample,
+            blur_range=self.blur_range,
+            bias_field_std=self.bias_field_std,
+            bias_shape_factor=self.bias_shape_factor,
+            same_bias_for_all_channels=self.same_bias_for_all_channels)
         out_shape = lab_to_im_model.output[0].get_shape().as_list()[1:]
         return lab_to_im_model, out_shape
 

@@ -13,15 +13,15 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import os
 
 import numpy as np
-# third-party imports
-from ext.lab2im import edit_volumes, utils
 from scipy.ndimage.morphology import distance_transform_edt
 from scipy.stats import wilcoxon
+
+# third-party imports
+from ext.lab2im import edit_volumes, utils
 
 
 def fast_dice(x, y, labels):
@@ -40,8 +40,11 @@ def fast_dice(x, y, labels):
         labels_sorted = np.sort(labels)
 
         # build bins for histograms
-        label_edges = np.sort(np.concatenate([labels_sorted - 0.1, labels_sorted + 0.1]))
-        label_edges = np.insert(label_edges, [0, len(label_edges)], [labels_sorted[0] - 0.1, labels_sorted[-1] + 0.1])
+        label_edges = np.sort(
+            np.concatenate([labels_sorted - 0.1, labels_sorted + 0.1]))
+        label_edges = np.insert(
+            label_edges, [0, len(label_edges)],
+            [labels_sorted[0] - 0.1, labels_sorted[-1] + 0.1])
 
         # compute Dice and re-arange scores in initial order
         hst = np.histogram2d(x.flatten(), y.flatten(), bins=label_edges)[0]

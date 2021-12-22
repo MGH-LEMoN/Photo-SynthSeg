@@ -13,7 +13,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import os
 from inspect import getmembers, isclass
@@ -22,13 +21,14 @@ import keras
 import keras.callbacks as KC
 import numpy as np
 import tensorflow as tf
+from keras import models
+from keras.optimizers import Adam
+
 # third-party imports
 from ext.lab2im import layers as l2i_layers
 from ext.lab2im import utils
 from ext.neuron import layers as nrn_layers
 from ext.neuron import models as nrn_models
-from keras import models
-from keras.optimizers import Adam
 
 # project imports
 from . import metrics_model as metrics
@@ -36,6 +36,7 @@ from .brain_generator import BrainGenerator
 
 physical_devices = tf.config.list_physical_devices('GPU')
 print("Num GPUs:", len(physical_devices))
+
 
 def training(labels_dir,
              model_dir,
@@ -235,7 +236,8 @@ def training(labels_dir,
         'either wl2_epochs or dice_epochs must be positive, had {0} and {1}'.format(wl2_epochs, dice_epochs)
 
     # get label lists
-    generation_labels, _ = utils.get_list_labels(label_list=generation_labels, labels_dir=labels_dir)
+    generation_labels, _ = utils.get_list_labels(label_list=generation_labels,
+                                                 labels_dir=labels_dir)
     if segmentation_labels is not None:
         segmentation_labels, _ = utils.get_list_labels(
             label_list=segmentation_labels)
@@ -244,39 +246,40 @@ def training(labels_dir,
     n_segmentation_labels = len(np.unique(segmentation_labels))
 
     # instantiate BrainGenerator object
-    brain_generator = BrainGenerator(labels_dir=labels_dir,
-                                     generation_labels=generation_labels,
-                                     output_labels=segmentation_labels,
-                                     patch_dir=patch_dir,
-                                     n_neutral_labels=n_neutral_labels,
-                                     batchsize=batchsize,
-                                     n_channels=n_channels,
-                                     target_res=target_res,
-                                     output_shape=output_shape,
-                                     output_div_by_n=2 ** n_levels,
-                                     generation_classes=generation_classes,
-                                     prior_distributions=prior_distributions,
-                                     prior_means=prior_means,
-                                     prior_stds=prior_stds,
-                                     use_specific_stats_for_channel=use_specific_stats_for_channel,
-                                     mix_prior_and_random=mix_prior_and_random,
-                                     flipping=flipping,
-                                     scaling_bounds=scaling_bounds,
-                                     rotation_bounds=rotation_bounds,
-                                     shearing_bounds=shearing_bounds,
-                                     translation_bounds=translation_bounds,
-                                     nonlin_std=nonlin_std,
-                                     nonlin_shape_factor=nonlin_shape_factor,
-                                     randomise_res=randomise_res,
-                                     max_res_iso=max_res_iso,
-                                     max_res_aniso=max_res_aniso,
-                                     data_res=data_res,
-                                     thickness=thickness,
-                                     downsample=downsample,
-                                     blur_range=blur_range,
-                                     bias_field_std=bias_field_std,
-                                     bias_shape_factor=bias_shape_factor,
-                                     same_bias_for_all_channels=same_bias_for_all_channels)
+    brain_generator = BrainGenerator(
+        labels_dir=labels_dir,
+        generation_labels=generation_labels,
+        output_labels=segmentation_labels,
+        patch_dir=patch_dir,
+        n_neutral_labels=n_neutral_labels,
+        batchsize=batchsize,
+        n_channels=n_channels,
+        target_res=target_res,
+        output_shape=output_shape,
+        output_div_by_n=2**n_levels,
+        generation_classes=generation_classes,
+        prior_distributions=prior_distributions,
+        prior_means=prior_means,
+        prior_stds=prior_stds,
+        use_specific_stats_for_channel=use_specific_stats_for_channel,
+        mix_prior_and_random=mix_prior_and_random,
+        flipping=flipping,
+        scaling_bounds=scaling_bounds,
+        rotation_bounds=rotation_bounds,
+        shearing_bounds=shearing_bounds,
+        translation_bounds=translation_bounds,
+        nonlin_std=nonlin_std,
+        nonlin_shape_factor=nonlin_shape_factor,
+        randomise_res=randomise_res,
+        max_res_iso=max_res_iso,
+        max_res_aniso=max_res_aniso,
+        data_res=data_res,
+        thickness=thickness,
+        downsample=downsample,
+        blur_range=blur_range,
+        bias_field_std=bias_field_std,
+        bias_shape_factor=bias_shape_factor,
+        same_bias_for_all_channels=same_bias_for_all_channels)
 
     # generation model
     labels_to_image_model = brain_generator.labels_to_image_model

@@ -13,7 +13,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import logging
 import os
@@ -21,9 +20,10 @@ import re
 
 import matplotlib.pyplot as plt
 import numpy as np
+from tensorflow.python.summary.summary_iterator import summary_iterator
+
 # third-party imports
 from ext.lab2im import utils
-from tensorflow.python.summary.summary_iterator import summary_iterator
 
 # project imports
 from .predict import predict
@@ -100,7 +100,9 @@ def validate_training(image_dir,
     utils.mkdir(validation_main_dir)
 
     # loop over models
-    list_models = utils.list_files(models_dir, expr=['dice', '.h5'], cond_type='and')[::step_eval]
+    list_models = utils.list_files(models_dir,
+                                   expr=['dice', '.h5'],
+                                   cond_type='and')[::step_eval]
     # list_models = [p for p in list_models if int(os.path.basename(p)[-6:-3]) % 10 == 0]
     loop_info = utils.LoopInfo(len(list_models), 1, 'validating', True)
     for model_idx, path_model in enumerate(list_models):
@@ -168,16 +170,23 @@ def plot_validation_curves(list_validation_dirs,
         if isinstance(eval_indices, (np.ndarray, str)):
             if isinstance(eval_indices, str):
                 eval_indices = np.load(eval_indices)
-            eval_indices = np.squeeze(utils.reformat_to_n_channels_array(eval_indices, n_dims=len(eval_indices)))
+            eval_indices = np.squeeze(
+                utils.reformat_to_n_channels_array(eval_indices,
+                                                   n_dims=len(eval_indices)))
             eval_indices = [eval_indices] * len(list_validation_dirs)
         elif isinstance(eval_indices, list):
             for (i, e) in enumerate(eval_indices):
                 if isinstance(e, np.ndarray):
-                    eval_indices[i] = np.squeeze(utils.reformat_to_n_channels_array(e, n_dims=len(e)))
+                    eval_indices[i] = np.squeeze(
+                        utils.reformat_to_n_channels_array(e, n_dims=len(e)))
                 else:
-                    raise TypeError('if provided as a list, eval_indices should only contain numpy arrays')
+                    raise TypeError(
+                        'if provided as a list, eval_indices should only contain numpy arrays'
+                    )
         else:
-            raise TypeError('eval_indices can be a numpy array, a path to a numpy array, or a list of numpy arrays.')
+            raise TypeError(
+                'eval_indices can be a numpy array, a path to a numpy array, or a list of numpy arrays.'
+            )
     else:
         eval_indices = [None] * len(list_validation_dirs)
 
@@ -216,12 +225,11 @@ def plot_validation_curves(list_validation_dirs,
 
     # loop over architectures
     plt.figure(figsize=figsize)
-    for idx, (net_val_dir, net_name, linestyle, colour, legend_label, eval_idx) in enumerate(zip(list_validation_dirs,
-                                                                                                 architecture_names,
-                                                                                                 list_linestyles,
-                                                                                                 list_colours,
-                                                                                                 list_legend_labels,
-                                                                                                 eval_indices)):
+    for idx, (net_val_dir, net_name, linestyle, colour, legend_label,
+              eval_idx) in enumerate(
+                  zip(list_validation_dirs, architecture_names,
+                      list_linestyles, list_colours, list_legend_labels,
+                      eval_indices)):
 
         list_epochs_dir = utils.list_subfolders(net_val_dir, whole_path=False)
 
@@ -234,7 +242,8 @@ def plot_validation_curves(list_validation_dirs,
             path_epoch_dice = os.path.join(net_val_dir, epoch_dir, 'dice.npy')
             if os.path.isfile(path_epoch_dice):
                 if eval_idx is not None:
-                    list_net_dice_scores.append(np.mean(np.load(path_epoch_dice)[eval_idx, :]))
+                    list_net_dice_scores.append(
+                        np.mean(np.load(path_epoch_dice)[eval_idx, :]))
                 else:
                     if skip_first_dice_row:
                         list_net_dice_scores.append(

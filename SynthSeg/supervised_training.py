@@ -13,7 +13,6 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import os
 
@@ -80,7 +79,8 @@ def supervised_training(image_dir,
         path_labels), "There should be as many images as label maps."
 
     # get label lists
-    label_list, _ = utils.get_list_labels(label_list=segmentation_labels, labels_dir=labels_dir)
+    label_list, _ = utils.get_list_labels(label_list=segmentation_labels,
+                                          labels_dir=labels_dir)
     n_labels = np.size(label_list)
 
     # create augmentation model

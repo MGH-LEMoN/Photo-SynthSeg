@@ -13,10 +13,10 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-
 # python imports
 import numpy as np
 import numpy.random as npr
+
 # third-party imports
 from ext.lab2im import utils
 
@@ -157,10 +157,20 @@ def build_model_inputs(path_label_maps,
                     tmp_prior_stds = None
 
                 # draw means and std devs from priors
-                tmp_classes_means = utils.draw_value_from_distribution(tmp_prior_means, n_classes, prior_distributions,
-                                                                       125., 100., positive_only=True)
-                tmp_classes_stds = utils.draw_value_from_distribution(tmp_prior_stds, n_classes, prior_distributions,
-                                                                      15., 10., positive_only=True)
+                tmp_classes_means = utils.draw_value_from_distribution(
+                    tmp_prior_means,
+                    n_classes,
+                    prior_distributions,
+                    125.,
+                    100.,
+                    positive_only=True)
+                tmp_classes_stds = utils.draw_value_from_distribution(
+                    tmp_prior_stds,
+                    n_classes,
+                    prior_distributions,
+                    15.,
+                    10.,
+                    positive_only=True)
                 random_coef = npr.uniform()
                 if random_coef > 0.95:  # reset the background to 0 in 5% of cases
                     tmp_classes_means[0] = 0
