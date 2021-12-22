@@ -43,10 +43,10 @@ parser_b.add_argument("model_dir", type=str)
 
 # ---------------------------------------------- Generation parameters ----------------------------------------------
 # label maps parameters
-parser.add_argument("--generation_labels", type=str, dest="generation_labels", default=None)
-parser.add_argument("--neutral_labels", type=int, dest="n_neutral_labels", default=None)
-parser.add_argument("--segmentation_labels", type=str, dest="segmentation_labels", default=None)
-parser.add_argument("--noisy_patches", type=str, dest="patch_dir", default=None)
+parser_b.add_argument("--generation_labels", type=str, dest="generation_labels", default=None)
+parser_b.add_argument("--neutral_labels", type=int, dest="n_neutral_labels", default=None)
+parser_b.add_argument("--segmentation_labels", type=str, dest="segmentation_labels", default=None)
+parser_b.add_argument("--noisy_patches", type=str, dest="patch_dir", default=None)
 
 # output-related parameters
 parser_b.add_argument("--batch_size", type=int, dest="batchsize", default=1)
@@ -94,12 +94,14 @@ parser_b.add_argument("--feat_mult", type=int, dest="feat_multiplier", default=2
 parser_b.add_argument("--activation", type=str, dest="activation", default='elu')
 
 # ------------------------------------------------- Training parameters ------------------------------------------------
-parser.add_argument("--lr", type=float, dest="lr", default=1e-4)
-parser.add_argument("--lr_decay", type=float, dest="lr_decay", default=0)
-parser.add_argument("--wl2_epochs", type=int, dest="wl2_epochs", default=5)
-parser.add_argument("--dice_epochs", type=int, dest="dice_epochs", default=300)
-parser.add_argument("--steps_per_epoch", type=int, dest="steps_per_epoch", default=1000)
-parser.add_argument("--checkpoint", type=str, dest="checkpoint", default=None)
+parser_b.add_argument("--lr", type=float, dest="lr", default=1e-4)
+parser_b.add_argument("--lr_decay", type=float, dest="lr_decay", default=0)
+parser_b.add_argument("--wl2_epochs", type=int, dest="wl2_epochs", default=5)
+parser_b.add_argument("--dice_epochs", type=int, dest="dice_epochs", default=300)
+parser_b.add_argument("--steps_per_epoch", type=int, dest="steps_per_epoch", default=1000)
+parser_b.add_argument("--checkpoint", type=str, dest="checkpoint", default=None)
+
+parser_b.add_argument("--message", type=str, dest="message", default=None)
 
 args = parser.parse_args()
 
@@ -132,7 +134,8 @@ if sys.argv[1] == 'train':
         args.model_dir = os.path.join(base_path, model_dir_name)
 
     write_config(vars(args))
-    delattr(args, 'message')
+    if hasattr(args, 'message'):
+        delattr(args, 'message')
 
     training(**vars(args))
 
