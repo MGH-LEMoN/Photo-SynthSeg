@@ -7,6 +7,7 @@ from dice_calculations import calculate_dice_for_dict
 from dice_gather import copy_relevant_files
 from dice_mri_utils import move_volumes_into_target_spaces, perform_overlay
 from dice_plots import write_plots
+from dice_utils import run_make_target
 from dice_volumes import write_correlations_to_file, write_volumes_to_file
 from uw_config import (
     CORRELATIONS_LIST,
@@ -234,6 +235,8 @@ class Configuration:
         self.required_labels = list(
             set(self.ALL_LABELS) - set(self.IGNORE_LABELS))
 
+        self._make_dirs()
+
     def _write_config(self, file_name=None):
         """Write configuration to a file
         Args:
@@ -279,9 +282,9 @@ if __name__ == "__main__":
     # print("Running SynthSeg...")
     # # Due to some code incompatibility issues, the following lines of code
     # # have to be run separately on MLSC or this entire script can be run on MLSC
-    # run_make_target(config, "hard")
-    # run_make_target(config, "soft")
-    # run_make_target(config, "scans")
+    run_make_target(config, "hard")
+    run_make_target(config, "soft")
+    run_make_target(config, "scans")
 
     # copy_relevant_files(config, SAMSEG_GATHER_DICT)
     # write_volumes_to_file(config, VOLUMES_LIST)

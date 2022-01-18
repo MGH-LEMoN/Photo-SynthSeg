@@ -93,7 +93,7 @@ def construct_dice_plots_from_files(config, file1, file2, merge_flag,
     dice_plot_from_df(config, df, out_name, hard_or_soft)
 
 
-def extract_scores(in_file_name, merge=0):
+def extract_scores(config, in_file_name, merge=0):
     # TODO: Look into this function again and cleanup
     hard_dice_json = os.path.join(config.SYNTHSEG_RESULTS, "dice_files",
                                   in_file_name)

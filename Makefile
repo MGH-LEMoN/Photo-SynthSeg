@@ -12,27 +12,25 @@ DT := $(shell date +"%Y%m%d")
 HOME := /space/calico/1/users/Harsha
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
-RESULTS_DIR := $(PROJ_DIR)/results
+RESULTS_DIR := $(PROJ_DIR)/results/20220117/old-recons/S02R01
 MODEL_DIR := $(PROJ_DIR)/models
 SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
 ENV_DIR := $(HOME)/venvs
 
 # Dynamic
-CMD = python
-# {echo | python | sbatch submit.sh}
 ENV_NAME := synthseg-venv
-# {synthseg-venv | synthseg-venv1}
 CUDA_V := 10.1
-# {10.0 (for synthseg-venv1) | 10.1 (for synthseg-venv)}
 PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := 20211118-test1-709102
+MODEL_NAME := test
+CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
+# {echo | python | sbatch submit.sh}
 
 ACTIVATE_ENV = source $(ENV_DIR)/$(ENV_NAME)/bin/activate
 ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
 
 # variables for SynthSeg
 labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_PATH = $(SCRATCH_MODEL_DIR)/$(MODEL_NAME)
+MODEL_PATH = $(MODEL_DIR)/$(MODEL_NAME)
 
 ## label maps parameters
 generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
@@ -41,9 +39,9 @@ noisy_patches =
 
 ## output-related parameters
 batch_size = 1
-channels = 1
+channels = 3
 target_res =
-output_shape = 192
+output_shape = 168
 
 # GMM-sampling parameters
 generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm.npy
@@ -59,19 +57,19 @@ scaling =
 rotation =
 shearing =
 translation = 
-nonlin_std = 3
-nonlin_shape_factor = (0.04, 0.25, 0.04)
+nonlin_std = (4, 0, 4)
+nonlin_shape_factor = (0.0625, 0.1, 0.0625)
 
 ## blurring/resampling parameters ##
 # randomise_res = --randomise_res
 data_res = (1, 4, 1)
-thickness = (1, 1, 1)
+thickness = (1, 0.001, 1)
 downsample = --downsample
 blur_range = 1.03
 
 ## bias field parameters ##
 bias_std = .5
-bias_shape_factor = (0.04, 0.25, 0.04)
+bias_shape_factor = (0.025, 0.1, 0.025)
 # same_bias_for_all_channels = --same_bias_for_all_channels
 
 ## architecture parameters
@@ -88,8 +86,8 @@ feat_mult = 2    # if feat_multiplier is set to 1, we will keep the number of fe
 lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
-dice_epochs = 10       # number of training epochs
-steps_per_epoch = 5  # number of iteration per epoch
+dice_epochs = 100       # number of training epochs
+steps_per_epoch = 2500  # number of iteration per epoch
 
 
 .PHONY : help
@@ -149,15 +147,14 @@ training-default:
 training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
-	# export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
 	
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py train\
 		$(labels_dir) \
-		$(MODEL_DIR)/$(MODEL_NAME) \
+		$(SCRATCH_MODEL_DIR)/$(MODEL_NAME) \
 		\
 		--generation_labels $(generation_labels) \
 		--segmentation_labels $(segmentation_labels) \
-		--noisy_patches $(noisy_patches) \
 		\
 		--batch_size $(batch_size) \
 		--channels $(channels) \
@@ -198,11 +195,10 @@ training:
 		\
 		--lr $(lr) \
 		--lr_decay $(lr_decay) \
-		--wl2_epochs 0 \
+		--wl2_epochs $(wl2_epochs) \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'New training on 20211004' \
-		--checkpoint /cluster/scratch/friday/for_harsha/test-668939/dice_005.h5 \
+		--message 'Submitting JEI Suggestions' \
 		;
 
 ## Use this target to resume training
@@ -241,6 +237,9 @@ predict1:
 		/space/calico/1/users/Harsha/SynthSeg/results/UW_photos/
 		;
 
+predict-%: H5_FILE = $(SCRATCH_MODEL_DIR)/S10R01/dice_070.h5
+# predict-%: H5_FILE = $(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5
+predict-%: LABEL_LIST = $(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
 ## predict-scans: Run MRI volumes through default SynthSeg
 predict-scans:
 	$(ACTIVATE_ENV)
@@ -256,7 +255,7 @@ predict-scans:
 predict-soft:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
-	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/10.1/lib64
+	export LD_LIBRARY_PATH=/usr/pubsw/packages/CUDA/10.1/lib64
 
 	python scripts/commands/predict.py \
 		--smoothing 0.5 \
@@ -265,8 +264,8 @@ predict-soft:
 		--vol $(RESULTS_DIR)/volumes/soft.synthseg.volumes \
 		$(RESULTS_DIR)/soft.recon/ \
 		$(RESULTS_DIR)/soft.synthseg/ \
-		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
-		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
+		$(H5_FILE) \
+		$(LABEL_LIST)
 
 ## predict-soft: Run hard recons through custom SynthSeg model
 predict-hard:
@@ -281,12 +280,12 @@ predict-hard:
 		--vol $(RESULTS_DIR)/volumes/hard.synthseg.volumes \
 		$(RESULTS_DIR)/hard.recon/ \
 		$(RESULTS_DIR)/hard.synthseg/ \
-		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5 \
-		$(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
+		$(H5_FILE) \
+		$(LABEL_LIST)
 
 
 samseg-%: SUB_ID = 17-0333 18-0086 18-0444 18-0817 18-1045 18-1132 18-1196 18-1274 18-1327 18-1343 18-1470 18-1680 18-1690 18-1704 18-1705 18-1724 18-1754 18-1913 18-1930 18-2056 18-2128 18-2259 18-2260 19-0019 19-0037 19-0100 19-0138 19-0148
-samseg-%: FSDEV = /space/calico/1/users/Harsha/photo-samseg
+samseg-%: FSDEV = /space/calico/1/users/Harsha/photo-samseg-orig
 samseg-hard-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
@@ -344,4 +343,3 @@ samseg-soft-on-old-recons:
 			--dissection-photo both \
 			--atlas $(FSDEV)/atlas; \
 	done
-

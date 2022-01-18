@@ -41,7 +41,7 @@ def perform_overlay(config):
     print("Creating...")
     count = 0
     for scan_reg, mri_resampled_seg in zip(mri_scans_reg, mri_resampled_segs):
-        if not id_check(config, scan_reg, mri_resampled_seg):
+        if not id_check(scan_reg, mri_resampled_seg):
             raise Exception("ID Check Failed")
 
         _, scan_reg_aff, scan_reg_head = utils.load_volume(scan_reg,
@@ -94,7 +94,7 @@ def perform_registration(config, input_path, reference_path, output_path):
     print("Creating...")
     count = 0
     for input_file, reference_file in zip(input_files, reference_files):
-        if not id_check(config, input_file, reference_file):
+        if not id_check(input_file, reference_file):
             raise Exception("ID Check Failed")
 
         _, file_name = os.path.split(input_file)

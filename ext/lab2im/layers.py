@@ -109,7 +109,7 @@ class RandomSpatialDeformation(Layer):
         self.apply_affine_trans = (self.scaling_bounds is not False) | (self.rotation_bounds is not False) | \
                                   (self.shearing_bounds is not False) | (self.translation_bounds is not False) | \
                                   self.enable_90_rotations
-        self.apply_elastic_trans = self.nonlin_std > 0
+        self.apply_elastic_trans = self.nonlin_std is not None
 
         # interpolation methods
         self.inter_method = inter_method

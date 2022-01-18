@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 
@@ -5,8 +6,9 @@ from ext.lab2im import utils
 
 from dice_calculations import calculate_dice_for_dict
 from dice_gather import copy_relevant_files
-from dice_mri_utils import move_volumes_into_target_spaces, perform_overlay
+from dice_mri_utils import convert_to_single_channel, move_volumes_into_target_spaces, perform_overlay, perform_registration
 from dice_plots import write_plots
+from dice_utils import run_make_target
 from dice_volumes import write_correlations_to_file, write_volumes_to_file
 from uw_config import (
     CORRELATIONS_LIST,
@@ -298,6 +300,8 @@ class Configuration:
         self.required_labels = list(
             set(self.ALL_LABELS) - set(self.IGNORE_LABELS))
 
+        self._make_dirs()
+
     def _write_config(self, file_name=None):
         """Write configuration to a file
         Args:
@@ -307,6 +311,9 @@ class Configuration:
 
         dictionary = self.__dict__
         json_object = json.dumps(dictionary, sort_keys=True, indent=4)
+
+        if not dictionary.get("SYNTHSEG_RESULTS", None):
+            return
 
         utils.mkdir(dictionary["SYNTHSEG_RESULTS"])
 
@@ -334,29 +341,45 @@ class Configuration:
         self.__dict__[key] = value
         self._write_config()
 
+    def _make_dirs(self):
+        self.dice_dir = os.path.join(self.SYNTHSEG_RESULTS, "dice_files")
+        self.volumes_dir = os.path.join(self.SYNTHSEG_RESULTS, "volumes")
+
+        os.makedirs(self.dice_dir, exist_ok=True)
+        os.makedirs(self.volumes_dir, exist_ok=True)
 
 if __name__ == "__main__":
     # !!! START HERE !!!
     project_dir = "/space/calico/1/users/Harsha/SynthSeg"
-    results_folder = "uw-results/old-recons"
+    run_id = "S02R01"
+    results_folder = f"results/20220117/old-recons/{run_id}"
 
     config = Configuration(project_dir, results_folder)
     copy_relevant_files(config, file_gather_dict)
 
-    # print('Running SynthSeg...')
-    # # Due to some code incompatibility issues, the following lines of code
-    # # have to be run separately on MLSC or this entire script can be run on MLSC
-    # run_make_target(config, 'hard')
-    # run_make_target(config, 'soft')
-    # run_make_target(config, 'scans')
+    convert_to_single_channel(config, "HARD_RECONS")
+    convert_to_single_channel(config, "SOFT_RECONS")
 
-    # # Okay, things will get a little slippery from here on
-    # print('\nPut MRI SynthSeg in the same space as MRI')
-    # perform_registration(config, config.MRI_SCANS_SYNTHSEG, config.MRI_SCANS,
-    #                      config.MRI_SCANS_SYNTHSEG_RESAMPLED)
+    print('Running SynthSeg...')
+    # Due to some code incompatibility issues, the following lines of code
+    # have to be run separately on MLSC or this entire script can be run on MLSC
+    run_make_target(config, 'hard')
+    run_make_target(config, 'soft')
+    run_make_target(config, 'scans')
 
-    # print('\nCombining MRI_Seg Volume and MRI_Vol Header')
+    # Okay, things will get a little slippery from here on
+    print('\nPut MRI SynthSeg in the same space as MRI')
+    perform_registration(config, config.MRI_SCANS_SYNTHSEG, config.MRI_SCANS,
+                         config.MRI_SCANS_SYNTHSEG_RESAMPLED)
+
+    print('\nCombining MRI_Seg Volumse and MRI_Vol Header')
     perform_overlay(config)
+
+    SAMSEG_LIST = glob.glob('/space/calico/1/users/Harsha/SynthSeg/results/old-recons/SAMSEG_OUTPUT_*')  
+    for src in SAMSEG_LIST:
+        basename = os.path.basename(src)
+        dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
+        os.symlink(src, dst)
 
     copy_relevant_files(config, SAMSEG_GATHER_DICT)
     write_volumes_to_file(config, VOLUMES_LIST)
@@ -364,8 +387,8 @@ if __name__ == "__main__":
         write_correlations_to_file(config, VOLUMES_LIST, *item)
 
     move_volumes_into_target_spaces(config, mri_convert_items)
-    move_volumes_into_target_spaces(config, mri_convert_items1)
+    # move_volumes_into_target_spaces(config, mri_convert_items1)
 
-    calculate_dice_for_dict(config, dice3d_dict)
+    # calculate_dice_for_dict(config, dice3d_dict)
     calculate_dice_for_dict(config, DICE2D_LIST)
     write_plots(config, PLOTS_LIST)

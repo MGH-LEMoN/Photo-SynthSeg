@@ -34,8 +34,8 @@ def calculate_and_print_dice(config, **kwargs):
     Args:
         config ([type]): [description]
     """
-    source_list, target_list = utils.list_images_in_folder(
-        kwargs["source"]), utils.list_images_in_folder(kwargs["target"])
+    source_list = utils.list_images_in_folder(getattr(config, kwargs["source"]))
+    target_list = utils.list_images_in_folder(getattr(config, kwargs["target"]))
 
     source_list, target_list = return_common_subjects(source_list, target_list)
 

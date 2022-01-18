@@ -19,7 +19,7 @@ import json
 import os
 import sys
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from argparse import ArgumentParser
 
@@ -237,7 +237,7 @@ if sys.argv[1] == 'train':
 
     if os.environ.get('SLURM_JOBID'):
         base_path, model_dir_name = os.path.split(args.model_dir)
-        model_dir_name = model_dir_name + '-' + os.environ.get('SLURM_JOBID')
+        # model_dir_name = model_dir_name + '-' + os.environ.get('SLURM_JOBID')
         args.model_dir = os.path.join(base_path, model_dir_name)
 
     write_config(vars(args))

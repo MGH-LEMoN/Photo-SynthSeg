@@ -125,7 +125,7 @@ CORRELATIONS_LIST = [
     [["MRI-Synthseg", "Hard-Samseg-Old", "Hard-Synthseg"], "hard", "old"],
 ]
 
-merge = [1]
+merge = 1
 DICE2D_LIST = [
     {
         "source": "HARD_MANUAL_LABELS_MERGED",
