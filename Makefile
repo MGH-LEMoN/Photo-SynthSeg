@@ -32,12 +32,12 @@ ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
 labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
 MODEL_PATH = $(MODEL_DIR)/$(MODEL_NAME)
 
-## label maps parameters
+# label maps parameters
 generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
 segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions.npy
 noisy_patches =
 
-## output-related parameters
+# output-related parameters
 batch_size = 1
 channels = 3
 target_res =
@@ -51,7 +51,7 @@ prior_std =
 # specific_stats = --specific_stats
 # mix_prior_and_random = --mix_prior_and_random
 
-## spatial deformation parameters ##
+# spatial deformation parameters
 # no_flipping = --no_flipping
 scaling =
 rotation =
@@ -60,19 +60,19 @@ translation =
 nonlin_std = (4, 0, 4)
 nonlin_shape_factor = (0.0625, 0.1, 0.0625)
 
-## blurring/resampling parameters ##
+# blurring/resampling parameters
 # randomise_res = --randomise_res
 data_res = (1, 4, 1)
 thickness = (1, 0.001, 1)
 downsample = --downsample
 blur_range = 1.03
 
-## bias field parameters ##
+# bias field parameters
 bias_std = .5
 bias_shape_factor = (0.025, 0.1, 0.025)
 # same_bias_for_all_channels = --same_bias_for_all_channels
 
-## architecture parameters
+# architecture parameters
 n_levels = 5           # number of resolution levels
 conv_per_level = 2  # number of convolution per level
 conv_size = 3          # size of the convolution kernel (e.g. 3x3x3)
@@ -82,7 +82,7 @@ feat_mult = 2    # if feat_multiplier is set to 1, we will keep the number of fe
 #                        network; 2 will double them(resp. half) after each max-pooling (resp. upsampling);
 #                        3 will triple them, etc.
 
-## Training parameters
+# Training parameters
 lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
@@ -104,7 +104,7 @@ remove-subject-copies:
 create-subject-copies:
 	python scripts/photos_utils.py
 
-## Running this target is equivalent to running tutorials/3-training.py
+## training-default: Equivalent to running tutorials/3-training.py
 training-default:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
@@ -143,7 +143,7 @@ training-default:
 			--steps_per_epoch 5   	\
 			;
 
-# Use this target to train custom models
+## training: Use this target to train/retrain(resume) custom models
 training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
@@ -201,7 +201,7 @@ training:
 		--message 'Submitting JEI Suggestions' \
 		;
 
-## Use this target to resume training
+## resume-training: Use this target to resume training
 resume-training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
@@ -209,7 +209,7 @@ resume-training:
 	
 	python $(PROJ_DIR)/scripts/commands/training.py resume-train $(MODEL_PATH)
 
-
+## predict: Inference using a trained model
 predict:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
@@ -299,6 +299,8 @@ samseg-hard-new-recons:
 		--atlas $(FSDEV)/atlas; \
 	done
 
+## samseg-soft-on-new-recons: Run FS SAMSEG on new soft reconstructions
+# Now that this feature is available in FS, we can do away with this target
 samseg-soft-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
