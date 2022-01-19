@@ -38,6 +38,7 @@ physical_devices = tf.config.list_physical_devices('GPU')
 print("Num GPUs:", len(physical_devices))
 
 
+
 def training(labels_dir,
              model_dir,
              generation_labels=None,
@@ -318,6 +319,20 @@ def training(labels_dir,
                 steps_per_epoch, model_dir, 'dice', checkpoint)
 
 
+class TrainingCallback(KC.Callback):
+    def __init__(self, model_dir, metric_type):
+        """ Save params in constructor
+        """
+        self.metric_type = metric_type
+        self.model_dir = model_dir
+
+    def on_epoch_end(self, epoch, logs=None):
+        save_file_name = os.path.join(self.model_dir, f'{self.metric_type}_{epoch:03d}.h5')
+        if os.path.exists(save_file_name):
+            print(f'Removing Checkpoint: {save_file_name}\n')
+            os.remove(save_file_name)
+
+
 def train_model(model,
                 generator,
                 learning_rate,
@@ -336,7 +351,7 @@ def train_model(model,
 
     # model saving callback
     save_file_name = os.path.join(model_dir, '%s_{epoch:03d}.h5' % metric_type)
-    callbacks = [KC.ModelCheckpoint(save_file_name, verbose=1)]
+    callbacks = [KC.ModelCheckpoint(save_file_name, verbose=1), KC.TerminateOnNaN(), TrainingCallback(model_dir, metric_type)]
 
     # TensorBoard callback
     if metric_type == 'dice':

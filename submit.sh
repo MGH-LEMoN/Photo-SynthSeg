@@ -3,13 +3,13 @@
 #SBATCH --partition=rtx8000
 #SBATCH --nodes=1
 #SBATCH --gpus=1
-#SBATCH --cpus-per-gpu=2
+#SBATCH --cpus-per-gpu=1
 #SBATCH --mem=64G
 #SBATCH --time=7-00:00:00
 #SBATCH --output="./logs/%A-%x.out"
 #SBATCH --error="./logs/%A-%x.err"
 #SBATCH --mail-user=hvgazula@umich.edu
-#SBATCH --mail-type=FAIL,TIME_LIMIT_90
+#SBATCH --mail-type=FAIL,TIME_LIMIT_90,END
 
 source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
