@@ -60,6 +60,10 @@ parser_b.add_argument("--segmentation_labels",
                       type=str,
                       dest="segmentation_labels",
                       default=None)
+parser.add_argument("--subjects_prob",
+                    type=str,
+                    dest="subjects_prob",
+                    default=None)
 parser_b.add_argument("--noisy_patches",
                       type=str,
                       dest="patch_dir",
@@ -170,6 +174,10 @@ parser_b.add_argument("--bias_shape_factor",
 parser_b.add_argument("--same_bias_for_all_channels",
                       action='store_true',
                       dest="same_bias_for_all_channels")
+
+parser.add_argument("--gradients",
+                    action='store_true',
+                    dest="return_gradients")
 
 # -------------------------------------------- UNet architecture parameters --------------------------------------------
 parser_b.add_argument("--n_levels", type=int, dest="n_levels", default=5)

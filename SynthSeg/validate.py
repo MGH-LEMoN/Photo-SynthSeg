@@ -13,8 +13,8 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-# python imports
 import logging
+# python imports
 import os
 import re
 
@@ -40,6 +40,7 @@ def validate_training(image_dir,
                       padding=None,
                       cropping=None,
                       target_res=1.,
+                      gradients=False,
                       flip=False,
                       topology_classes=None,
                       sigma_smoothing=0,
@@ -124,6 +125,7 @@ def validate_training(image_dir,
                     padding=padding,
                     cropping=cropping,
                     target_res=target_res,
+                    gradients=gradients,
                     flip=flip,
                     topology_classes=topology_classes,
                     sigma_smoothing=sigma_smoothing,
@@ -257,6 +259,8 @@ def plot_validation_curves(list_validation_dirs,
         if list_net_dice_scores:  # check that archi has been validated for at least 1 epoch
             list_net_dice_scores = np.array(list_net_dice_scores)
             list_epochs = np.array(list_epochs)
+            list_epochs, idx = np.unique(list_epochs, return_index=True)
+            list_net_dice_scores = list_net_dice_scores[idx]
             max_score = np.max(list_net_dice_scores)
             epoch_max_score = list_epochs[np.argmax(list_net_dice_scores)]
             print('\n' + net_name)

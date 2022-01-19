@@ -160,7 +160,7 @@ def rescale_volume(volume,
                    new_max=255,
                    min_percentile=2,
                    max_percentile=98,
-                   use_positive_only=True):
+                   use_positive_only=False):
     """This function linearly rescales a volume between new_min and new_max.
     :param volume: a numpy array
     :param new_min: (optional) minimum value for the rescaled image.
@@ -189,8 +189,8 @@ def rescale_volume(volume,
 
     # rescale image
     if robust_min != robust_max:
-        return new_min + (new_volume - robust_min) / (robust_max -
-                                                      robust_min) * new_max
+        return new_min + (new_volume - robust_min) / (
+            robust_max - robust_min) * (new_max - new_min)
     else:  # avoid dividing by zero
         return np.zeros_like(new_volume)
 
@@ -1434,7 +1434,7 @@ def flip_images_in_dir(image_dir,
 def align_images_in_dir(image_dir,
                         result_dir,
                         aff_ref=None,
-                        path_ref_image=None,
+                        path_ref=None,
                         recompute=True):
     """This function aligns all images in image_dir to a reference orientation (axes and directions).
     This reference orientation can be directly provided as an affine matrix, or can be specified by a reference volume.
@@ -1442,31 +1442,44 @@ def align_images_in_dir(image_dir,
     :param image_dir: path of directory with images to align
     :param result_dir: path of directory where flipped images will be writen
     :param aff_ref: (optional) reference affine matrix. Can be a numpy array, or the path to such array.
-    :param path_ref_image: (optional) path of a volume to which all images will be aligned.
+    :param path_ref: (optional) path of a volume to which all images will be aligned. Can also be the path to a folder
+    with as many images as in image_dir, in which case each image in image_dir is aligned to its couterpart in path_ref
+    (they are matched by sorting order).
     :param recompute: (optional) whether to recompute result files even if they already exists
     """
 
     # create result dir
     utils.mkdir(result_dir)
+    path_images = utils.list_images_in_folder(image_dir)
 
     # read reference affine matrix
-    if path_ref_image is not None:
-        _, aff_ref, _ = utils.load_volume(path_ref_image, im_only=False)
+    if path_ref is not None:
+        assert aff_ref is None, 'cannot provide aff_ref and path_ref together.'
+        basename = os.path.basename(path_ref)
+        if ('.nii.gz' in basename) | ('.nii' in basename) | (
+                '.mgz' in basename) | ('.npz' in basename):
+            _, aff_ref, _ = utils.load_volume(path_ref, im_only=False)
+            path_refs = [None] * len(path_images)
+        else:
+            path_refs = utils.list_images_in_folder(path_ref)
     elif aff_ref is not None:
         aff_ref = utils.load_array_if_path(aff_ref)
+        path_refs = [None] * len(path_images)
     else:
         aff_ref = np.eye(4)
+        path_refs = [None] * len(path_images)
 
     # loop over images
-    path_images = utils.list_images_in_folder(image_dir)
     loop_info = utils.LoopInfo(len(path_images), 10, 'aligning', True)
-    for idx, path_image in enumerate(path_images):
+    for idx, (path_image, path_ref) in enumerate(zip(path_images, path_refs)):
         loop_info.update(idx)
 
         # align image
         path_result = os.path.join(result_dir, os.path.basename(path_image))
         if (not os.path.isfile(path_result)) | recompute:
             im, aff, h = utils.load_volume(path_image, im_only=False)
+            if path_ref is not None:
+                _, aff_ref, _ = utils.load_volume(path_ref, im_only=False)
             im, aff = align_volume_to_ref(im,
                                           aff,
                                           aff_ref=aff_ref,

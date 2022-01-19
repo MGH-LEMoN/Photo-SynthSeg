@@ -13,10 +13,13 @@ implied. See the License for the specific language governing permissions and lim
 License.
 """
 
-# python imports
 import csv
+# python imports
 import os
 
+import keras
+import keras.backend as K
+import keras.layers as KL
 import numpy as np
 from keras.models import Model
 
@@ -39,6 +42,7 @@ def predict(path_images,
             padding=None,
             cropping=None,
             target_res=1.,
+            gradients=False,
             flip=True,
             topology_classes=None,
             sigma_smoothing=0.5,
@@ -187,7 +191,7 @@ def predict(path_images,
     net = build_model(path_model, model_input_shape, n_levels,
                       len(segmentation_labels), conv_size, nb_conv_per_level,
                       unet_feat_count, feat_multiplier, activation,
-                      sigma_smoothing)
+                      sigma_smoothing, gradients)
 
     # perform segmentation
     loop_info = utils.LoopInfo(len(path_images), 10, 'predicting', True)
@@ -415,7 +419,7 @@ def prepare_output_files(path_images, out_seg, out_posteriors, out_resampled,
                 out_posteriors = os.path.join(out_posteriors, filename)
             else:
                 utils.mkdir(os.path.dirname(out_posteriors))
-            recompute_post = [not os.path.isfile(out_posteriors[0])]
+            recompute_post = [not os.path.isfile(out_posteriors)]
         else:
             recompute_post = [out_volumes is not None]
         out_posteriors = [out_posteriors]
@@ -430,7 +434,7 @@ def prepare_output_files(path_images, out_seg, out_posteriors, out_resampled,
                 out_resampled = os.path.join(out_resampled, filename)
             else:
                 utils.mkdir(os.path.dirname(out_resampled))
-            recompute_resampled = [not os.path.isfile(out_resampled[0])]
+            recompute_resampled = [not os.path.isfile(out_resampled)]
         else:
             recompute_resampled = [out_volumes is not None]
         out_resampled = [out_resampled]
@@ -548,10 +552,19 @@ def preprocess_image(im_path,
 
 def build_model(model_file, input_shape, n_levels, n_lab, conv_size,
                 nb_conv_per_level, unet_feat_count, feat_multiplier,
-                activation, sigma_smoothing):
+                activation, sigma_smoothing, gradients):
 
     assert os.path.isfile(
         model_file), "The provided model path does not exist."
+
+    if gradients:
+        input_image = KL.Input(input_shape)
+        last_tensor = layers.ImageGradients('sobel', True)(input_image)
+        last_tensor = KL.Lambda(lambda x: (x - K.min(x)) / (K.max(x) - K.min(
+            x) + K.epsilon()))(last_tensor)
+        net = Model(inputs=input_image, outputs=last_tensor)
+    else:
+        net = None
 
     # build UNet
     net = nrn_models.unet(nb_features=unet_feat_count,
@@ -562,7 +575,8 @@ def build_model(model_file, input_shape, n_levels, n_lab, conv_size,
                           feat_mult=feat_multiplier,
                           activation=activation,
                           nb_conv_per_level=nb_conv_per_level,
-                          batch_norm=-1)
+                          batch_norm=-1,
+                          input_model=net)
     net.load_weights(model_file, by_name=True)
 
     # smooth posteriors if specified

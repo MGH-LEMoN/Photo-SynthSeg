@@ -28,9 +28,10 @@ class BrainGenerator:
     def __init__(self,
                  labels_dir,
                  generation_labels=None,
-                 output_labels=None,
-                 patch_dir=None,
                  n_neutral_labels=None,
+                 output_labels=None,
+                 subjects_prob=None,
+                 patch_dir=None,
                  batchsize=1,
                  n_channels=1,
                  target_res=None,
@@ -58,7 +59,8 @@ class BrainGenerator:
                  blur_range=1.03,
                  bias_field_std=.5,
                  bias_shape_factor=.025,
-                 same_bias_for_all_channels=False):
+                 same_bias_for_all_channels=False,
+                 return_gradients=False):
         """
         This class is wrapper around the labels_to_image_model model. It contains the GPU model that generates images
         from labels maps, and a python generator that suplies the input data for this model.
@@ -77,14 +79,17 @@ class BrainGenerator:
         If flipping is true (i.e. right/left flipping is enabled), generation_labels should be organised as follows:
         background label first, then non-sided labels (e.g. CSF, brainstem, etc.), then all the structures of the same
         hemisphere (can be left or right), and finally all the corresponding contralateral structures in the same order.
+        :param n_neutral_labels: (optional) number of non-sided generation labels.
+        Default is total number of label values.
         :param output_labels: (optional) list of the same length as generation_labels to indicate which values to use in
         the label maps returned by this function, i.e. all occurences of generation_labels[i] in the input label maps
         will be converted to output_labels[i] in the returned label maps. Examples:
         Set output_labels[i] to zero if you wish to erase the value generation_labels[i] from the returned label maps.
         Set output_labels[i]=generation_labels[i] to keep the value generation_labels[i] in the returned maps.
         Can be a list or a 1d numpy array. By default output_labels is equal to generation_labels.
-        :param n_neutral_labels: (optional) number of non-sided generation labels.
-        Default is total number of label values.
+        :param subjects_prob: (optional) relative order of importance (doesn't have to be probabilistic), with which to
+        pick the provided label maps at each minibatch. Can be a sequence, a 1D numpy array, or the path to such an
+        array, and it must be as long as path_label_maps. By default, all label maps are chosen with the same importance
 
         # output-related parameters
         :param batchsize: (optional) numbers of images to generate per mini-batch. Default is 1.
@@ -192,12 +197,23 @@ class BrainGenerator:
         the size of the input label maps and the size of the first sampled tensor for synthesising the bias field.
         :param same_bias_for_all_channels: (optional) If same_bias_for_all_channels is not False, this applies the same bias
         in all channels.
+
+        :param return_gradients: (optional) whether to return the synthetic image or the magnitude of its spatial
+        gradient (computed with Sobel kernels).
         """
 
         # prepare data files
         self.labels_paths = utils.list_images_in_folder(labels_dir)
         self.path_patches = utils.list_images_in_folder(patch_dir) if (
             patch_dir is not None) else None
+
+        if subjects_prob is not None:
+            self.subjects_prob = np.array(utils.reformat_to_list(
+                subjects_prob, load_as_numpy=True),
+                                          dtype='float32')
+            assert len(self.subjects_prob) == len(self.labels_paths), \
+                'subjects_prob should have the same length as labels_path, ' \
+                'had {} and {}'.format(len(self.subjects_prob), len(self.labels_paths))
 
         # generation parameters
         self.labels_shape, self.aff, self.n_dims, _, self.header, self.atlas_res = \
@@ -261,6 +277,7 @@ class BrainGenerator:
         self.bias_field_std = bias_field_std
         self.bias_shape_factor = bias_shape_factor
         self.same_bias_for_all_channels = same_bias_for_all_channels
+        self.return_gradients = return_gradients
 
         # build transformation model
         self.labels_to_image_model, self.model_output_shape = self._build_labels_to_image_model(
@@ -302,7 +319,8 @@ class BrainGenerator:
             blur_range=self.blur_range,
             bias_field_std=self.bias_field_std,
             bias_shape_factor=self.bias_shape_factor,
-            same_bias_for_all_channels=self.same_bias_for_all_channels)
+            same_bias_for_all_channels=self.same_bias_for_all_channels,
+            return_gradients=self.return_gradients)
         out_shape = lab_to_im_model.output[0].get_shape().as_list()[1:]
         return lab_to_im_model, out_shape
 
@@ -313,6 +331,7 @@ class BrainGenerator:
             n_labels=len(self.generation_labels),
             batchsize=self.batchsize,
             n_channels=self.n_channels,
+            subjects_prob=self.subjects_prob,
             generation_classes=self.generation_classes,
             prior_means=self.prior_means,
             prior_stds=self.prior_stds,

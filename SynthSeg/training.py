@@ -38,12 +38,12 @@ physical_devices = tf.config.list_physical_devices('GPU')
 print("Num GPUs:", len(physical_devices))
 
 
-
 def training(labels_dir,
              model_dir,
              generation_labels=None,
              n_neutral_labels=None,
              segmentation_labels=None,
+             subjects_prob=None,
              patch_dir=None,
              batchsize=1,
              n_channels=1,
@@ -72,6 +72,7 @@ def training(labels_dir,
              bias_field_std=.5,
              bias_shape_factor=.025,
              same_bias_for_all_channels=False,
+             return_gradients=False,
              n_levels=5,
              nb_conv_per_level=2,
              conv_size=3,
@@ -115,6 +116,9 @@ def training(labels_dir,
     Set output_labels[i] to zero if you wish to erase the value generation_labels[i] from the returned label maps.
     Set output_labels[i]=generation_labels[i] if you wish to keep the value generation_labels[i] in the returned maps.
     Can be a list or a 1d numpy array, or the path to such an array. Default is output_labels = generation_labels.
+    :param subjects_prob: (optional) relative order of importance (doesn't have to be probabilistic), with which to pick
+    the provided label maps at each minibatch. Can be a sequence, a 1D numpy array, or the path to such an array, and it
+    must be as long as path_label_maps. By default, all label maps are chosen with the same importance.
 
     # output-related parameters
     :param batchsize: (optional) number of images to generate per mini-batch. Default is 1.
@@ -213,6 +217,9 @@ def training(labels_dir,
     :param same_bias_for_all_channels: (optional) If same_bias_for_all_channels is not False, this applies the same bias
     in all channels.
 
+    :param return_gradients: (optional) whether to return the synthetic image or the magnitude of its spatial gradient
+    (computed with Sobel kernels).
+
     # ------------------------------------------ UNet architecture parameters ------------------------------------------
     :param n_levels: (optional) number of level for the Unet. Default is 5.
     :param nb_conv_per_level: (optional) number of convolutional layers per level. Default is 2.
@@ -250,9 +257,10 @@ def training(labels_dir,
     brain_generator = BrainGenerator(
         labels_dir=labels_dir,
         generation_labels=generation_labels,
-        output_labels=segmentation_labels,
-        patch_dir=patch_dir,
         n_neutral_labels=n_neutral_labels,
+        output_labels=segmentation_labels,
+        subjects_prob=subjects_prob,
+        patch_dir=patch_dir,
         batchsize=batchsize,
         n_channels=n_channels,
         target_res=target_res,
@@ -327,7 +335,8 @@ class TrainingCallback(KC.Callback):
         self.model_dir = model_dir
 
     def on_epoch_end(self, epoch, logs=None):
-        save_file_name = os.path.join(self.model_dir, f'{self.metric_type}_{epoch:03d}.h5')
+        save_file_name = os.path.join(self.model_dir,
+                                      f'{self.metric_type}_{epoch:03d}.h5')
         if os.path.exists(save_file_name):
             print(f'Removing Checkpoint: {save_file_name}\n')
             os.remove(save_file_name)
@@ -351,7 +360,11 @@ def train_model(model,
 
     # model saving callback
     save_file_name = os.path.join(model_dir, '%s_{epoch:03d}.h5' % metric_type)
-    callbacks = [KC.ModelCheckpoint(save_file_name, verbose=1), KC.TerminateOnNaN(), TrainingCallback(model_dir, metric_type)]
+    callbacks = [
+        KC.ModelCheckpoint(save_file_name, verbose=1),
+        KC.TerminateOnNaN(),
+        TrainingCallback(model_dir, metric_type)
+    ]
 
     # TensorBoard callback
     if metric_type == 'dice':
@@ -393,8 +406,7 @@ def train_model(model,
     # compile
     if compile_model:
         model.compile(optimizer=Adam(lr=learning_rate, decay=lr_decay),
-                      loss=metrics.IdentityLoss().loss,
-                      loss_weights=[1.0])
+                      loss=metrics.IdentityLoss().loss)
 
     # fit
     model.fit_generator(generator,
