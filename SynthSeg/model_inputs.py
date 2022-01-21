@@ -16,9 +16,14 @@ License.
 # python imports
 import numpy as np
 import numpy.random as npr
+import tensorflow as tf
+from scipy.ndimage import zoom
 
 # third-party imports
 from ext.lab2im import utils
+from ext.neuron import utils as nrn_utils
+
+from .labels_to_image_model import get_shapes
 
 
 def build_model_inputs(path_label_maps,
@@ -31,7 +36,11 @@ def build_model_inputs(path_label_maps,
                        prior_stds=None,
                        use_specific_stats_for_channel=False,
                        mix_prior_and_random=False,
-                       path_patches=None):
+                       path_patches=None,
+                       bias_field_std=.5,
+                       output_shape=None,
+                       output_div_by_n=None,
+                       nonlin_std=3.):
     """
     This function builds a generator that will be used to give the necessary inputs to the label_to_image model: the
     input label maps, as well as the means and stds defining the parameters of the GMM (which change at each minibatch).
@@ -70,7 +79,8 @@ def build_model_inputs(path_label_maps,
     """
 
     # get label info
-    _, _, n_dims, _, _, _ = utils.get_volume_info(path_label_maps[0])
+    labels_shape, _, n_dims, _, _, atlas_res = utils.get_volume_info(
+        path_label_maps[0], aff_ref=np.eye(4))
 
     # allocate unique class to each label if generation classes is not given
     if generation_classes is None:
@@ -87,6 +97,9 @@ def build_model_inputs(path_label_maps,
         list_label_maps = []
         list_means = []
         list_stds = []
+        list_spacing = []
+        list_bias_field = []
+        list_def_field = []
 
         for idx in indices:
 
@@ -187,8 +200,80 @@ def build_model_inputs(path_label_maps,
             list_means.append(means)
             list_stds.append(stds)
 
+            #HACK: Start
+            # spacing == thickness
+            spacing = np.random.randint(2, 15)
+            list_spacing.append(utils.add_axis([1, spacing, 1], axis=[0]))
+
+            bias_shape_factor_batch = [0.025, 1.0 / spacing, 0.025]
+            deformation_shape_factor_batch = [0.0625, 1.0 / spacing, 0.0625]
+
+            if False:
+                small_bias_size = utils.get_resample_shape(
+                    labels_shape, bias_shape_factor_batch)
+                small_bias = bias_field_std * np.random.uniform(
+                    size=[1]) * np.random.normal(size=small_bias_size)
+                factors = np.floor_divide(labels_shape, small_bias_size)
+                bias_field = np.exp(zoom(small_bias, factors))
+            else:
+                # target_res = atlas_res if target_res is None else utils.reformat_to_n_channels_array(
+                #         target_res, n_dims)[0]
+                target_res = atlas_res
+                crop_shape, output_shape = get_shapes(labels_shape,
+                                                      output_shape, atlas_res,
+                                                      target_res,
+                                                      output_div_by_n)
+                small_bias_size = utils.get_resample_shape(
+                    output_shape, bias_shape_factor_batch)
+                small_bias = bias_field_std * np.random.uniform(
+                    size=[1]) * np.random.normal(size=small_bias_size)
+                factors = np.divide(crop_shape, small_bias_size)
+                bias_field = np.exp(zoom(small_bias, factors))
+
+            list_bias_field.append(utils.add_axis(bias_field, axis=[0, -1]))
+
+            small_deformation_size = utils.get_resample_shape(
+                labels_shape, deformation_shape_factor_batch)
+            small_def = nonlin_std * np.random.uniform(
+                size=[1]) * np.random.normal(size=[*small_deformation_size, 3])
+
+            if False:
+                def_field = np.zeros([*labels_shape, 3])
+                factors = np.divide(labels_shape, small_deformation_size)
+                for c in range(3):
+                    def_field[:, :, :, c] = factors[c] * zoom(
+                        small_def[:, :, :, c], factors)
+            else:
+                half_size = np.array(labels_shape) // 2
+                def_field_half = np.zeros([*half_size, 3])
+                factors = np.divide(half_size, small_deformation_size)
+
+                for c in range(3):
+                    def_field_half[:, :, :, c] = factors[c] * zoom(
+                        small_def[:, :, :, c], factors)
+
+                def_field_half = nrn_utils.integrate_vec(tf.convert_to_tensor(
+                    def_field_half, dtype=np.float32),
+                                                         nb_steps=7)
+                def_field = np.zeros([*labels_shape, 3])
+                factors = np.divide(labels_shape, half_size)
+                for c in range(3):
+                    def_field[:, :, :, c] = factors[c] * zoom(
+                        def_field_half[:, :, :, c], factors)
+
+            # Maybe eliminate deformations out of plane?
+            if False:
+                def_field[:, :, :, 1] = 0
+
+            list_def_field.append(utils.add_axis(def_field, axis=0))
+
         # build list of inputs for generation model
-        list_inputs = [list_label_maps, list_means, list_stds]
+        # list_inputs = [list_label_maps, list_means, list_stds]
+        list_inputs = [
+            list_label_maps, list_means, list_stds, list_spacing,
+            list_bias_field, list_def_field
+        ]
+        #HACK: end
         if batchsize > 1:  # concatenate each input type if batchsize > 1
             list_inputs = [np.concatenate(item, 0) for item in list_inputs]
         else:

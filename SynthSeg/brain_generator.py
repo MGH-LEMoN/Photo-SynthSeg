@@ -319,7 +319,11 @@ class BrainGenerator:
             prior_distributions=self.prior_distributions,
             use_specific_stats_for_channel=self.use_specific_stats_for_channel,
             mix_prior_and_random=mix_prior_and_random,
-            path_patches=self.path_patches)
+            path_patches=self.path_patches,
+            bias_field_std=self.bias_field_std,
+            output_shape=self.output_shape,
+            output_div_by_n=self.output_div_by_n,
+            nonlin_std=self.nonlin_std)
         return model_inputs_generator
 
     def _build_brain_generator(self):

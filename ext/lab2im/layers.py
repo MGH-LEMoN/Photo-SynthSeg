@@ -33,10 +33,12 @@ License.
 """
 
 import keras.backend as K
+import keras.layers as KL
 # python imports
 import numpy as np
 import tensorflow as tf
 from keras.layers import Layer
+from numpy.lib.function_base import interp
 
 import ext.neuron.layers as nrn_layers
 # third-party imports
@@ -1734,3 +1736,169 @@ class MaskEdges(Layer):
 
     def compute_output_shape(self, input_shape):
         return [input_shape] * 2
+
+
+class RandomSpatialDeformation1(Layer):
+    """This layer spatially deforms one or several tensors with a combination of affine and elastic transformations.
+    The input tensors are expected to have the same shape [batchsize, shape_dim1, ..., shape_dimn, channel].
+    The non linear deformation is obtained by:
+    1) a small-size SVF is sampled from a centred normal distribution of random standard deviation.
+    2) it is resized with trilinear interpolation to half the shape of the input tensor
+    3) it is integrated to obtain a diffeomorphic transformation
+    4) finally, it is resized (again with trilinear interpolation) to full image size
+    :param scaling_bounds: (optional) range of the random scaling to apply. The scaling factor for each dimension is
+    sampled from a uniform distribution of predefined bounds. Can either be:
+    1) a number, in which case the scaling factor is independently sampled from the uniform distribution of bounds
+    [1-scaling_bounds, 1+scaling_bounds] for each dimension.
+    2) a sequence, in which case the scaling factor is sampled from the uniform distribution of bounds
+    (1-scaling_bounds[i], 1+scaling_bounds[i]) for the i-th dimension.
+    3) a numpy array of shape (2, n_dims), in which case the scaling factor is sampled from the uniform distribution
+     of bounds (scaling_bounds[0, i], scaling_bounds[1, i]) for the i-th dimension.
+    4) False, in which case scaling is completely turned off.
+    Default is scaling_bounds = 0.15 (case 1)
+    :param rotation_bounds: (optional) same as scaling bounds but for the rotation angle, except that for cases 1
+    and 2, the bounds are centred on 0 rather than 1, i.e. [0+rotation_bounds[i], 0-rotation_bounds[i]].
+    Default is rotation_bounds = 15.
+    :param shearing_bounds: (optional) same as scaling bounds. Default is shearing_bounds = 0.012.
+    :param translation_bounds: (optional) same as scaling bounds. Default is translation_bounds = False, but we
+    encourage using it when cropping is deactivated (i.e. when output_shape=None in BrainGenerator).
+    :param enable_90_rotations: (optional) wheter to rotate the input by a random angle chosen in {0, 90, 180, 270}.
+    This is done regardless of the value of rotation_bounds. If true, a different value is sampled for each dimension.
+    :param nonlin_std: (optional) maximum value of the standard deviation of the normal distribution from which we
+    sample the small-size SVF. Set to 0 if you wish to completely turn the elastic deformation off.
+    :param nonlin_shape_factor: (optional) if nonlin_std is not False, factor between the shapes of the input tensor
+    and the shape of the input non-linear tensor.
+    :param inter_method: (optional) interpolation method when deforming the input tensor. Can be 'linear', or 'nearest'
+    """
+    def __init__(
+            self,
+            scaling_bounds=0.15,
+            rotation_bounds=10,
+            shearing_bounds=0.02,
+            translation_bounds=False,
+            enable_90_rotations=False,
+            #  nonlin_std=4.,
+            #  nonlin_shape_factor=.0625,
+            inter_method='linear',
+            **kwargs):
+
+        # shape attributes
+        self.n_inputs = 1
+        self.inshape = None
+        self.n_dims = None
+        self.small_shape = None
+
+        # deformation attributes
+        self.scaling_bounds = scaling_bounds
+        self.rotation_bounds = rotation_bounds
+        self.shearing_bounds = shearing_bounds
+        self.translation_bounds = translation_bounds
+        self.enable_90_rotations = enable_90_rotations
+        # self.nonlin_std = nonlin_std
+        # self.nonlin_shape_factor = nonlin_shape_factor
+
+        # boolean attributes
+        self.apply_affine_trans = (self.scaling_bounds is not False) | (self.rotation_bounds is not False) | \
+                                  (self.shearing_bounds is not False) | (self.translation_bounds is not False) | \
+                                  self.enable_90_rotations
+        # self.apply_elastic_trans = self.nonlin_std > 0
+        self.apply_elastic_trans = True
+
+        # interpolation methods
+        self.inter_method = inter_method
+
+        super(RandomSpatialDeformation1, self).__init__(**kwargs)
+
+    def get_config(self):
+        config = super().get_config()
+        config["scaling_bounds"] = self.scaling_bounds
+        config["rotation_bounds"] = self.rotation_bounds
+        config["shearing_bounds"] = self.shearing_bounds
+        config["translation_bounds"] = self.translation_bounds
+        config["enable_90_rotations"] = self.enable_90_rotations
+        # config["nonlin_std"] = self.nonlin_std
+        # config["nonlin_shape_factor"] = self.nonlin_shape_factor
+        config["inter_method"] = self.inter_method
+        return config
+
+    def build(self, input_shape):
+
+        if not isinstance(input_shape, list):
+            inputshape = [input_shape]
+        else:
+            self.n_inputs = len(input_shape)
+            inputshape = input_shape
+        self.inshape = inputshape[0][1:]
+        self.n_dims = len(self.inshape) - 1
+
+        # if self.apply_elastic_trans:
+        #     self.small_shape = utils.get_resample_shape(
+        #         self.inshape[:self.n_dims], self.nonlin_shape_factor,
+        #         self.n_dims)
+        # else:
+        #     self.small_shape = None
+
+        self.inter_method = utils.reformat_to_list(self.inter_method,
+                                                   length=self.n_inputs,
+                                                   dtype='str')
+
+        self.built = True
+        super(RandomSpatialDeformation1, self).build(input_shape)
+
+    def call(self, inputs, **kwargs):
+
+        # reformat inputs and get its shape
+        if self.n_inputs < 2:
+            inputs = [inputs]
+        def_field = inputs[-1]
+        inputs = [inputs[0]]
+        types = [v.dtype for v in inputs]
+        inputs = [tf.cast(v, dtype='float32') for v in inputs]
+        batchsize = tf.split(tf.shape(inputs[0]), [1, self.n_dims + 1])[0]
+
+        # initialise list of transfors to operate
+        list_trans = list()
+
+        # add affine deformation to inputs list
+        if self.apply_affine_trans:
+            affine_trans = utils.sample_affine_transform(
+                batchsize, self.n_dims, self.rotation_bounds,
+                self.scaling_bounds, self.shearing_bounds,
+                self.translation_bounds, self.enable_90_rotations)
+            list_trans.append(affine_trans)
+
+        # prepare non-linear deformation field and add it to inputs list
+        if self.apply_elastic_trans:
+
+            # # sample small field from normal distribution of specified std dev
+            # trans_shape = tf.concat([
+            #     batchsize,
+            #     tf.convert_to_tensor(self.small_shape, dtype='int32')
+            # ],
+            #                         axis=0)
+            # trans_std = tf.random.uniform((1, 1), maxval=self.nonlin_std)
+            # elastic_trans = tf.random.normal(trans_shape, stddev=trans_std)
+
+            # # reshape this field to half size (for smoother SVF), integrate it, and reshape to full image size
+            # resize_shape = [
+            #     max(int(self.inshape[i] / 2), self.small_shape[i])
+            #     for i in range(self.n_dims)
+            # ]
+            # elastic_trans = nrn_layers.Resize(
+            #     size=resize_shape, interp_method='linear')(elastic_trans)
+            # elastic_trans = nrn_layers.VecInt()(elastic_trans)
+            # elastic_trans = nrn_layers.Resize(
+            #     size=self.inshape[:self.n_dims],
+            #     interp_method='linear')(elastic_trans)
+            list_trans.append(def_field)
+
+        # apply deformations and return tensors with correct dtype
+        if self.apply_affine_trans | self.apply_elastic_trans:
+            inputs = [
+                nrn_layers.SpatialTransformer(m)([v] + list_trans)
+                for (m, v) in zip(self.inter_method, inputs)
+            ]
+        return [tf.cast(v, t) for (t, v) in zip(types, inputs)]
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0]

@@ -18,6 +18,7 @@ import keras.layers as KL
 import numpy as np
 import tensorflow as tf
 from keras.models import Model
+from keras.utils.vis_utils import plot_model
 
 # third-party imports
 from ext.lab2im import edit_tensors as l2i_et
@@ -178,44 +179,49 @@ def labels_to_image_model(labels_shape,
                            name='means_input')
     stds_input = KL.Input(shape=list(generation_labels.shape) + [n_channels],
                           name='std_devs_input')
-    list_inputs = [labels_input, means_input, stds_input]
+    #HACK:
+    spacing_input = KL.Input(shape=[3], name='spacing_input', dtype='float32')
+    bias_field_input = KL.Input(shape=crop_shape + [1],
+                                name='bias_field_input')
+    def_field_input = KL.Input(shape=labels_shape + [3],
+                               name='def_field_input')
+    list_inputs = [
+        labels_input, means_input, stds_input, spacing_input, bias_field_input,
+        def_field_input
+    ]
 
     # deform labels
-    labels = layers.RandomSpatialDeformation(
+    labels = layers.RandomSpatialDeformation1(
         scaling_bounds=scaling_bounds,
         rotation_bounds=rotation_bounds,
         shearing_bounds=shearing_bounds,
         translation_bounds=translation_bounds,
-        nonlin_std=nonlin_std,
-        nonlin_shape_factor=nonlin_shape_factor,
-        inter_method='nearest')(labels_input)
+        inter_method='nearest')([labels_input, def_field_input])
 
     # cropping
     if crop_shape != labels_shape:
-        labels._keras_shape = tuple(labels.get_shape().as_list())
         labels = layers.RandomCrop(crop_shape)(labels)
 
     # flipping
     if flipping:
         assert aff is not None, 'aff should not be None if flipping is True'
-        labels._keras_shape = tuple(labels.get_shape().as_list())
         labels = layers.RandomFlip(
             get_ras_axes(aff, n_dims)[0], True, generation_labels,
             n_neutral_labels)(labels)
 
     # build synthetic image
-    labels._keras_shape = tuple(labels.get_shape().as_list())
     image = layers.SampleConditionalGMM(generation_labels)(
         [labels, means_input, stds_input])
 
     # apply bias field
     if bias_field_std > 0:
-        image._keras_shape = tuple(image.get_shape().as_list())
-        image = layers.BiasFieldCorruption(bias_field_std, bias_shape_factor,
-                                           same_bias_for_all_channels)(image)
+        # image._keras_shape = tuple(image.get_shape().as_list())
+        # image = layers.BiasFieldCorruption(bias_field_std, bias_shape_factor,
+        #                                    same_bias_for_all_channels)(image)
+        #HACK:
+        image = KL.Multiply()([image, bias_field_input])
 
     # intensity augmentation
-    image._keras_shape = tuple(image.get_shape().as_list())
     image = layers.IntensityAugmentation(clip=300,
                                          normalise=True,
                                          gamma_std=.4,
@@ -227,29 +233,30 @@ def labels_to_image_model(labels_shape,
         image) if (n_channels > 1) else [image]
     for i, channel in enumerate(split):
 
-        channel._keras_shape = tuple(channel.get_shape().as_list())
-
         if randomise_res:
-            max_res_iso = np.array(
-                utils.reformat_to_list(max_res_iso,
-                                       length=n_dims,
-                                       dtype='float'))
-            max_res_aniso = np.array(
-                utils.reformat_to_list(max_res_aniso,
-                                       length=n_dims,
-                                       dtype='float'))
-            max_res = np.maximum(max_res_iso, max_res_aniso)
-            resolution, blur_res = layers.SampleResolution(
-                atlas_res, max_res_iso, max_res_aniso)(means_input)
-            sigma = l2i_et.blurring_sigma_for_downsampling(atlas_res,
-                                                           resolution,
-                                                           thickness=blur_res)
-            channel = layers.DynamicGaussianBlur(
-                0.75 * max_res / np.array(atlas_res),
-                blur_range)([channel, sigma])
+            # max_res_iso = np.array(
+            #     utils.reformat_to_list(max_res_iso,
+            #                            length=n_dims,
+            #                            dtype='float'))
+            # max_res_aniso = np.array(
+            #     utils.reformat_to_list(max_res_aniso,
+            #                            length=n_dims,
+            #                            dtype='float'))
+            # max_res = np.maximum(max_res_iso, max_res_aniso)
+            # resolution, blur_res = layers.SampleResolution(
+            #     atlas_res, max_res_iso, max_res_aniso)(means_input)
+            # sigma = KL.Lambda(lambda x: l2i_et.blurring_sigma_for_downsampling(atlas_res,
+            #                                                x,
+            #                                                thickness=tf.convert_to_tensor(thickness)))(spacing_input)
+            # channel = layers.DynamicGaussianBlur(
+            #     0.75 * np.array([1, 1, 1]) / np.array(atlas_res),
+            #     blur_range)([channel, sigma])
+            #HACK:
+            sigma = np.array([0.5, 0.5, 0.5])
+            channel = layers.GaussianBlur(sigma, blur_range)(channel)
             channel = layers.MimicAcquisition(atlas_res, atlas_res,
                                               output_shape,
-                                              False)([channel, resolution])
+                                              False)([channel, spacing_input])
             channels.append(channel)
 
         else:
@@ -284,6 +291,8 @@ def labels_to_image_model(labels_shape,
     # build model (dummy layer enables to keep the labels when plugging this model to other models)
     image = KL.Lambda(lambda x: x[0], name='image_out')([image, labels])
     brain_model = Model(inputs=list_inputs, outputs=[image, labels])
+
+    plot_model(brain_model, to_file='brain_model.png', show_shapes=True)
 
     return brain_model
 
