@@ -202,7 +202,8 @@ def build_model_inputs(path_label_maps,
 
             #HACK: Start
             # spacing == thickness
-            spacing = np.random.randint(2, 15)
+            # spacing = np.random.randint(2, 15)
+            spacing = 2
             list_spacing.append(utils.add_axis([1, spacing, 1], axis=[0]))
 
             bias_shape_factor_batch = [0.025, 1.0 / spacing, 0.025]
@@ -232,18 +233,23 @@ def build_model_inputs(path_label_maps,
 
             list_bias_field.append(utils.add_axis(bias_field, axis=[0, -1]))
 
-            small_deformation_size = utils.get_resample_shape(
+            if True: # Without SVF
+                small_deformation_size = utils.get_resample_shape(
                 labels_shape, deformation_shape_factor_batch)
-            small_def = nonlin_std * np.random.uniform(
+                small_def = nonlin_std * np.random.uniform(
                 size=[1]) * np.random.normal(size=[*small_deformation_size, 3])
 
-            if False:
                 def_field = np.zeros([*labels_shape, 3])
                 factors = np.divide(labels_shape, small_deformation_size)
                 for c in range(3):
-                    def_field[:, :, :, c] = factors[c] * zoom(
+                    def_field[:, :, :, c] = zoom(
                         small_def[:, :, :, c], factors)
-            else:
+            else: # with SVF
+                small_deformation_size = utils.get_resample_shape(
+                labels_shape, deformation_shape_factor_batch)
+                small_def = nonlin_std * np.array(deformation_shape_factor_batch) * np.random.uniform(
+                size=[1]) * np.random.normal(size=[*small_deformation_size, 3])
+
                 half_size = np.array(labels_shape) // 2
                 def_field_half = np.zeros([*half_size, 3])
                 factors = np.divide(half_size, small_deformation_size)
