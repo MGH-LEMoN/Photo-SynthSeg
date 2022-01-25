@@ -234,6 +234,10 @@ if sys.argv[1] == 'train':
         args.nonlin_std = ast.literal_eval(args.nonlin_std)
     except ValueError:
         pass
+    try:
+        args.patch_dir = ast.literal_eval(args.patch_dir)
+    except ValueError:
+        pass
 
     if os.environ.get('SLURM_JOBID'):
         base_path, model_dir_name = os.path.split(args.model_dir)
