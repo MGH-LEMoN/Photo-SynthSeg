@@ -202,8 +202,7 @@ def build_model_inputs(path_label_maps,
 
             #HACK: Start
             # spacing == thickness
-            # spacing = np.random.randint(2, 15)
-            spacing = 2
+            spacing = np.random.randint(2, 15)
             list_spacing.append(utils.add_axis([1, spacing, 1], axis=[0]))
 
             bias_shape_factor_batch = [0.025, 1.0 / spacing, 0.025]
@@ -229,26 +228,31 @@ def build_model_inputs(path_label_maps,
                 small_bias = bias_field_std * np.random.uniform(
                     size=[1]) * np.random.normal(size=small_bias_size)
                 factors = np.divide(crop_shape, small_bias_size)
-                bias_field = np.exp(zoom(small_bias, factors))
+                bias_field = np.exp(zoom(small_bias, factors, order=1))
+                # bias_field = np.ones(crop_shape)
 
             list_bias_field.append(utils.add_axis(bias_field, axis=[0, -1]))
 
-            if True: # Without SVF
+            if True:  # Without SVF
                 small_deformation_size = utils.get_resample_shape(
-                labels_shape, deformation_shape_factor_batch)
+                    labels_shape, deformation_shape_factor_batch)
                 small_def = nonlin_std * np.random.uniform(
-                size=[1]) * np.random.normal(size=[*small_deformation_size, 3])
+                    size=[1]) * np.random.normal(
+                        size=[*small_deformation_size, 3])
 
                 def_field = np.zeros([*labels_shape, 3])
                 factors = np.divide(labels_shape, small_deformation_size)
                 for c in range(3):
-                    def_field[:, :, :, c] = zoom(
-                        small_def[:, :, :, c], factors)
-            else: # with SVF
+                    def_field[:, :, :, c] = zoom(small_def[:, :, :, c],
+                                                 factors,
+                                                 order=1)
+            else:  # with SVF
                 small_deformation_size = utils.get_resample_shape(
-                labels_shape, deformation_shape_factor_batch)
-                small_def = nonlin_std * np.array(deformation_shape_factor_batch) * np.random.uniform(
-                size=[1]) * np.random.normal(size=[*small_deformation_size, 3])
+                    labels_shape, deformation_shape_factor_batch)
+                small_def = nonlin_std * np.array(
+                    deformation_shape_factor_batch) * np.random.uniform(
+                        size=[1]) * np.random.normal(
+                            size=[*small_deformation_size, 3])
 
                 half_size = np.array(labels_shape) // 2
                 def_field_half = np.zeros([*half_size, 3])
