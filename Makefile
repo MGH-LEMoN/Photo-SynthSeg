@@ -25,7 +25,7 @@ ENV_NAME := synthseg-venv
 CUDA_V := 10.1
 # {10.0 (for synthseg-venv1) | 10.1 (for synthseg-venv)}
 PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := 20211118-test1-709102
+MODEL_NAME := 20220203
 
 ACTIVATE_ENV = source $(ENV_DIR)/$(ENV_NAME)/bin/activate
 ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
@@ -37,13 +37,13 @@ MODEL_PATH = $(SCRATCH_MODEL_DIR)/$(MODEL_NAME)
 ## label maps parameters
 generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
 segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions.npy
-noisy_patches =
+noisy_patches = None
 
 ## output-related parameters
 batch_size = 1
 channels = 1
 target_res =
-output_shape = 192
+output_shape = 160
 
 # GMM-sampling parameters
 generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm.npy
@@ -60,7 +60,7 @@ rotation =
 shearing =
 translation = 
 nonlin_std = 3
-nonlin_shape_factor = (0.04, 0.25, 0.04)
+nonlin_shape_factor = None
 
 ## blurring/resampling parameters ##
 # randomise_res = --randomise_res
@@ -71,7 +71,7 @@ blur_range = 1.03
 
 ## bias field parameters ##
 bias_std = .5
-bias_shape_factor = (0.04, 0.25, 0.04)
+bias_shape_factor = None
 # same_bias_for_all_channels = --same_bias_for_all_channels
 
 ## architecture parameters
@@ -89,7 +89,7 @@ lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
 dice_epochs = 10       # number of training epochs
-steps_per_epoch = 5  # number of iteration per epoch
+steps_per_epoch = 75  # number of iteration per epoch
 
 
 .PHONY : help
@@ -142,7 +142,7 @@ training-default:
 			--lr_decay 0            \
 			--wl2_epochs 1          \
 			--dice_epochs 10       	\
-			--steps_per_epoch 5   	\
+			--steps_per_epoch 75   	\
 			;
 
 # Use this target to train custom models
@@ -153,11 +153,11 @@ training:
 	
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py train\
 		$(labels_dir) \
-		$(MODEL_DIR)/$(MODEL_NAME) \
+		$(MODEL_PATH) \
 		\
 		--generation_labels $(generation_labels) \
 		--segmentation_labels $(segmentation_labels) \
-		--noisy_patches $(noisy_patches) \
+		--noisy_patches '$(noisy_patches)' \
 		\
 		--batch_size $(batch_size) \
 		--channels $(channels) \
@@ -198,11 +198,10 @@ training:
 		\
 		--lr $(lr) \
 		--lr_decay $(lr_decay) \
-		--wl2_epochs 0 \
+		--wl2_epochs 1 \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'New training on 20211004' \
-		--checkpoint /cluster/scratch/friday/for_harsha/test-668939/dice_005.h5 \
+		--message 'New training on 20220203' \
 		;
 
 ## Use this target to resume training
