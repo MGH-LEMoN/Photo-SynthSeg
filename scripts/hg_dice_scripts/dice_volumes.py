@@ -6,11 +6,11 @@ import sys
 
 import numpy as np
 import pandas as pd
-from scipy.stats.stats import pearsonr
-from scripts.fs_lut import fs_lut
-
 from dice_config import Configuration
 from dice_stats import calculate_pval
+from scipy.stats.stats import pearsonr
+
+from scripts.fs_lut import fs_lut
 
 
 def extract_synthseg_vols(config, file_name):
@@ -60,12 +60,15 @@ def print_correlation_pairs(config, *args, flag=None, suffix=""):
         print("CORRELATIONS")
         print("=" * 65)
         for col_name, name in zip(col_names, config.LABEL_PAIR_NAMES):
-            a = pearsonr(x[col_name], y[col_name])[0]
-            b = pearsonr(x[col_name], z[col_name])[0]
-            k = pearsonr(y[col_name], z[col_name])[0]
-            _, alpha = calculate_pval(b, a, k, len(x[col_name]))
-
-            print(f"{name:^15}{a:^15.3f}{b:^15.3f}{alpha:^15.6f}")
+            try:
+                a = pearsonr(x[col_name], y[col_name])[0]
+                b = pearsonr(x[col_name], z[col_name])[0]
+                k = pearsonr(y[col_name], z[col_name])[0]
+                _, alpha = calculate_pval(b, a, k, len(x[col_name]))
+                print(f"{name:^15}{a:^15.3f}{b:^15.3f}{alpha:^15.6f}")
+            except ValueError as e:
+                a, b, alpha = 0, 0, 0
+                print(f"{name:^15}{a:^15.3f}{b:^15.3f}{alpha:^15.6f}")
         print("=" * 65)
 
         print("MEAN ABSOLUTE RESIDUALS")
@@ -115,11 +118,14 @@ def extract_samseg_volumes(config, folder_path):
         except IndexError:
             continue
 
-        df = pd.read_csv(
-            os.path.join(folder, "samseg.stats"),
-            header=None,
-            names=["label", "volume", "units"],
-        )
+        try:
+            df = pd.read_csv(
+                os.path.join(folder, "samseg.stats"),
+                header=None,
+                names=["label", "volume", "units"],
+            )
+        except FileNotFoundError:
+            continue
 
         # drop column 'units'
         df = df.drop(columns=["units"])
@@ -226,7 +232,11 @@ def write_volumes_to_file(config, item_list):
     file_name = os.path.join(config.SYNTHSEG_RESULTS, "volumes",
                              "volumes.xlsx")
     for item in item_list:
-        volumes = get_volumes(config, item)
+        try:
+            volumes = get_volumes(config, item)
+        except:
+            continue
+        
         if volumes is None:
             continue
 

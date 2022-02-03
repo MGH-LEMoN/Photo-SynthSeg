@@ -14,9 +14,18 @@ License.
 """
 
 # imports
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from argparse import ArgumentParser
 
+import tensorflow as tf
+
 from SynthSeg.predict import predict
+
+physical_devices = tf.config.list_physical_devices('GPU')
+print("Num GPUs:", len(physical_devices))
 
 parser = ArgumentParser()
 

@@ -1,21 +1,20 @@
+import glob
 import json
 import os
+from argparse import ArgumentParser
 
-from ext.lab2im import utils
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from dice_calculations import calculate_dice_for_dict
 from dice_gather import copy_relevant_files
-from dice_mri_utils import move_volumes_into_target_spaces, perform_overlay
+from dice_mri_utils import (convert_to_single_channel,
+                            move_volumes_into_target_spaces, perform_overlay)
 from dice_plots import write_plots
 from dice_utils import run_make_target
 from dice_volumes import write_correlations_to_file, write_volumes_to_file
-from uw_config import (
-    CORRELATIONS_LIST,
-    DICE2D_LIST,
-    PLOTS_LIST,
-    SAMSEG_GATHER_DICT,
-    VOLUMES_LIST,
-)
+from ext.lab2im import utils
+from uw_config import (CORRELATIONS_LIST, DICE2D_LIST, PLOTS_LIST,
+                       SAMSEG_GATHER_DICT, VOLUMES_LIST)
 
 # use this dictionary to gather files from source to destination
 file_gather_dict = {
@@ -40,13 +39,13 @@ file_gather_dict = {
     "hard_recon": {
         "source": "UW_HARD_RECON",
         "destination": ["HARD_RECONS3C", "HARD_RECONS"],
-        "expr": ["ref_mask", "*recon.mgz"],
+        "expr": ["ref_mask", "*recon1.mgz"],
         "message": "Hard Reconstructions",
     },
     "soft_recon": {
         "source": "UW_SOFT_RECON",
         "destination": ["SOFT_RECONS3C", "SOFT_RECONS"],
-        "expr": ["ref_soft_mask", "*recon.mgz"],
+        "expr": ["ref_soft_mask", "*recon1.mgz"],
         "message": "Soft Reconstrucions",
     },
     "hard_warped_ref": {
@@ -58,7 +57,7 @@ file_gather_dict = {
     "soft_warped_ref": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_REF_WARPED",
-        "expr": ["ref_soft_mask", "registered_reference.mgz"],
+        "expr": ["ref_soft_mask", "registered_reference1.mgz"],
         "message": "Soft Warped References",
     },
     "hard_samseg": {
@@ -117,7 +116,8 @@ mri_convert_items = [
 
 
 class Configuration:
-    def __init__(self, project_dir, out_folder):
+    def __init__(self, project_dir, out_folder, model_name):
+        self.model_name = model_name
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = f"{self.SYNTHSEG_PRJCT}/{out_folder}"
 
@@ -148,6 +148,7 @@ class Configuration:
         self.HARD_REF_WARPED = f"{self.SYNTHSEG_RESULTS}/hard.ref.warped"
         self.HARD_RECONS = f"{self.SYNTHSEG_RESULTS}/hard.recon"
         self.HARD_SYNTHSEG = f"{self.SYNTHSEG_RESULTS}/hard.synthseg"
+        self.HARD_SAMSEG = f"{self.SYNTHSEG_RESULTS}/hard.samseg"
         self.HARD_SAMSEG_C0 = f"{self.SYNTHSEG_RESULTS}/hard.samseg.c0"
         self.HARD_SAMSEG_C1 = f"{self.SYNTHSEG_RESULTS}/hard.samseg.c1"
         self.HARD_SAMSEG_C2 = f"{self.SYNTHSEG_RESULTS}/hard.samseg.c2"
@@ -157,6 +158,7 @@ class Configuration:
         self.SOFT_RECONS = f"{self.SYNTHSEG_RESULTS}/soft.recon"
         self.SOFT_REF_WARPED = f"{self.SYNTHSEG_RESULTS}/soft.ref.warped"
         self.SOFT_SYNTHSEG = f"{self.SYNTHSEG_RESULTS}/soft.synthseg"
+        self.SOFT_SAMSEG = f"{self.SYNTHSEG_RESULTS}/soft.samseg"
         self.SOFT_SAMSEG_C1 = f"{self.SYNTHSEG_RESULTS}/soft.samseg.c1"
         self.SOFT_SAMSEG_C2 = f"{self.SYNTHSEG_RESULTS}/soft.samseg.c2"
         self.SOFT_SAMSEG_C0 = f"{self.SYNTHSEG_RESULTS}/soft.samseg.c0"
@@ -230,8 +232,9 @@ class Configuration:
             "Hippocampus",
             "Amygdala",
         ]
-        # self.IGNORE_SUBJECTS = ["18-1343", "18-2260", "19-0019"]
-        self.IGNORE_SUBJECTS = ["19-0100"]
+        # self.IGNORE_SUBJECTS = ["18-1343", "18-2260", "19-0019", "19-0100"]
+        self.IGNORE_SUBJECTS = ["19-0019"]
+
         self.required_labels = list(
             set(self.ALL_LABELS) - set(self.IGNORE_LABELS))
 
@@ -246,6 +249,9 @@ class Configuration:
 
         dictionary = self.__dict__
         json_object = json.dumps(dictionary, sort_keys=True, indent=4)
+
+        if not dictionary.get("SYNTHSEG_RESULTS", None):
+            return
 
         utils.mkdir(dictionary["SYNTHSEG_RESULTS"])
 
@@ -268,29 +274,49 @@ class Configuration:
 
 if __name__ == "__main__":
     # !!! START HERE !!!
+    parser = ArgumentParser()
+
+    parser.add_argument("--run_id", type=str, dest="run_id", default=None)
+    parser.add_argument("--part", type=int, dest="part", default=1)
+    args = parser.parse_args()
+
     project_dir = "/space/calico/1/users/Harsha/SynthSeg"
-    results_folder = "uw-results/new-recons"
+    results_folder = f"results/20220201/new-recons/{args.run_id}"
 
-    config = Configuration(project_dir, results_folder)
-    # copy_relevant_files(config, file_gather_dict)
+    if args.part == 1:
+        config = Configuration(project_dir, results_folder, args.run_id)
+        copy_relevant_files(config, file_gather_dict)
 
-    # # It looks like SAMSEG doesn't need 3Channel images.
-    # # TODO: Do away with the following 2 lines of code
-    # convert_to_single_channel(config, "HARD_RECONS")
-    # convert_to_single_channel(config, "SOFT_RECONS")
+        # # It looks like SAMSEG doesn't need 3Channel images.
+        # # TODO: Do away with the following 2 lines of code
+        convert_to_single_channel(config, "HARD_RECONS")
+        convert_to_single_channel(config, "SOFT_RECONS")
 
     # print("Running SynthSeg...")
     # # Due to some code incompatibility issues, the following lines of code
     # # have to be run separately on MLSC or this entire script can be run on MLSC
-    run_make_target(config, "hard")
-    run_make_target(config, "soft")
-    run_make_target(config, "scans")
+    # run_make_target(config, "hard")
+    # run_make_target(config, "soft")
+    # run_make_target(config, "scans")
 
-    # copy_relevant_files(config, SAMSEG_GATHER_DICT)
-    # write_volumes_to_file(config, VOLUMES_LIST)
-    # for item in CORRELATIONS_LIST:
-    #     write_correlations_to_file(config, VOLUMES_LIST, *item)
+    if args.part == 2:
+        #TODO: no need to run this for the first model
+        SAMSEG_LIST = glob.glob('/space/calico/1/users/Harsha/SynthSeg/results/20220201/new-recons/S08R01/SAMSEG_OUTPUT_*')
+        for src in SAMSEG_LIST:
+            basename = os.path.basename(src)
+            dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
+            try:
+                os.symlink(src, dst)
+            except OSError as e:
+                pass
 
-    # move_volumes_into_target_spaces(config, mri_convert_items)
-    # calculate_dice_for_dict(config, DICE2D_LIST)
-    # write_plots(config, PLOTS_LIST)
+        copy_relevant_files(config, SAMSEG_GATHER_DICT)
+        write_volumes_to_file(config, VOLUMES_LIST)
+        for item in CORRELATIONS_LIST:
+            write_correlations_to_file(config, VOLUMES_LIST, *item)
+
+        move_volumes_into_target_spaces(config, mri_convert_items)
+        calculate_dice_for_dict(config, DICE2D_LIST)
+        
+    if args.part == 3:    
+        write_plots(config, PLOTS_LIST)

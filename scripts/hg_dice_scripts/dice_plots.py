@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib import rcParams
-
 from dice_config import *
+from matplotlib import rcParams
 
 rcParams.update({"figure.autolayout": True})
 
@@ -55,8 +54,19 @@ def dice_plot_from_df(config, df, out_file_name, flag):
     [ax.axvline(x, 0, 0.020, color="k", lw=1) for x in ax.get_xticks()]
     [ax.axvline(x, 0.98, 1, color="k", lw=1) for x in ax.get_xticks()]
 
+    #HACK: To print a meaningful title (for models with SxxRxx namming)
+    title_string, _ = os.path.splitext(os.path.basename(out_file_name))
+    recon_type, _, sam_type, _ = title_string.split('_')
+
+    old_file = os.path.join(config.SYNTHSEG_RESULTS, "images", out_file_name)
+    if os.path.exists(old_file):
+        os.remove(old_file)
+
+    new_title = f"Model: {config.model_name}, Recon: {recon_type.capitalize()}, SAMSEG Type: {sam_type.upper()}"
+
     # Adding title
-    plt.title(f"2D Dice Scores (For {flag} reconstruction)", fontsize=20)
+    # plt.title(f"2D Dice Scores (For {flag} reconstruction)", fontsize=20)
+    new_title = plt.title(new_title, fontsize=20)
     ax.set_xlabel("")
     ax.set_ylabel("Dice Overlap", fontsize=20, fontweight="bold")
     # LABEL_PAIR_NAMES = [fr"\textbf{{{item}}}" for item in LABEL_PAIR_NAMES]
@@ -78,7 +88,9 @@ def dice_plot_from_df(config, df, out_file_name, flag):
               frameon=True,
               edgecolor="black")
 
-    plt.savefig(os.path.join(config.SYNTHSEG_RESULTS, "images", out_file_name))
+    plt.savefig(
+        os.path.join(config.SYNTHSEG_RESULTS, "images",
+                     config.model_name + '_' + out_file_name))
 
 
 def construct_dice_plots_from_files(config, file1, file2, merge_flag,

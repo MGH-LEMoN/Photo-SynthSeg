@@ -2,10 +2,9 @@ import json
 import os
 
 import numpy as np
+from dice_utils import return_common_subjects
 from ext.lab2im import utils
 from SynthSeg.evaluate import fast_dice
-
-from dice_utils import return_common_subjects
 
 
 def print_dice_to_file(config, dice_scores, **kwargs):
@@ -34,8 +33,10 @@ def calculate_and_print_dice(config, **kwargs):
     Args:
         config ([type]): [description]
     """
-    source_list = utils.list_images_in_folder(getattr(config, kwargs["source"]))
-    target_list = utils.list_images_in_folder(getattr(config, kwargs["target"]))
+    source_list = utils.list_images_in_folder(getattr(config,
+                                                      kwargs["source"]))
+    target_list = utils.list_images_in_folder(getattr(config,
+                                                      kwargs["target"]))
 
     source_list, target_list = return_common_subjects(source_list, target_list)
 
@@ -46,13 +47,22 @@ def calculate_and_print_dice(config, **kwargs):
         x = utils.load_volume(file1)
         y = utils.load_volume(file2)
 
-        assert x.shape == y.shape, "Shape Mismatch"
+        # assert x.shape[:-1] == y.shape[:-1], "Shape Mismatch"
+        if x.shape[1] != y.shape[1]:
+            continue
 
         if slice:
-            slice_idx = np.argmax((x > 1).sum(0).sum(0))
+            x_slice_idx = np.argmax((x > 1).sum(0).sum(0))
 
-            x = x[:, :, slice_idx].astype("int")
-            y = y[:, :, slice_idx].astype("int")
+            if y.shape[-1] < x.shape[-1]:
+                x_range = np.arange(x_slice_idx % 2, x.shape[-1], 2)
+                y_slice_idx = np.where(x_range == x_slice_idx)
+                y_slice_idx = y_slice_idx[0][0]
+            else:
+                y_slice_idx = x_slice_idx
+
+            x = x[:, :, x_slice_idx].astype("int")
+            y = y[:, :, y_slice_idx].astype("int")
 
         required_labels = config.required_labels
         if kwargs["merge"]:

@@ -3,12 +3,11 @@ import glob
 import os
 
 import numpy as np
+from ext.lab2im import edit_volumes, utils
 from scipy import ndimage
 
-from ext.lab2im import utils
 from scripts.fs_lut import fs_lut
 from scripts.photos_config import *
-from ext.lab2im import edit_volumes, utils
 
 LUT, REVERSE_LUT = fs_lut()
 
@@ -374,7 +373,8 @@ def main1():
 
 def pad_hemispheres():
     labels_dir = os.path.join(LABEL_MAPS_DIR + '_*')
-    file_list = sorted(glob.glob(os.path.join(LABEL_MAPS_DIR + '_*', '*.nii.gz')))
+    file_list = sorted(
+        glob.glob(os.path.join(LABEL_MAPS_DIR + '_*', '*.nii.gz')))
 
     im_shapes = []
     for file in file_list[:15]:
@@ -387,7 +387,7 @@ def pad_hemispheres():
     max_shape = max_shape + (32 - max_shape % 32)
 
     edit_volumes.pad_images_in_dir()
-    
+
 
 if __name__ == "__main__":
     # main()
