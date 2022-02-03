@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=lcnrtx
-#SBATCH --partition=rtx8000
+#SBATCH --partition=rtx8000,rtx6000
 #SBATCH --nodes=1
 #SBATCH --gpus=1
 #SBATCH --cpus-per-gpu=1
@@ -15,8 +15,6 @@ source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/pubsw/packages/CUDA/10.1/lib64
 
-echo 'Requester:' $USER
-echo 'Node:' $HOSTNAME
 echo 'Start time:' `date`
 echo "$@"
 if [[ -v SLURM_ARRAY_TASK_ID ]]

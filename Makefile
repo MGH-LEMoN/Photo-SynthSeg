@@ -12,7 +12,7 @@ DT := $(shell date +"%Y%m%d")
 HOME := /space/calico/1/users/Harsha
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
-RESULTS_DIR := $(PROJ_DIR)/results/20220117/old-recons/S02R01
+RESULTS_DIR := $(PROJ_DIR)/results/20220201/new-recons/S08R01
 MODEL_DIR := $(PROJ_DIR)/models
 SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
 ENV_DIR := $(HOME)/venvs
@@ -237,7 +237,8 @@ predict1:
 		/space/calico/1/users/Harsha/SynthSeg/results/UW_photos/
 		;
 
-predict-%: H5_FILE = $(SCRATCH_MODEL_DIR)/S10R01/dice_070.h5
+predict-%: H5_FILE = /space/calico/1/users/Harsha/SynthSeg/models/S08R01/dice_100.h5
+predict-%: RESULTS_DIR = $(PROJ_DIR)/results/20220201/new-recons/S08R01
 # predict-%: H5_FILE = $(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5
 predict-%: LABEL_LIST = $(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
 ## predict-scans: Run MRI volumes through default SynthSeg
@@ -292,8 +293,8 @@ samseg-hard-new-recons:
 	
 	for sub_id in $(SUB_ID); do \
 		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask/photo_recon.mgz \
-		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_C2/$$sub_id \
+		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask/photo_recon1.mgz \
+		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_C0/$$sub_id \
 		--threads 64 \
 		--dissection-photo both \
 		--atlas $(FSDEV)/atlas; \
@@ -307,8 +308,8 @@ samseg-soft-new-recons:
 	
 	for sub_id in $(SUB_ID); do \
 		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask/photo_recon.mgz \
-			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_C2/$$sub_id \
+			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask/photo_recon1.mgz \
+			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_C0/$$sub_id \
 			--threads 64 \
 			--dissection-photo both \
 			--atlas $(FSDEV)/atlas; \
@@ -344,4 +345,16 @@ samseg-soft-on-old-recons:
 			--threads 64 \
 			--dissection-photo both \
 			--atlas $(FSDEV)/atlas; \
+	done
+
+
+RUN_ID_LIST = S02R02 S02R03 S02R04 S02R05 S04R02 S04R03 S06R02 S06R03 S06R04 S08R01 S08R02 S08R03 S08R04 S08R05 S10R01 S10R02 S10R03 S10R04 S10R05
+just-plot:
+	for run_id in $(RUN_ID_LIST); do \
+		python /space/calico/1/users/Harsha/SynthSeg/scripts/hg_dice_scripts/new.py --run_id $$run_id --part 3;
+	done
+
+run_infer:
+	for run_id in $(RUN_ID_LIST); do \
+		sbatch --job-name=$$run_id-Inf --export=ALL,var_name=$$run_id submit-pipeline.sh;
 	done
