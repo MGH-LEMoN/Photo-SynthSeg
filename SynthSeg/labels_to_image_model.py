@@ -292,8 +292,6 @@ def labels_to_image_model(labels_shape,
     image = KL.Lambda(lambda x: x[0], name='image_out')([image, labels])
     brain_model = Model(inputs=list_inputs, outputs=[image, labels])
 
-    plot_model(brain_model, to_file='brain_model.png', show_shapes=True)
-
     return brain_model
 
 

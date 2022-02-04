@@ -19,6 +19,7 @@ import numpy.random as npr
 import tensorflow as tf
 from scipy.ndimage import zoom
 
+from ext.hg_utils import zoom as hg_zoom
 # third-party imports
 from ext.lab2im import utils
 from ext.neuron import utils as nrn_utils
@@ -227,9 +228,9 @@ def build_model_inputs(path_label_maps,
                     output_shape, bias_shape_factor_batch)
                 small_bias = bias_field_std * np.random.uniform(
                     size=[1]) * np.random.normal(size=small_bias_size)
-                factors = np.divide(crop_shape, small_bias_size)
-                bias_field = np.exp(zoom(small_bias, factors, order=1))
-                # bias_field = np.ones(crop_shape)
+                factors = np.divide(1., bias_shape_factor_batch)
+                bias_field = hg_zoom.prod_zoom(small_bias, factors, crop_shape,
+                                               True, 'bias')
 
             list_bias_field.append(utils.add_axis(bias_field, axis=[0, -1]))
 
@@ -240,12 +241,9 @@ def build_model_inputs(path_label_maps,
                     size=[1]) * np.random.normal(
                         size=[*small_deformation_size, 3])
 
-                def_field = np.zeros([*labels_shape, 3])
-                factors = np.divide(labels_shape, small_deformation_size)
-                for c in range(3):
-                    def_field[:, :, :, c] = zoom(small_def[:, :, :, c],
-                                                 factors,
-                                                 order=1)
+                factors = np.divide(1., deformation_shape_factor_batch)
+                def_field = hg_zoom.einsum_zoom(small_def, factors,
+                                                labels_shape, True, 'def')
             else:  # with SVF
                 small_deformation_size = utils.get_resample_shape(
                     labels_shape, deformation_shape_factor_batch)

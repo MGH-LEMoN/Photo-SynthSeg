@@ -1,20 +1,19 @@
 #!/bin/bash
 #SBATCH --account=lcnrtx
-#SBATCH --partition=rtx8000
+#SBATCH --partition=lcnrtx,rtx8000,rtx6000
 #SBATCH --nodes=1
-#SBATCH --gpus=1
-#SBATCH --ntasks-per-node=3
-#SBATCH --mem=64G
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=96G
+#SBATCH --gres=gpu:1
 #SBATCH --time=7-00:00:00
-#SBATCH --output="./logs/%A.out"
-#SBATCH --error="./logs/%A.err"
+#SBATCH --output="./logs/%x.out"
+#SBATCH --error="./logs/%x.err"
 
-source /space/calico/1/users/Harsha/synthseg-venv/bin/activate
+source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/pubsw/packages/CUDA/10.1/lib64
 
-echo 'Requester:' $USER
-echo 'Node:' $HOSTNAME
 echo 'Start time:' `date`
 echo "$@"
 if [[ -v SLURM_ARRAY_TASK_ID ]]

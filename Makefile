@@ -18,14 +18,13 @@ SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
 ENV_DIR := $(HOME)/venvs
 
 # Dynamic
-CMD = python
-# {echo | python | sbatch submit.sh}
 ENV_NAME := synthseg-venv
 # {synthseg-venv | synthseg-venv1}
 CUDA_V := 10.1
-# {10.0 (for synthseg-venv1) | 10.1 (for synthseg-venv)}
 PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := 20220203
+MODEL_NAME := VS-test
+CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
+# {echo | python | sbatch submit.sh}
 
 ACTIVATE_ENV = source $(ENV_DIR)/$(ENV_NAME)/bin/activate
 ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
@@ -63,8 +62,8 @@ nonlin_std = 3
 nonlin_shape_factor = None
 
 ## blurring/resampling parameters ##
-# randomise_res = --randomise_res
-data_res = (1, 4, 1)
+randomise_res = --randomise_res
+data_res = None
 thickness = (1, 1, 1)
 downsample = --downsample
 blur_range = 1.03
@@ -75,21 +74,21 @@ bias_shape_factor = None
 # same_bias_for_all_channels = --same_bias_for_all_channels
 
 ## architecture parameters
-n_levels = 5           # number of resolution levels
-conv_per_level = 2  # number of convolution per level
-conv_size = 3          # size of the convolution kernel (e.g. 3x3x3)
-unet_feat = 24   # number of feature maps after the first convolution
-activation = 'elu'     # activation for all convolution layers except the last, which will use sofmax regardless
-feat_mult = 2    # if feat_multiplier is set to 1, we will keep the number of feature maps constant throughout the
-#                        network; 2 will double them(resp. half) after each max-pooling (resp. upsampling);
-#                        3 will triple them, etc.
+n_levels = 5           	# number of resolution levels
+conv_per_level = 2  	# number of convolution per level
+conv_size = 3          	# size of the convolution kernel (e.g. 3x3x3)
+unet_feat = 24   		# number of feature maps after the first convolution
+activation = 'elu'     	# activation for all convolution layers except the last, which will use sofmax regardless
+feat_mult = 2    		# if feat_multiplier is set to 1, we will keep the number of feature maps constant throughout the
+# 							network; 2 will double them(resp. half) after each max-pooling (resp. upsampling);
+#                       	3 will triple them, etc.
 
 ## Training parameters
 lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
-dice_epochs = 10       # number of training epochs
-steps_per_epoch = 75  # number of iteration per epoch
+dice_epochs = 100       # number of training epochs
+steps_per_epoch = 2000  # number of iteration per epoch
 
 
 .PHONY : help
