@@ -9,6 +9,8 @@
 #SBATCH --time=7-00:00:00
 #SBATCH --output="./logs/%x.out"
 #SBATCH --error="./logs/%x.err"
+#SBATCH --mail-user=hvgazula@umich.edu
+#SBATCH --mail-type=FAIL,TIME_LIMIT_90,END
 
 source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
