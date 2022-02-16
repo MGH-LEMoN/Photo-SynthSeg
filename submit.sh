@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --account=lcnrtx
-#SBATCH --partition=rtx8000,rtx6000
+#SBATCH --partition=lcnrtx,rtx8000,rtx6000
 #SBATCH --nodes=1
 #SBATCH --gpus=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem=64G
 #SBATCH --time=7-00:00:00
-#SBATCH --output="./logs/%A-%x.out"
-#SBATCH --error="./logs/%A-%x.err"
+#SBATCH --output="./logs/%x.out"
+#SBATCH --error="./logs/%x.err"
 #SBATCH --mail-user=hvgazula@umich.edu
 #SBATCH --mail-type=FAIL,TIME_LIMIT_90,END
 

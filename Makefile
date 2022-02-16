@@ -21,7 +21,7 @@ ENV_DIR := $(HOME)/venvs
 ENV_NAME := synthseg-venv
 CUDA_V := 10.1
 PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := test
+MODEL_NAME := S12R04
 CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
 # {echo | python | sbatch submit.sh}
 
@@ -39,9 +39,9 @@ noisy_patches =
 
 # output-related parameters
 batch_size = 1
-channels = 3
+channels = 1
 target_res =
-output_shape = 168
+output_shape = 160
 
 # GMM-sampling parameters
 generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm.npy
@@ -58,18 +58,18 @@ rotation =
 shearing =
 translation = 
 nonlin_std = (4, 0, 4)
-nonlin_shape_factor = (0.0625, 0.1, 0.0625)
+nonlin_shape_factor = (0.0625, 0.0833, 0.0625)
 
 # blurring/resampling parameters
 # randomise_res = --randomise_res
-data_res = (1, 4, 1)
+data_res = (1, 12, 1)
 thickness = (1, 0.001, 1)
 downsample = --downsample
 blur_range = 1.03
 
 # bias field parameters
 bias_std = .5
-bias_shape_factor = (0.025, 0.1, 0.025)
+bias_shape_factor = (0.025, 0.0833, 0.025)
 # same_bias_for_all_channels = --same_bias_for_all_channels
 
 # architecture parameters

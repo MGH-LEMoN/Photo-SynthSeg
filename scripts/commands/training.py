@@ -243,10 +243,10 @@ if sys.argv[1] == 'train':
     except ValueError:
         pass
 
-    if os.environ.get('SLURM_JOBID'):
-        base_path, model_dir_name = os.path.split(args.model_dir)
-        model_dir_name = os.environ.get('SLURM_JOBID') + '-' + model_dir_name
-        args.model_dir = os.path.join(base_path, model_dir_name)
+    # if os.environ.get('SLURM_JOBID'):
+    #     base_path, model_dir_name = os.path.split(args.model_dir)
+    #     model_dir_name = os.environ.get('SLURM_JOBID') + '-' + model_dir_name
+    #     args.model_dir = os.path.join(base_path, model_dir_name)
 
     write_config(vars(args))
     if hasattr(args, 'message'):
