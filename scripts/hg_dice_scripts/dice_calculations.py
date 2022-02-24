@@ -48,7 +48,8 @@ def calculate_and_print_dice(config, **kwargs):
         y = utils.load_volume(file2)
 
         # assert x.shape[:-1] == y.shape[:-1], "Shape Mismatch"
-        if x.shape[1] != y.shape[1]:
+        if x.shape[:-1] != y.shape[:-1]:
+            print(f'{subject_id}, {x.shape[:-1]}, {y.shape[:-1]}')
             continue
 
         if slice:
@@ -113,7 +114,12 @@ def verify_dice_dict(config, item):
         return
     if not isinstance(item["merge"], (bool, int)):
         return
-
+    if not len(os.listdir(getattr(config, item["source"], None))):
+        print(f"Source Directory {getattr(config, item['source'], None)} is empty")
+        return
+    if not len(os.listdir(getattr(config, item["target"], None))):
+        print(f"Target Directory {getattr(config, item['target'], None)} is empty")
+        return
     return 1
 
 
@@ -133,6 +139,8 @@ def calculate_dice_for_dict(config, item_list):
                     config.MERGE_LABEL_PAIRS
     """
     for item in item_list:
+        print(item['message'])
         if not verify_dice_dict(config, item):
+            print('Skipping...')
             continue
         calculate_and_print_dice(config, **item)

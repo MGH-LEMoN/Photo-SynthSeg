@@ -12,7 +12,7 @@ DT := $(shell date +"%Y%m%d")
 HOME := /space/calico/1/users/Harsha
 PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
-RESULTS_DIR := $(PROJ_DIR)/results/20220201/new-recons/S08R01
+RESULTS_DIR := $(PROJ_DIR)/results/20220222/new-recons/
 MODEL_DIR := $(PROJ_DIR)/models
 SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
 ENV_DIR := $(HOME)/venvs
@@ -237,8 +237,8 @@ predict1:
 		/space/calico/1/users/Harsha/SynthSeg/results/UW_photos/
 		;
 
-predict-%: H5_FILE = /space/calico/1/users/Harsha/SynthSeg/models/S08R01/dice_100.h5
-predict-%: RESULTS_DIR = $(PROJ_DIR)/results/20220201/new-recons/S08R01
+predict-%: H5_FILE = /space/calico/1/users/Harsha/SynthSeg/models/S02R01/dice_100.h5
+predict-%: RESULTS_DIR = $(PROJ_DIR)/results/20220222/new-recons/S02R01
 # predict-%: H5_FILE = $(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.h5
 predict-%: LABEL_LIST = $(PROJ_DIR)/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
 ## predict-scans: Run MRI volumes through default SynthSeg
@@ -285,16 +285,18 @@ predict-hard:
 		$(LABEL_LIST)
 
 
-samseg-%: SUB_ID = 17-0333 18-0086 18-0444 18-0817 18-1045 18-1132 18-1196 18-1274 18-1327 18-1343 18-1470 18-1680 18-1690 18-1704 18-1705 18-1724 18-1754 18-1913 18-1930 18-2056 18-2128 18-2259 18-2260 19-0019 19-0037 19-0100 19-0138 19-0148
-samseg-%: FSDEV = /space/calico/1/users/Harsha/photo-samseg-orig
+samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220222/new-recons/
+samseg-%: FSDEV = $(HOME)/photo-samseg-orig
+samseg-%: ATL_FLAG := C2
 samseg-hard-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
 	
-	for sub_id in $(SUB_ID); do \
-		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
+		sub_id=`basename $$i`
+		sbatch --job-name=samhard-$(ATL_FLAG)-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
 		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask/photo_recon1.mgz \
-		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_C0/$$sub_id \
+		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_$(ATL_FLAG)/$$sub_id \
 		--threads 64 \
 		--dissection-photo both \
 		--atlas $(FSDEV)/atlas; \
@@ -306,10 +308,11 @@ samseg-soft-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
 	
-	for sub_id in $(SUB_ID); do \
-		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
+		sub_id=`basename $$i`
+		sbatch --job-name=samsoft-$(ATL_FLAG)-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
 			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask/photo_recon1.mgz \
-			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_C0/$$sub_id \
+			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_$(ATL_FLAG)/$$sub_id \
 			--threads 64 \
 			--dissection-photo both \
 			--atlas $(FSDEV)/atlas; \
@@ -322,7 +325,8 @@ samseg-hard-on-old-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
 	
-	for sub_id in $(SUB_ID); do \
+	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
+		sub_id=`basename $$i`
 		mkdir -p $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_C2/$$sub_id
 		mri_convert /cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard/$$sub_id/$$sub_id".hard.recon.mgz" $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_C2/$$sub_id/input.mgz
 		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
@@ -338,7 +342,8 @@ samseg-soft-on-old-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
 	
-	for sub_id in $(SUB_ID); do \
+	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
+		sub_id=`basename $$i`
 		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
 			-i /cluster/vive/UW_photo_recon/recons/results_Henry/Results_soft/$$sub_id/soft/$$sub_id"_soft.mgz" \
 			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_C2/$$sub_id \
@@ -347,14 +352,25 @@ samseg-soft-on-old-recons:
 			--atlas $(FSDEV)/atlas; \
 	done
 
+model_dice_map:
+	python -c "from scripts import photos_utils; photos_utils.model_dice_map()"
 
-RUN_ID_LIST = S02R02 S02R03 S02R04 S02R05 S04R02 S04R03 S06R02 S06R03 S06R04 S08R01 S08R02 S08R03 S08R04 S08R05 S10R01 S10R02 S10R03 S10R04 S10R05
-just-plot:
-	for run_id in $(RUN_ID_LIST); do \
-		python /space/calico/1/users/Harsha/SynthSeg/scripts/hg_dice_scripts/new.py --run_id $$run_id --part 3;
-	done
+## run_synthseg_inference1: Run SynhSeg inference on all models
+# takes dice_ids.csv as input
+# More on how this csv was generated can be found in misc/get_sizes.py()
+run_synthseg_inference: model_dice_map
+	out_dir=20220222 
+	while IFS=, read -r model dice_idx
+	do
+		sbatch --job-name=test \
+		--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$(out_dir) \
+		submit-pipeline.sh
+	done < dice_ids.csv
 
-run_infer:
-	for run_id in $(RUN_ID_LIST); do \
-		sbatch --job-name=$$run_id-Inf --export=ALL,var_name=$$run_id submit-pipeline.sh;
-	done
+# synthinfer-$$model
+just-plot: model_dice_map
+	out_dir=20220222
+	while IFS=, read -r model dice_idx
+	do
+		python $(PROJ_DIR)/scripts/hg_dice_scripts/new.py --recon_flag 'new' --out_dir_name $(out_dir) --model_name $$model --part 3;
+	done < dice_ids.csv	

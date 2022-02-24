@@ -115,8 +115,6 @@ VOLUMES_LIST = [
 CORRELATIONS_LIST = [
     [["MRI-Synthseg", "Hard-Samseg-C0", "Hard-Synthseg"], "hard", "c0"],
     [["MRI-Synthseg", "Soft-Samseg-C0", "Soft-Synthseg"], "soft", "c0"],
-    [["MRI-Synthseg", "Hard-Samseg-C0", "Hard-Synthseg"], "hard", "c0"],
-    [["MRI-Synthseg", "Soft-Samseg-C0", "Soft-Synthseg"], "soft", "c0"],
     [["MRI-Synthseg", "Hard-Samseg-C1", "Hard-Synthseg"], "hard", "c1"],
     [["MRI-Synthseg", "Soft-Samseg-C1", "Soft-Synthseg"], "soft", "c1"],
     [["MRI-Synthseg", "Hard-Samseg-C2", "Hard-Synthseg"], "hard", "c2"],

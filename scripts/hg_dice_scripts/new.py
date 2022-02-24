@@ -22,13 +22,13 @@ file_gather_dict = {
         "source": "UW_MRI_SCAN",
         "destination": "MRI_SCANS",
         "expr": ["*.rotated.mgz"],
-        "message": "Original Scans",
+        "message": "Original 3D Scans",
     },
     "image_ref": {
         "source": "UW_MRI_SCAN",
         "destination": "MRI_SCANS_REF",
         "expr": ["*.rotated.masked.mgz"],
-        "message": "Image Masks",
+        "message": "3D Volume Masks",
     },
     "hard_ref": {
         "source": "UW_MRI_SCAN",
@@ -60,18 +60,18 @@ file_gather_dict = {
         "expr": ["ref_soft_mask", "registered_reference1.mgz"],
         "message": "Soft Warped References",
     },
-    "hard_samseg": {
-        "source": "UW_HARD_SAMSEG",
-        "destination": "HARD_SAMSEG",
-        "expr": ["*seg.mgz"],
-        "message": "Hard SAMSEG",
-    },
-    "soft_samseg": {
-        "source": "UW_SOFT_SAMSEG",
-        "destination": "SOFT_SAMSEG",
-        "expr": ["*seg.mgz"],
-        "message": "Soft SAMSEG",
-    },
+    # "hard_samseg": {
+    #     "source": "UW_HARD_SAMSEG",
+    #     "destination": "HARD_SAMSEG",
+    #     "expr": ["*seg.mgz"],
+    #     "message": "Hard SAMSEG",
+    # },
+    # "soft_samseg": {
+    #     "source": "UW_SOFT_SAMSEG",
+    #     "destination": "SOFT_SAMSEG",
+    #     "expr": ["*seg.mgz"],
+    #     "message": "Soft SAMSEG",
+    # },
     "hard_gt_labels": {
         "source": "UW_HARD_RECON",
         "destination": "HARD_MANUAL_LABELS_MERGED",
@@ -116,11 +116,15 @@ mri_convert_items = [
 
 
 class Configuration:
-    def __init__(self, project_dir, out_folder, model_name):
-        self.model_name = model_name
+    def __init__(self, project_dir, args):
+        self.model_name = args.run_id
         self.SYNTHSEG_PRJCT = project_dir
-        self.SYNTHSEG_RESULTS = f"{self.SYNTHSEG_PRJCT}/{out_folder}"
+        self.SYNTHSEG_RESULTS = os.path.join(project_dir, 'results',
+                                             args.out_dir_name,
+                                             f'{args.recon_flag}-recons',
+                                             self.model_name)
 
+        # input folders
         self.UW_HARD_RECON = "/cluster/vive/UW_photo_recon/Photo_data/"
         self.UW_SOFT_RECON = "/cluster/vive/UW_photo_recon/Photo_data/"
         self.UW_MRI_SCAN = "/cluster/vive/UW_photo_recon/FLAIR_Scan_Data"
@@ -132,12 +136,10 @@ class Configuration:
         self.SAMSEG_OUTPUT_HARD_C2 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_HARD_C2"
         self.SAMSEG_OUTPUT_SOFT_C2 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_SOFT_C2"
 
+        # output folders
         self.MRI_SCANS = f"{self.SYNTHSEG_RESULTS}/mri.scans"
         self.MRI_SCANS_REF = f"{self.SYNTHSEG_RESULTS}/mri.scans.ref"
         self.MRI_SCANS_SYNTHSEG = f"{self.SYNTHSEG_RESULTS}/mri.synthseg"
-
-        self.UW_SOFT_SAMSEG = f"{self.SYNTHSEG_RESULTS}/soft.samseg"
-        self.UW_HARD_SAMSEG = f"{self.SYNTHSEG_RESULTS}/hard.samseg"
 
         self.MRI_SCANS_SYNTHSEG_RESAMPLED = self.MRI_SCANS_SYNTHSEG + ".resampled"
         self.MRI_SCANS_SYNTHSEG_REG_RES = (self.MRI_SCANS_SYNTHSEG_RESAMPLED +
@@ -232,7 +234,7 @@ class Configuration:
             "Hippocampus",
             "Amygdala",
         ]
-        # self.IGNORE_SUBJECTS = ["18-1343", "18-2260", "19-0019", "19-0100"]
+        # self.IGNORE_SUBJECTS = ["18-1343", "18-2260", "19-0100"]
         self.IGNORE_SUBJECTS = ["19-0019"]
 
         self.required_labels = list(
@@ -274,17 +276,27 @@ class Configuration:
 
 if __name__ == "__main__":
     # !!! START HERE !!!
-    parser = ArgumentParser()
+    PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg"
 
-    parser.add_argument("--run_id", type=str, dest="run_id", default=None)
-    parser.add_argument("--part", type=int, dest="part", default=1)
+    parser = ArgumentParser()
+    parser.add_argument("--recon_flag",
+                        type='str',
+                        dest="recon_flag",
+                        default=None)
+    parser.add_argument("--out_dir_name",
+                        type='str',
+                        dest="out_dir_name",
+                        default=None)
+    parser.add_argument("--model_name",
+                        type=str,
+                        dest="model_name",
+                        default=None)
+    parser.add_argument("--part", type=int, dest="part", default=None)
     args = parser.parse_args()
 
-    project_dir = "/space/calico/1/users/Harsha/SynthSeg"
-    results_folder = f"results/20220201/new-recons/{args.run_id}"
+    config = Configuration(PRJCT_DIR, args)
 
     if args.part == 1:
-        config = Configuration(project_dir, results_folder, args.run_id)
         copy_relevant_files(config, file_gather_dict)
 
         # # It looks like SAMSEG doesn't need 3Channel images.
@@ -292,16 +304,17 @@ if __name__ == "__main__":
         convert_to_single_channel(config, "HARD_RECONS")
         convert_to_single_channel(config, "SOFT_RECONS")
 
-    # print("Running SynthSeg...")
-    # # Due to some code incompatibility issues, the following lines of code
-    # # have to be run separately on MLSC or this entire script can be run on MLSC
-    # run_make_target(config, "hard")
-    # run_make_target(config, "soft")
-    # run_make_target(config, "scans")
+        # print("Running SynthSeg...")
+        # # Due to some code incompatibility issues, the following lines of code
+        # # have to be run separately on MLSC or this entire script can be run on MLSC
+        # run_make_target(config, "hard")
+        # run_make_target(config, "soft")
+        # run_make_target(config, "scans")
 
     if args.part == 2:
-        #TODO: no need to run this for the first model
-        SAMSEG_LIST = glob.glob('/space/calico/1/users/Harsha/SynthSeg/results/20220201/new-recons/S08R01/SAMSEG_OUTPUT_*')
+        SAMSEG_LIST = glob.glob(
+            os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")),
+            'SAMSEG_OUTPUT_*')
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
@@ -317,6 +330,6 @@ if __name__ == "__main__":
 
         move_volumes_into_target_spaces(config, mri_convert_items)
         calculate_dice_for_dict(config, DICE2D_LIST)
-        
-    if args.part == 3:    
+
+    if args.part == 3:
         write_plots(config, PLOTS_LIST)

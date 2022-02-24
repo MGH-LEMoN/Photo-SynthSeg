@@ -20,6 +20,7 @@ SynthSeg/predict_*
 data/SynthSeg*
 data/instructions.txt
 data/test*
+data/4harsha*
 misc
 logs
 models
@@ -28,3 +29,4 @@ results
 .vscode
 **/*.pyc
 .ipynb_checkpoints
+*.csv

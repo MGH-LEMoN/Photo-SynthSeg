@@ -1,18 +1,24 @@
+import argparse
 import glob
 import json
 import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import csv
+import glob
+import os
+
 import nibabel as nib
 import numpy as np
 import tensorflow as tf
-from ext.lab2im import utils
-from ext.lab2im import utils as l2m_utils
-from ext.neuron import utils as nrn_utils
 from PIL import Image
 
 import scripts.photos_config as config
+from ext.lab2im import utils
+from ext.lab2im import utils as l2m_utils
+from ext.neuron import utils as nrn_utils
+
 '''
 1. git clone https://github.com/bbillot/SynthSeg
 2. export PYTHONPATH=${PWD}/SynthSeg
@@ -21,9 +27,11 @@ import scripts.photos_config as config
 
 NUM_COPIES = 50
 
+VIVE_DIR = '/cluster/vive/UW_photo_recon/Photo_data/'
 PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
-RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
 DATA_DIR = os.path.join(PRJCT_DIR, 'data')
+MODEL_DIR = os.path.join(PRJCT_DIR, 'models')
+RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
 
 
 def collect_images_into_pdf(target_dir_str):
@@ -238,9 +246,54 @@ def find_label_differences():
     print(f'{extra_labels}\t{extra_labels1}')
 
 
+def get_recon_shapes():
+    folder_list = sorted(glob.glob(os.path.join(VIVE_DIR, '*')))
+
+    for folder in folder_list:
+        print(os.path.basename(folder), end='  ')
+        file1 = os.path.join(folder, 'ref_mask', 'photo_recon.mgz')
+        file2 = os.path.join(folder, 'ref_mask', 'photo_recon1.mgz')
+        file3 = os.path.join(folder, 'ref_mask',
+                             'manual_labels_merged.elastix.mgz')
+
+        if os.path.exists(file1):
+            shape1 = nib.load(file1).dataobj.shape
+            print(shape1, end='  ')
+        if os.path.exists(file2):
+            shape2 = nib.load(file2).dataobj.shape
+            print(shape2, end='  ')
+        if os.path.exists(file3):
+            shape3 = nib.load(file3).dataobj.shape
+            print(shape3, end='  ')
+        if shape1[1] == shape2[1]:
+            print('Equal')
+        else:
+            print('Not Equal')
+
+
+def model_dice_map():
+    model_dirs = sorted(glob.glob(os.path.join(MODEL_DIR, '*')))
+    model_dirs = [
+        model_dir for model_dir in model_dirs if os.path.isdir(model_dir)
+        and os.path.basename(model_dir).startswith(('S', 'V'))
+    ]
+
+    dice_list = []
+    for model_dir in model_dirs:
+        last_dice_file = sorted(glob.glob(os.path.join(model_dir,
+                                                       'dice_*')))[-1]
+        dice_idx = os.path.basename(last_dice_file)[5:8]
+        dice_list.append([os.path.basename(model_dir), dice_idx])
+
+    with open(os.path.join(PRJCT_DIR, 'dice_ids.csv'), 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(dice_list)
+
+
 if __name__ == '__main__':
+
     # make_data_copy()
-    collect_images_into_pdf('20220201/new-recons')
+    # collect_images_into_pdf('20220201/new-recons')
     # check_size_of_labels()
     # nonlinear_deformation()
-    # pass
+    model_dice_map()
