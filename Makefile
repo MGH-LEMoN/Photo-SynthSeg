@@ -285,7 +285,7 @@ predict-hard:
 		$(LABEL_LIST)
 
 
-samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220301-skip2/new-recons/
+samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220301/new-recons-skip2/
 samseg-%: FSDEV = $(HOME)/photo-samseg-orig
 samseg-%: ATL_FLAG := C2
 samseg-hard-new-recons:
