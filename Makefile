@@ -367,13 +367,21 @@ run_synthseg_inference:
 	do
 		sbatch --job-name=$$model \
 		--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir submit-pipeline.sh
-	done < dice_ids1.csv
+	done < dice_ids.csv
 
 ## just-plot: Plotting dice plots
 # - Necessitated because latex (via matplotlib) doesn't run on MLSC
-just-plot: model_dice_map
-	out_dir=20220222
+just-plot:
+	out_dir=20220301
 	while IFS=, read -r model dice_idx
 	do
-		python $(PROJ_DIR)/scripts/hg_dice_scripts/new.py --recon_flag 'new' --out_dir_name $(out_dir) --model_name $$model --part 3;
+		python $(PROJ_DIR)/scripts/hg_dice_scripts/new.py --recon_flag 'new' --out_dir_name $$out_dir --model_name $$model --part 3;
 	done < dice_ids.csv	
+
+
+## collect-plots: collect all dice images into a single pdf
+collect-plots:
+	out_dir=20220301
+	folder_type=new
+	python -c "from scripts import photos_utils; photos_utils.collect_images_into_pdf('$$out_dir/$$folder_type-recons')"	
+

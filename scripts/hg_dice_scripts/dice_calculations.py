@@ -102,10 +102,16 @@ def verify_dice_dict(config, item):
         print("Missing required keys")
 
     if not getattr(config, item["source"], None):
-        print(f'Source folder {item["source"]} does not exist')
+        print(f'DNE: Source Attribute: {item["source"]}')
         return
     if not getattr(config, item["target"], None):
-        print(f'Target folder {item["target"]} does not exist')
+        print(f'DNE: Target Attribute: {item["target"]}')
+        return
+    if not os.path.isdir(getattr(config, item["source"], None)):
+        print(f'DNE: Source Folder: {item["target"]}')
+        return
+    if not os.path.isdir(getattr(config, item["target"], None)):
+        print(f'DNE: Target Folder: {item["target"]}')
         return
     if (not isinstance(item["output_name"], str)) or (not item["output_name"]):
         print("Output File Name Cannot be Empty")
@@ -115,10 +121,10 @@ def verify_dice_dict(config, item):
     if not isinstance(item["merge"], (bool, int)):
         return
     if not len(os.listdir(getattr(config, item["source"], None))):
-        print(f"Source Directory {getattr(config, item['source'], None)} is empty")
+        print(f"Empty Source: {getattr(config, item['source'], None)}")
         return
     if not len(os.listdir(getattr(config, item["target"], None))):
-        print(f"Target Directory {getattr(config, item['target'], None)} is empty")
+        print(f"Empty Target: {getattr(config, item['target'], None)}")
         return
     return 1
 

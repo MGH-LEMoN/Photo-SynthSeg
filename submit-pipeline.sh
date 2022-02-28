@@ -4,7 +4,7 @@
 ## recontructions, segmentations to generating volume correlations and dice plots
 ## '''
 #SBATCH --account=lcnrtx
-#SBATCH --partition=rtx6000,rtx8000
+#SBATCH --partition=rtx6000,rtx8000,lcnrtx
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=2
@@ -12,6 +12,7 @@
 #SBATCH --time=0-01:30:00
 #SBATCH --output="./logs/synth-infer/%x.out"
 #SBATCH --error="./logs/synth-infer/%x.err"
+#SBATCH --open-mode=append
 #SBATCH --mail-user=hvgazula@umich.edu
 #SBATCH --mail-type=FAIL
 
