@@ -285,17 +285,17 @@ predict-hard:
 		$(LABEL_LIST)
 
 
-samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220301/new-recons/
+samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220301-skip2/new-recons/
 samseg-%: FSDEV = $(HOME)/photo-samseg-orig
-samseg-%: ATL_FLAG := C0
+samseg-%: ATL_FLAG := C2
 samseg-hard-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
 	
 	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
 		sub_id=`basename $$i`
-		sbatch --job-name=samhard-$(ATL_FLAG)-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask/photo_recon.mgz \
+		sbatch --job-name=samhard-$(ATL_FLAG)-skip2-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask_skip_2/photo_recon.mgz \
 		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_$(ATL_FLAG)/$$sub_id \
 		--threads 64 \
 		--dissection-photo both \
@@ -310,8 +310,8 @@ samseg-soft-new-recons:
 	
 	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
 		sub_id=`basename $$i`
-		sbatch --job-name=samsoft-$(ATL_FLAG)-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask/photo_recon.mgz \
+		sbatch --job-name=samsoft-$(ATL_FLAG)-skip2-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask_skip_2/photo_recon.mgz \
 			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_$(ATL_FLAG)/$$sub_id \
 			--threads 64 \
 			--dissection-photo both \
@@ -365,7 +365,7 @@ run_synthseg_inference:
 	out_dir=20220301
 	while IFS=, read -r model dice_idx _
 	do
-		sbatch --job-name=$$model \
+		sbatch --job-name=$$model-skip2 \
 		--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir submit-pipeline.sh
 	done < dice_ids.csv
 

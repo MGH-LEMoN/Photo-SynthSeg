@@ -29,4 +29,3 @@ results
 .vscode
 **/*.pyc
 .ipynb_checkpoints
-*.csv

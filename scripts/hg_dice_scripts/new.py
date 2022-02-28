@@ -41,13 +41,13 @@ file_gather_dict = {
     "hard_recon": {
         "source": "UW_HARD_RECON",
         "destination": ["HARD_RECONS3C", "HARD_RECONS"],
-        "expr": ["ref_mask", "*recon.mgz"],
+        "expr": ["ref_mask_skip_2", "*recon.mgz"],
         "message": "Hard Reconstructions",
     },
     "soft_recon": {
         "source": "UW_SOFT_RECON",
         "destination": ["SOFT_RECONS3C", "SOFT_RECONS"],
-        "expr": ["ref_soft_mask", "*recon.mgz"],
+        "expr": ["ref_soft_mask_skip_2", "*recon.mgz"],
         "message": "Soft Reconstrucions",
     },
     "hard_warped_ref": {
@@ -59,7 +59,7 @@ file_gather_dict = {
     "soft_warped_ref": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_REF_WARPED",
-        "expr": ["ref_soft_mask", "registered_reference.mgz"],
+        "expr": ["ref_soft_mask_skip_2", "registered_reference.mgz"],
         "message": "Soft Warped References",
     },
     # "hard_samseg": {
@@ -77,13 +77,13 @@ file_gather_dict = {
     "hard_gt_labels": {
         "source": "UW_HARD_RECON",
         "destination": "HARD_MANUAL_LABELS_MERGED",
-        "expr": ["ref_mask", "*elastix.mgz"],
+        "expr": ["ref_mask_skip_2", "propagated_labels", "*_seg_output.mgz"],
         "message": "Hard Ground Truth",
     },
     "soft_gt_labels": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_MANUAL_LABELS_MERGED",
-        "expr": ["ref_soft_mask", "*elastix.mgz"],
+        "expr": ["ref_soft_mask_2", "propagated_labels", "*seg_output.mgz"],
         "message": "Soft Ground Truth",
     },
 }
@@ -131,7 +131,7 @@ class Configuration:
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = os.path.join(project_dir, 'results',
                                              args.out_dir_name,
-                                             f'{args.recon_flag}-recons',
+                                             f'{args.recon_flag}-recons-skip2',
                                              self.model_name)
 
         # input folders
