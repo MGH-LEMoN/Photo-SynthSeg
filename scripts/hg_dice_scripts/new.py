@@ -83,7 +83,7 @@ file_gather_dict = {
     "soft_gt_labels": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_MANUAL_LABELS_MERGED",
-        "expr": ["ref_soft_mask_2", "propagated_labels", "*seg_output.mgz"],
+        "expr": ["ref_soft_mask_skip_2", "propagated_labels", "*seg_output.mgz"],
         "message": "Soft Ground Truth",
     },
 }
