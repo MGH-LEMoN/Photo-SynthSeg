@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import subprocess
 from argparse import ArgumentParser
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -156,6 +157,14 @@ dice3d_dict = [
 
 class Configuration:
     def __init__(self, project_dir, args):
+        self._git_url = subprocess.check_output(
+            'git config --get remote.origin.url'.split()).decode(
+                'ascii').strip()
+        self._git_branch = subprocess.check_output(
+            'git rev-parse --abbrev-ref HEAD'.split()).decode('ascii').strip()
+        self._git_commit_hash = subprocess.check_output(
+            'git rev-parse --short HEAD'.split()).decode('ascii').strip()
+
         self.model_name = args.model_name
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = os.path.join(project_dir, 'results',
@@ -379,7 +388,7 @@ if __name__ == "__main__":
         #TODO: no need to run this for the first model
         SAMSEG_LIST = glob.glob(
             os.path.join(os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")),
-            'SAMSEG_OUTPUT_*'))
+                         'SAMSEG_OUTPUT_*'))
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
