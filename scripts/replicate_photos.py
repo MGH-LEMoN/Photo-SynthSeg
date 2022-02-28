@@ -25,7 +25,7 @@ def process_t1(t1_file, t1_name):
 
     # 3. Build a rigid 3D rotation + translation (4x4) matrix using the rotations and shifts
     t1_rigid_mat = utils.create_affine_transformation_matrix(
-        3, None, rotation, None, translation)
+        3, scaling=None, rotation=rotation, shearing=None, translation=translation)
 
     t1_rigid_out = os.path.join(OUT_DIR, t1_name, f'{t1_name}.rigid.npy')
     np.save(t1_rigid_out, t1_rigid_mat)
@@ -60,18 +60,22 @@ def process_t2(t2_file, t2_name):
         if np.sum(curr_slice) and not z % 6:
             c += 1
 
-            # Sample a rotation eg between -30 and 30 degrees
-            rotation = np.random.randint(-30, 31, 1)
+            curr_slice = np.pad(np.rot90(curr_slice), 25)
+            # Sample a rotation eg between -20 and 20 degrees
+            rotation = np.random.randint(-20, 21, 1)
 
-            # Sample 2 translations along the 2 axes, eg, between -10 and 10 pixels
-            translation = np.random.randint(-10, 11, 2)
+            # Sample 2 translations along the 2 axes, eg, between -0.5 and 0.5 pixels
+            translation = np.random.uniform(-0.5, 0.5, 2)
 
             # Sample 2 small shears about the 2 axes (eg between -0.1 and 0.1)
             shearing = np.random.uniform(-0.1, 0.1, 2)
 
             # Build a 2D (3x3) matrix with the rotation, translations, and shears
-            slice_aff_mat = utils.create_affine_transformation_matrix(
-                2, None, rotation, shearing, translation)
+            translation_mat_1 = np.array([[1, 0, -0.5*curr_slice.shape[0]], [0, 1, -0.5*curr_slice.shape[1]], [0, 0, 1]]).astype(float)
+            translation_mat_2 = np.array([[1, 0, 0.5*curr_slice.shape[0]], [0, 1, 0.5*curr_slice.shape[1]], [0, 0, 1]]).astype(float)
+            aff_mat = utils.create_affine_transformation_matrix(
+                2, scaling=None, rotation=rotation, shearing=shearing, translation=translation)
+            slice_aff_mat = np.matmul(translation_mat_2, np.matmul(aff_mat, translation_mat_1))
 
             # Save this matrix somewhere for evaluation later on eg as a numpy array
             slice_aff_out = os.path.join(AFFINE_DIR,
@@ -108,7 +112,7 @@ def process_t2(t2_file, t2_name):
 
             # Write the corrupted image to photo_dir/image.[c].tif
             img_out = os.path.join(PHOTO_DIR, f'{t2_name}.image.{c:03d}.tiff')
-            plt.imsave(img_out, corrupted_image)
+            plt.imsave(img_out, corrupted_image, cmap='gray')
 
             # fig, ax = plt.subplots(1, 2)
             # l0 = ax[0].imshow(curr_slice)
@@ -124,7 +128,7 @@ def main():
 
     assert len(t1_files) == len(t2_files), 'Subject Mismatch'
 
-    for i in tqdm(range(len(t1_files[:50]))):
+    for i in tqdm(range(len(t1_files[:5]))):
         t1_file = t1_files[i]
         t2_file = t2_files[i]
 

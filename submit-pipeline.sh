@@ -4,20 +4,20 @@
 ## recontructions, segmentations to generating volume correlations and dice plots
 ## '''
 #SBATCH --account=lcnrtx
-#SBATCH --partition=rtx8000,rtx6000
+#SBATCH --partition=rtx6000,rtx8000
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-gpu=2
 #SBATCH --mem=96G
 #SBATCH --time=0-01:30:00
-#SBATCH --output="./logs/%x.out"
-#SBATCH --error="./logs/%x.err"
+#SBATCH --output="./logs/synth-infer/%x.out"
+#SBATCH --error="./logs/synth-infer/%x.err"
 #SBATCH --mail-user=hvgazula@umich.edu
 #SBATCH --mail-type=FAIL
 
 source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
-export LD_LIBRARY_PATH=/usr/pubsw/packages/CUDA/10.1/lib64
+export LD_LIBRARY_PATH=/usr/pubsw/packages/CUDA/10.1/lib64:/usr/pubsw/packages/CUDA/10.2/lib64
 
 export PROJ_DIR=/space/calico/1/users/Harsha/SynthSeg
 export H5_FILE=/space/calico/1/users/Harsha/SynthSeg/models/$model/dice_$dice_idx.h5

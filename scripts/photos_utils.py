@@ -283,7 +283,7 @@ def model_dice_map():
         last_dice_file = sorted(glob.glob(os.path.join(model_dir,
                                                        'dice_*')))[-1]
         dice_idx = os.path.basename(last_dice_file)[5:8]
-        dice_list.append([os.path.basename(model_dir), dice_idx])
+        dice_list.append([os.path.basename(model_dir), dice_idx, ''])
 
     with open(os.path.join(PRJCT_DIR, 'dice_ids.csv'), 'w', newline='') as f:
         writer = csv.writer(f)

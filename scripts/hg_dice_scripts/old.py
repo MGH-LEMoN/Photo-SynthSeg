@@ -115,29 +115,6 @@ mri_convert_items = [
     },
 ]
 
-mri_convert_items1 = [
-    {
-        "source": "MRI_SCANS_SYNTHSEG_REG_RES",
-        "reference": "HARD_SAMSEG_NEW",
-        "target": "MRI_SYNTHSEG_IN_SAMSEG_SPACE_NEW",
-    },
-    {
-        "source": "HARD_SYNTHSEG",
-        "reference": "HARD_SAMSEG_NEW",
-        "target": "HARD_SYNTHSEG_IN_SAMSEG_SPACE_NEW",
-    },
-    {
-        "source": "MRI_SCANS_SYNTHSEG_REG_RES",
-        "reference": "SOFT_SAMSEG_NEW",
-        "target": "MRI_SYNTHSEG_IN_SAMSEG_SPACE_NEW",
-    },
-    {
-        "source": "SOFT_SYNTHSEG",
-        "reference": "SOFT_SAMSEG_NEW",
-        "target": "SOFT_SYNTHSEG_IN_SAMSEG_SPACE_NEW",
-    },
-]
-
 dice3d_dict = [
     {
         "source": "MRI_SYNTHSEG_IN_SAMSEG_SPACE",
@@ -179,7 +156,7 @@ dice3d_dict = [
 
 class Configuration:
     def __init__(self, project_dir, args):
-        self.model_name = args.run_id
+        self.model_name = args.model_name
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = os.path.join(project_dir, 'results',
                                              args.out_dir_name,
@@ -358,11 +335,11 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--recon_flag",
-                        type='str',
+                        type=str,
                         dest="recon_flag",
                         default=None)
     parser.add_argument("--out_dir_name",
-                        type='str',
+                        type=str,
                         dest="out_dir_name",
                         default=None)
     parser.add_argument("--model_name",
@@ -401,8 +378,8 @@ if __name__ == "__main__":
 
         #TODO: no need to run this for the first model
         SAMSEG_LIST = glob.glob(
-            os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")),
-            'SAMSEG_OUTPUT_*')
+            os.path.join(os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")),
+            'SAMSEG_OUTPUT_*'))
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
@@ -417,7 +394,6 @@ if __name__ == "__main__":
             write_correlations_to_file(config, VOLUMES_LIST, *item)
 
         move_volumes_into_target_spaces(config, mri_convert_items)
-        # move_volumes_into_target_spaces(config, mri_convert_items1)
 
         # calculate_dice_for_dict(config, dice3d_dict)
         calculate_dice_for_dict(config, DICE2D_LIST)

@@ -39,13 +39,13 @@ file_gather_dict = {
     "hard_recon": {
         "source": "UW_HARD_RECON",
         "destination": ["HARD_RECONS3C", "HARD_RECONS"],
-        "expr": ["ref_mask", "*recon1.mgz"],
+        "expr": ["ref_mask", "*recon.mgz"],
         "message": "Hard Reconstructions",
     },
     "soft_recon": {
         "source": "UW_SOFT_RECON",
         "destination": ["SOFT_RECONS3C", "SOFT_RECONS"],
-        "expr": ["ref_soft_mask", "*recon1.mgz"],
+        "expr": ["ref_soft_mask", "*recon.mgz"],
         "message": "Soft Reconstrucions",
     },
     "hard_warped_ref": {
@@ -57,7 +57,7 @@ file_gather_dict = {
     "soft_warped_ref": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_REF_WARPED",
-        "expr": ["ref_soft_mask", "registered_reference1.mgz"],
+        "expr": ["ref_soft_mask", "registered_reference.mgz"],
         "message": "Soft Warped References",
     },
     # "hard_samseg": {
@@ -117,7 +117,7 @@ mri_convert_items = [
 
 class Configuration:
     def __init__(self, project_dir, args):
-        self.model_name = args.run_id
+        self.model_name = args.model_name
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = os.path.join(project_dir, 'results',
                                              args.out_dir_name,
@@ -280,11 +280,11 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--recon_flag",
-                        type='str',
+                        type=str,
                         dest="recon_flag",
                         default=None)
     parser.add_argument("--out_dir_name",
-                        type='str',
+                        type=str,
                         dest="out_dir_name",
                         default=None)
     parser.add_argument("--model_name",
@@ -313,8 +313,8 @@ if __name__ == "__main__":
 
     if args.part == 2:
         SAMSEG_LIST = glob.glob(
-            os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")),
-            'SAMSEG_OUTPUT_*')
+            os.path.join(os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")),
+            'SAMSEG_OUTPUT_*'))
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)

@@ -268,7 +268,7 @@ predict-soft:
 		$(H5_FILE) \
 		$(LABEL_LIST)
 
-## predict-soft: Run hard recons through custom SynthSeg model
+## predict-hard: Run hard recons through custom SynthSeg model
 predict-hard:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
@@ -285,9 +285,9 @@ predict-hard:
 		$(LABEL_LIST)
 
 
-samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220222/new-recons/
+samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220301/new-recons/
 samseg-%: FSDEV = $(HOME)/photo-samseg-orig
-samseg-%: ATL_FLAG := C2
+samseg-%: ATL_FLAG := C0
 samseg-hard-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
@@ -295,7 +295,7 @@ samseg-hard-new-recons:
 	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
 		sub_id=`basename $$i`
 		sbatch --job-name=samhard-$(ATL_FLAG)-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask/photo_recon1.mgz \
+		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask/photo_recon.mgz \
 		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_$(ATL_FLAG)/$$sub_id \
 		--threads 64 \
 		--dissection-photo both \
@@ -311,7 +311,7 @@ samseg-soft-new-recons:
 	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
 		sub_id=`basename $$i`
 		sbatch --job-name=samsoft-$(ATL_FLAG)-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask/photo_recon1.mgz \
+			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask/photo_recon.mgz \
 			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_$(ATL_FLAG)/$$sub_id \
 			--threads 64 \
 			--dissection-photo both \
@@ -352,22 +352,25 @@ samseg-soft-on-old-recons:
 			--atlas $(FSDEV)/atlas; \
 	done
 
+## model_dice_map: Creates a csv file with the model name and the corresponding
+# dice index necessitated by failed/early terminated training.
 model_dice_map:
 	python -c "from scripts import photos_utils; photos_utils.model_dice_map()"
 
-## run_synthseg_inference1: Run SynhSeg inference on all models
-# takes dice_ids.csv as input
-# More on how this csv was generated can be found in misc/get_sizes.py()
-run_synthseg_inference: model_dice_map
-	out_dir=20220222 
-	while IFS=, read -r model dice_idx
+## run_synthseg_inference: Run SynthSeg inference on all models
+# - Takes dice_ids.csv as input
+# - More on how this csv was generated can be found in scripts/photos_utils
+# 	or refer to the make target: model_dice_map
+run_synthseg_inference:
+	out_dir=20220301
+	while IFS=, read -r model dice_idx _
 	do
-		sbatch --job-name=test \
-		--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$(out_dir) \
-		submit-pipeline.sh
-	done < dice_ids.csv
+		sbatch --job-name=$$model \
+		--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir submit-pipeline.sh
+	done < dice_ids1.csv
 
-# synthinfer-$$model
+## just-plot: Plotting dice plots
+# - Necessitated because latex (via matplotlib) doesn't run on MLSC
 just-plot: model_dice_map
 	out_dir=20220222
 	while IFS=, read -r model dice_idx
