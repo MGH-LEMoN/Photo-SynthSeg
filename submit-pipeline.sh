@@ -12,17 +12,17 @@
 #SBATCH --time=0-01:30:00
 #SBATCH --output="./logs/synth-infer/%x.out"
 #SBATCH --error="./logs/synth-infer/%x.err"
-#SBATCH --open-mode=append
+##SBATCH --open-mode=append
 #SBATCH --mail-user=hvgazula@umich.edu
 #SBATCH --mail-type=FAIL
 
 source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
-export LD_LIBRARY_PATH=/usr/pubsw/packages/CUDA/10.1/lib64:/usr/pubsw/packages/CUDA/10.2/lib64
+export LD_LIBRARY_PATH=/usr/pubsw/packages/CUDA/10.1/lib64
 
 export PROJ_DIR=/space/calico/1/users/Harsha/SynthSeg
 export H5_FILE=/space/calico/1/users/Harsha/SynthSeg/models/$model/dice_$dice_idx.h5
-export RESULTS_DIR=$PROJ_DIR/results/$out_dir/new-recons/$model
+export RESULTS_DIR=$PROJ_DIR/results/$out_dir/new-recons-skip2/$model
 export LABEL_LIST=$PROJ_DIR/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
 
 export CMD=python

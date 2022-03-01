@@ -383,5 +383,4 @@ just-plot:
 collect-plots:
 	out_dir=20220301
 	folder_type=new
-	python -c "from scripts import photos_utils; photos_utils.collect_images_into_pdf('$$out_dir/$$folder_type-recons')"	
-
+	python -c "from scripts import photos_utils; photos_utils.collect_images_into_pdf('$$out_dir/$$folder_type-recons-skip2')"
