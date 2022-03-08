@@ -11,8 +11,9 @@ from tqdm import tqdm
 
 PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
 DATA_DIR = os.path.join(PRJCT_DIR, 'data')
+RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
 IN_DIR = os.path.join(DATA_DIR, '4harshaHCP')
-OUT_DIR = os.path.join(DATA_DIR, '4harshaHCP_extracts')
+OUT_DIR = os.path.join(RESULTS_DIR, '4harshaHCP_extracts')
 
 
 def process_t1(t1_file, t1_name):
@@ -89,7 +90,7 @@ def process_t2(t2_file, t2_name):
                                               order=1)
 
             # Threshold the deformed slice at zero to get a mask (1 inside, 0 outside)
-            mask = curr_slice > 0
+            mask = deformed_slice > 0
             # write it as photo_dir/image.[c].npy
             # (format the number c with 2 digits so they are in order when listed)
             out_file_name = os.path.join(PHOTO_DIR,
@@ -128,7 +129,7 @@ def main():
 
     assert len(t1_files) == len(t2_files), 'Subject Mismatch'
 
-    for i in tqdm(range(len(t1_files[:5]))):
+    for i in tqdm(range(len(t1_files))):
         t1_file = t1_files[i]
         t2_file = t2_files[i]
 
