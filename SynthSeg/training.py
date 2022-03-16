@@ -337,7 +337,7 @@ class TrainingCallback(KC.Callback):
     def on_epoch_end(self, epoch, logs=None):
         save_file_name = os.path.join(self.model_dir,
                                       f'{self.metric_type}_{epoch:03d}.h5')
-        if os.path.exists(save_file_name):
+        if os.path.exists(save_file_name) and epoch % 10 != 0:
             print(f'Removing Checkpoint: {save_file_name}\n')
             os.remove(save_file_name)
 
