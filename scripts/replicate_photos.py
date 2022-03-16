@@ -8,6 +8,7 @@ from ext.hg_utils import zoom
 from ext.lab2im import utils
 from scipy.ndimage import affine_transform
 from tqdm import tqdm
+from PIL import Image
 
 PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
 DATA_DIR = os.path.join(PRJCT_DIR, 'data')
@@ -52,6 +53,9 @@ def process_t2(t2_file, t2_name):
 
     # 7. Open the T2
     t2_vol = utils.load_volume(t2_file)
+
+    # scaling the entire volume
+    t2_vol = 255 * t2_vol / np.max(t2_vol)
 
     Nslices_of_T2 = t2_vol.shape[-1]
     c = 0
@@ -112,8 +116,9 @@ def process_t2(t2_file, t2_name):
             corrupted_image = np.multiply(deformed_slice, bias_result)
 
             # Write the corrupted image to photo_dir/image.[c].tif
-            img_out = os.path.join(PHOTO_DIR, f'{t2_name}.image.{c:03d}.tiff')
-            plt.imsave(img_out, corrupted_image, cmap='gray')
+            img_out = os.path.join(PHOTO_DIR, f'{t2_name}.image.{c:03d}.png')
+            corrupted_PIL = Image.fromarray(np.uint8(corrupted_image))
+            corrupted_PIL.save(img_out, 'PNG')
 
             # fig, ax = plt.subplots(1, 2)
             # l0 = ax[0].imshow(curr_slice)
