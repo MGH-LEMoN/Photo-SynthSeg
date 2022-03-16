@@ -22,7 +22,7 @@ ENV_NAME := synthseg-venv
 # {synthseg-venv | synthseg-venv1}
 CUDA_V := 10.1
 PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := VS-test
+MODEL_NAME := VS05-noflip
 CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
 # {echo | python | sbatch submit.sh}
 
@@ -53,7 +53,7 @@ prior_std =
 # mix_prior_and_random = --mix_prior_and_random
 
 ## spatial deformation parameters ##
-# no_flipping = --no_flipping
+no_flipping = --no_flipping
 scaling =
 rotation =
 shearing =
@@ -200,7 +200,7 @@ training:
 		--wl2_epochs 1 \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'New training on 20220203' \
+		--message 'Flipping turned off' \
 		;
 
 ## Use this target to resume training
