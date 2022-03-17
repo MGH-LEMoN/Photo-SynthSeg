@@ -273,6 +273,24 @@ def build_model_inputs(path_label_maps,
             if False:
                 def_field[:, :, :, 1] = 0
 
+            # Maybe turn deformations out of plane into an accordion?
+            # Alternatively, you can compose them. The problem is that composition requires yet another interpolations,
+            # which would slow things down. You can approximate composition by addition, I guess? Or do only the
+            # accordion... but this means you're augmenting less...
+            if True:
+                max_std_thickness_variation = 0.15 * spacing
+                std_thickness_variation = max_std_thickness_variation * np.random.uniform(size=[1])
+                small_thickness_variation = std_thickness_variation * np.random.normal(size=small_deformation_size[1])
+                x = np.arange(small_deformation_size[1])
+                xi = np.linspace(0, small_deformation_size[1]-1, def_field.shape[1])
+                thickness_variation = np.interp(xi, x, small_thickness_variation)[np.newaxis,...,np.newaxis]
+                y_comp = np.zeros(shape=def_field.shape[:-1]) + thickness_variation
+
+                if False: # Approximate composition
+                    def_field[:, :, :, 1] =  def_field[:, :, :, 1]  + y_comp
+                else:    # Just accordion
+                    def_field[:, :, :, 1] =  y_comp
+
             list_def_field.append(utils.add_axis(def_field, axis=0))
 
         # build list of inputs for generation model
