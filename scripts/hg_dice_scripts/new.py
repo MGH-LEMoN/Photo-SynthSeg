@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 from argparse import ArgumentParser
-from shutil import copyfile
+from shutil import copytree
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -329,7 +329,7 @@ if __name__ == "__main__":
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
-            copyfile(src, dst)
+            copytree(src, dst)
 
         copy_relevant_files(config, SAMSEG_GATHER_DICT)
         write_volumes_to_file(config, VOLUMES_LIST)
