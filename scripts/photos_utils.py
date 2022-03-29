@@ -275,7 +275,7 @@ def model_dice_map():
     model_dirs = sorted(glob.glob(os.path.join(MODEL_DIR, '*')))
     model_dirs = [
         model_dir for model_dir in model_dirs if os.path.isdir(model_dir)
-        and os.path.basename(model_dir).startswith(('S', 'V'))
+        and os.path.basename(model_dir).startswith(('VS'))
     ]
 
     dice_list = []

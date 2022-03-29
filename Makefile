@@ -290,7 +290,7 @@ samseg-%: DATA_DIR := $(PROJ_DIR)/data/UW_photo_recon/Photo_data
 samseg-%: SKIP := $(shell seq 1 4)
 samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220328/new-recons-skip
 samseg-%: FSDEV = $(HOME)/photo-samseg-orig
-samseg-%: ATL_FLAG := C2
+samseg-%: ATL_FLAG := C0
 #{C0|C1|C2}
 samseg-%: REF_KEY := image
 #{hard|soft|image}
@@ -356,17 +356,17 @@ model_dice_map:
 # - More on how this csv was generated can be found in scripts/photos_utils
 # 	or refer to the make target: model_dice_map
 run_synthseg_inference:
-	out_dir=20220301
+	out_dir=20220328
 	while IFS=, read -r model dice_idx _
 	do
-		sbatch --job-name=$$model-skip2 \
+		sbatch --job-name=skip-2-$$model \
 		--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir submit-pipeline.sh
 	done < dice_ids.csv
 
 ## just-plot: Plotting dice plots
 # - Necessitated because latex (via matplotlib) doesn't run on MLSC
 just-plot:
-	out_dir=20220301
+	out_dir=20220328
 	while IFS=, read -r model dice_idx
 	do
 		python $(PROJ_DIR)/scripts/hg_dice_scripts/new.py --recon_flag 'new' --out_dir_name $$out_dir --model_name $$model --part 3;

@@ -41,13 +41,13 @@ file_gather_dict = {
     "hard_recon": {
         "source": "UW_HARD_RECON",
         "destination": ["HARD_RECONS3C", "HARD_RECONS"],
-        "expr": ["ref_mask_skip_2", "*recon.mgz"],
+        "expr": ["ref_hard_skip_2", "*recon.mgz"],
         "message": "Hard Reconstructions",
     },
     "soft_recon": {
         "source": "UW_SOFT_RECON",
         "destination": ["SOFT_RECONS3C", "SOFT_RECONS"],
-        "expr": ["ref_soft_mask_skip_2", "*recon.mgz"],
+        "expr": ["ref_soft_skip_2", "*recon.mgz"],
         "message": "Soft Reconstrucions",
     },
     "hard_warped_ref": {
@@ -59,7 +59,7 @@ file_gather_dict = {
     "soft_warped_ref": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_REF_WARPED",
-        "expr": ["ref_soft_mask_skip_2", "registered_reference.mgz"],
+        "expr": ["ref_soft_skip_2", "registered_reference.mgz"],
         "message": "Soft Warped References",
     },
     # "hard_samseg": {
@@ -77,13 +77,13 @@ file_gather_dict = {
     "hard_gt_labels": {
         "source": "UW_HARD_RECON",
         "destination": "HARD_MANUAL_LABELS_MERGED",
-        "expr": ["ref_mask_skip_2", "propagated_labels", "*_seg_output.mgz"],
+        "expr": ["ref_hard_skip_2", "propagated_labels", "*_seg_output.mgz"],
         "message": "Hard Ground Truth",
     },
     "soft_gt_labels": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_MANUAL_LABELS_MERGED",
-        "expr": ["ref_soft_mask_skip_2", "propagated_labels", "*seg_output.mgz"],
+        "expr": ["ref_soft_skip_2", "propagated_labels", "*seg_output.mgz"],
         "message": "Soft Ground Truth",
     },
 }
@@ -131,20 +131,20 @@ class Configuration:
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = os.path.join(project_dir, 'results',
                                              args.out_dir_name,
-                                             f'{args.recon_flag}-recons-skip2',
+                                             f'{args.recon_flag}-recons-skip-2',
                                              self.model_name)
 
         # input folders
-        self.UW_HARD_RECON = "/cluster/vive/UW_photo_recon/Photo_data/"
-        self.UW_SOFT_RECON = "/cluster/vive/UW_photo_recon/Photo_data/"
-        self.UW_MRI_SCAN = "/cluster/vive/UW_photo_recon/FLAIR_Scan_Data"
+        self.UW_HARD_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/Photo_data/"
+        self.UW_SOFT_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/Photo_data/"
+        self.UW_MRI_SCAN = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/FLAIR_Scan_Data"
 
-        self.SAMSEG_OUTPUT_HARD_C0 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_HARD_C0"
-        self.SAMSEG_OUTPUT_SOFT_C0 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_SOFT_C0"
-        self.SAMSEG_OUTPUT_HARD_C1 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_HARD_C1"
-        self.SAMSEG_OUTPUT_SOFT_C1 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_SOFT_C1"
-        self.SAMSEG_OUTPUT_HARD_C2 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_HARD_C2"
-        self.SAMSEG_OUTPUT_SOFT_C2 = f"{self.SYNTHSEG_RESULTS}/SAMSEG_OUTPUT_SOFT_C2"
+        self.SAMSEG_OUTPUT_HARD_C0 = f"{self.SYNTHSEG_RESULTS}/samseg_output_hard_C0"
+        self.SAMSEG_OUTPUT_SOFT_C0 = f"{self.SYNTHSEG_RESULTS}/samseg_output_soft_C0"
+        self.SAMSEG_OUTPUT_HARD_C1 = f"{self.SYNTHSEG_RESULTS}/samseg_output_hard_C1"
+        self.SAMSEG_OUTPUT_SOFT_C1 = f"{self.SYNTHSEG_RESULTS}/samseg_output_soft_C1"
+        self.SAMSEG_OUTPUT_HARD_C2 = f"{self.SYNTHSEG_RESULTS}/samseg_output_hard_C2"
+        self.SAMSEG_OUTPUT_SOFT_C2 = f"{self.SYNTHSEG_RESULTS}/samseg_output_soft_C2"
 
         # output folders
         self.MRI_SCANS = f"{self.SYNTHSEG_RESULTS}/mri.scans"
@@ -324,7 +324,7 @@ if __name__ == "__main__":
     if args.part == 2:
         SAMSEG_LIST = glob.glob(
             os.path.join(os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")),
-                         'SAMSEG_OUTPUT_*'))
+                         'samseg_output_*'))
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)

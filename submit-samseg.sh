@@ -19,10 +19,13 @@ export PYTHONPATH=$PHOTOSAMSEG/python/packages
 
 echo 'Start time:' `date`
 echo "$@"
+start=$(date +%s)
 if [[ -v SLURM_ARRAY_TASK_ID ]]
 then
     $PHOTOSAMSEG/python/bin/python3 "$@"
 else
     $PHOTOSAMSEG/python/bin/python3 "$@"
 fi
+end=$(date +%s)
 echo 'End time:' `date`
+echo "Elapsed Time: $(($end-$start)) seconds"
