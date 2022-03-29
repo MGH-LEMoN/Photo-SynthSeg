@@ -54,12 +54,7 @@ def copy_files_from_source(source, destination, expr):
     for file in file_list:
         dest_fn = create_destination_name(file)
         dst_scan_file = os.path.join(destination, dest_fn)
-        try:
-            os.symlink(file, dst_scan_file)
-        except FileExistsError as e:
-            pass
-        except OSError as e:
-            pass
+        copyfile(file, dst_scan_file)
     return
 
 
