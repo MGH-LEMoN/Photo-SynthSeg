@@ -7,8 +7,8 @@
 #SBATCH --partition=rtx6000,rtx8000,lcnrtx
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-gpu=2
-#SBATCH --mem=96G
+#SBATCH --cpus-per-gpu=4
+#SBATCH --mem=128G
 #SBATCH --time=0-01:30:00
 #SBATCH --output="./logs/synth-infer-20220328/%x.out"
 #SBATCH --error="./logs/synth-infer-20220328/%x.err"

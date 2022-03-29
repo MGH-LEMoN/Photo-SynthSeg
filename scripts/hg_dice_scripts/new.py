@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 from argparse import ArgumentParser
+from shutil import copyfile
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -129,10 +130,9 @@ class Configuration:
 
         self.model_name = args.model_name
         self.SYNTHSEG_PRJCT = project_dir
-        self.SYNTHSEG_RESULTS = os.path.join(project_dir, 'results',
-                                             args.out_dir_name,
-                                             f'{args.recon_flag}-recons-skip-2',
-                                             self.model_name)
+        self.SYNTHSEG_RESULTS = os.path.join(
+            project_dir, 'results', args.out_dir_name,
+            f'{args.recon_flag}-recons-skip-2', self.model_name)
 
         # input folders
         self.UW_HARD_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/Photo_data/"
@@ -302,6 +302,7 @@ if __name__ == "__main__":
                         dest="model_name",
                         default=None)
     parser.add_argument("--part", type=int, dest="part", default=None)
+
     args = parser.parse_args()
 
     config = Configuration(PRJCT_DIR, args)
@@ -328,10 +329,7 @@ if __name__ == "__main__":
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
-            try:
-                os.symlink(src, dst)
-            except OSError as e:
-                pass
+            copyfile(src, dst)
 
         copy_relevant_files(config, SAMSEG_GATHER_DICT)
         write_volumes_to_file(config, VOLUMES_LIST)
