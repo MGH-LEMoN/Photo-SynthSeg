@@ -285,37 +285,31 @@ predict-hard:
 		$(LABEL_LIST)
 
 
-samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220301/new-recons-skip2/
+samseg-%: PROJ_DIR := /space/calico/1/users/Harsha/SynthSeg
+samseg-%: DATA_DIR := $(PROJ_DIR)/data/UW_photo_recon/Photo_data
+samseg-%: SKIP := $(shell seq 1 4)
+samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220328/new-recons-skip
 samseg-%: FSDEV = $(HOME)/photo-samseg-orig
 samseg-%: ATL_FLAG := C2
-samseg-hard-new-recons:
+#{C0|C1|C2}
+samseg-%: REF_KEY := image
+#{hard|soft|image}
+## samseg-new-recons: Run FS SAMSEG on new reconstructions
+# This feature is available in FS, so we can do away with this target
+samseg-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
 	
-	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
-		sub_id=`basename $$i`
-		sbatch --job-name=samhard-$(ATL_FLAG)-skip2-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-		-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_mask_skip_2/photo_recon.mgz \
-		-o $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_$(ATL_FLAG)/$$sub_id \
-		--threads 64 \
-		--dissection-photo both \
-		--atlas $(FSDEV)/atlas; \
-	done
-
-## samseg-soft-on-new-recons: Run FS SAMSEG on new soft reconstructions
-# Now that this feature is available in FS, we can do away with this target
-samseg-soft-new-recons:
-	$(ACTIVATE_FS)
-	export PYTHONPATH=$(FSDEV)/python/packages
-	
-	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
-		sub_id=`basename $$i`
-		sbatch --job-name=samsoft-$(ATL_FLAG)-skip2-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
-			-i /cluster/vive/UW_photo_recon/Photo_data/$$sub_id/ref_soft_mask_skip_2/photo_recon.mgz \
-			-o $(RESULTS_DIR)/SAMSEG_OUTPUT_SOFT_$(ATL_FLAG)/$$sub_id \
+	for i in `ls -d $(DATA_DIR)/*-*/`; do \
+		for skip in $(SKIP); do \
+			sub_id=`basename $$i`
+			sbatch --job-name=$(REF_KEY)-$(ATL_FLAG)-skip-$$skip-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+			-i $(DATA_DIR)/$$sub_id/ref_$(REF_KEY)_skip_$$skip/photo_recon.mgz \
+			-o $(RESULTS_DIR)-$$skip/samseg_output_$(REF_KEY)_$(ATL_FLAG)/$$sub_id \
 			--threads 64 \
 			--dissection-photo both \
 			--atlas $(FSDEV)/atlas; \
+		done; \
 	done
 
 ## samseg-hard-on-old-recons: Run FS SAMSEG on old hard reconstructions
