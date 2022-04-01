@@ -22,7 +22,7 @@ ENV_NAME := synthseg-venv
 # {synthseg-venv | synthseg-venv1}
 CUDA_V := 10.1
 PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := VS05-noflip
+MODEL_NAME := VS02n-accordion
 CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
 # {echo | python | sbatch submit.sh}
 
@@ -35,6 +35,7 @@ MODEL_PATH = $(SCRATCH_MODEL_DIR)/$(MODEL_NAME)
 
 ## label maps parameters
 generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
+neutral_labels = '5'
 segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions.npy
 noisy_patches = None
 
@@ -53,7 +54,7 @@ prior_std =
 # mix_prior_and_random = --mix_prior_and_random
 
 ## spatial deformation parameters ##
-no_flipping = --no_flipping
+# no_flipping = --no_flipping
 scaling =
 rotation =
 shearing =
@@ -88,7 +89,7 @@ lr = 1e-4               # learning rate
 lr_decay = 0            # learning rate decay (knowing that Adam already has its own internal decay)
 wl2_epochs = 1          # number of pre-training epochs with wl2 metric w.r.t. the layer before the softmax
 dice_epochs = 100       # number of training epochs
-steps_per_epoch = 2000  # number of iteration per epoch
+steps_per_epoch = 2500  # number of iteration per epoch
 
 
 .PHONY : help
@@ -155,6 +156,7 @@ training:
 		$(MODEL_PATH) \
 		\
 		--generation_labels $(generation_labels) \
+		--neutral_labels $(neutral_labels) \
 		--segmentation_labels $(segmentation_labels) \
 		--noisy_patches '$(noisy_patches)' \
 		\
@@ -200,7 +202,7 @@ training:
 		--wl2_epochs 1 \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'Flipping turned off' \
+		--message 'Added neutral_labels on 20220401' \
 		;
 
 ## Use this target to resume training
