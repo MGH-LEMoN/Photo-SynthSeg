@@ -4,11 +4,11 @@
 ## recontructions, segmentations to generating volume correlations and dice plots
 ## '''
 #SBATCH --account=lcnrtx
-#SBATCH --partition=rtx6000,rtx8000,lcnrtx
+#SBATCH --partition=lcnrtx,rtx6000,rtx8000
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-gpu=4
-#SBATCH --mem=128G
+#SBATCH --cpus-per-gpu=2
+#SBATCH --mem=64G
 #SBATCH --time=0-01:30:00
 #SBATCH --output="./logs/synth-infer-20220328/%x.out"
 #SBATCH --error="./logs/synth-infer-20220328/%x.err"
@@ -21,13 +21,15 @@ export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
 export LD_LIBRARY_PATH=/usr/pubsw/packages/CUDA/10.1/lib64
 
 export PROJ_DIR=/space/calico/1/users/Harsha/SynthSeg
-export H5_FILE=/space/calico/1/users/Harsha/SynthSeg/models/$model/dice_$dice_idx.h5
-export RESULTS_DIR=$PROJ_DIR/results/$out_dir/new-recons-skip-2/$model
+export H5_FILE=/space/calico/1/users/Harsha/SynthSeg/models/models-2022/$model/dice_$dice_idx.h5
+export RESULTS_DIR=$PROJ_DIR/results/$out_dir/new-recons-skip-$idx/$model
 export LABEL_LIST=$PROJ_DIR/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy
 
 export CMD=python
 
-$CMD $PROJ_DIR/scripts/hg_dice_scripts/new.py \
+echo 'Node:' $HOSTNAME
+
+$CMD $PROJ_DIR/scripts/hg_dice_scripts/$script \
     --recon_flag 'new' \
     --out_dir_name $out_dir \
     --model_name $model \
@@ -61,4 +63,4 @@ $CMD $PROJ_DIR/scripts/commands/predict.py \
     $H5_FILE \
     $LABEL_LIST
 
-$CMD $PROJ_DIR/scripts/hg_dice_scripts/new.py --recon_flag 'new' --out_dir_name $out_dir --model_name $model --part 2
+$CMD $PROJ_DIR/scripts/hg_dice_scripts/$script --recon_flag 'new' --out_dir_name $out_dir --model_name $model --part 2

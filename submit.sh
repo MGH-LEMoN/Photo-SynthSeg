@@ -15,6 +15,7 @@ source /space/calico/1/users/Harsha/venvs/synthseg-venv/bin/activate
 export PYTHONPATH=/space/calico/1/users/Harsha/SynthSeg
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/pubsw/packages/CUDA/10.1/lib64
 
+echo 'Node:' $HOSTNAME
 echo 'Start time:' `date`
 echo "$@"
 if [[ -v SLURM_ARRAY_TASK_ID ]]

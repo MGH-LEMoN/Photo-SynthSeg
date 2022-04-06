@@ -19,6 +19,7 @@ from dice_volumes import write_correlations_to_file, write_volumes_to_file
 from uw_config import (CORRELATIONS_LIST, DICE2D_LIST, PLOTS_LIST,
                        SAMSEG_GATHER_DICT, VOLUMES_LIST)
 
+IDX = 1
 # use this dictionary to gather files from source to destination
 file_gather_dict = {
     "mri_scan": {
@@ -30,25 +31,25 @@ file_gather_dict = {
     "image_ref": {
         "source": "UW_MRI_SCAN",
         "destination": "MRI_SCANS_REF",
-        "expr": ["*.rotated.masked.mgz"],
+        "expr": ["*.rotated_masked.mgz"],
         "message": "3D Volume Masks",
     },
     "hard_ref": {
         "source": "UW_MRI_SCAN",
         "destination": "HARD_REF",
-        "expr": ["*.rotated.binary.mgz"],
+        "expr": ["*.rotated_cerebrum.mgz"],
         "message": "Hard References",
     },
     "hard_recon": {
         "source": "UW_HARD_RECON",
         "destination": ["HARD_RECONS3C", "HARD_RECONS"],
-        "expr": ["ref_hard_skip_2", "*recon.mgz"],
+        "expr": [f'ref_hard_skip_{IDX}', "*recon.mgz"],
         "message": "Hard Reconstructions",
     },
     "soft_recon": {
         "source": "UW_SOFT_RECON",
         "destination": ["SOFT_RECONS3C", "SOFT_RECONS"],
-        "expr": ["ref_soft_skip_2", "*recon.mgz"],
+        "expr": [f'ref_soft_skip_{IDX}', "*recon.mgz"],
         "message": "Soft Reconstrucions",
     },
     "hard_warped_ref": {
@@ -60,7 +61,7 @@ file_gather_dict = {
     "soft_warped_ref": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_REF_WARPED",
-        "expr": ["ref_soft_skip_2", "registered_reference.mgz"],
+        "expr": [f'ref_soft_skip_{IDX}', "registered_reference.mgz"],
         "message": "Soft Warped References",
     },
     # "hard_samseg": {
@@ -78,13 +79,13 @@ file_gather_dict = {
     "hard_gt_labels": {
         "source": "UW_HARD_RECON",
         "destination": "HARD_MANUAL_LABELS_MERGED",
-        "expr": ["ref_hard_skip_2", "propagated_labels", "*_seg_output.mgz"],
+        "expr": [f'ref_hard_skip_{IDX}', "propagated_labels", "*_seg_output.mgz"],
         "message": "Hard Ground Truth",
     },
     "soft_gt_labels": {
         "source": "UW_SOFT_RECON",
         "destination": "SOFT_MANUAL_LABELS_MERGED",
-        "expr": ["ref_soft_skip_2", "propagated_labels", "*seg_output.mgz"],
+        "expr": [f'ref_soft_skip_{IDX}', "propagated_labels", "*seg_output.mgz"],
         "message": "Soft Ground Truth",
     },
 }
@@ -132,7 +133,7 @@ class Configuration:
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = os.path.join(
             project_dir, 'results', args.out_dir_name,
-            f'{args.recon_flag}-recons-skip-2', self.model_name)
+            f'{args.recon_flag}-recons-skip-1', self.model_name)
 
         # input folders
         self.UW_HARD_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/Photo_data/"
@@ -220,11 +221,14 @@ class Configuration:
             58,
             60,
         ]
-        self.IGNORE_LABELS = [0, 5, 14, 26, 28, 44, 58, 60]
+        self.IGNORE_LABELS = [0, 14, 26, 44, 58]
         self.ADDL_IGNORE_LABELS = [7, 8, 15, 16, 46, 47]
         self.LABEL_PAIRS = [
+            (2, 28)
             (2, 41),
+            (2, 60),
             (3, 42),
+            (4, 5),
             (4, 43),
             (10, 49),
             (11, 50),
@@ -245,7 +249,7 @@ class Configuration:
             "Amygdala",
         ]
         # self.IGNORE_SUBJECTS = ["18-1343", "18-2260", "19-0100"]
-        self.IGNORE_SUBJECTS = ["19-0019"]
+        self.IGNORE_SUBJECTS = ['18-1343',  '18-1705', '18-2260', '18-2127', '19-0019']
 
         self.required_labels = list(
             set(self.ALL_LABELS) - set(self.IGNORE_LABELS))
@@ -329,7 +333,10 @@ if __name__ == "__main__":
         for src in SAMSEG_LIST:
             basename = os.path.basename(src)
             dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
-            copytree(src, dst)
+            try:
+                copytree(src, dst)
+            except:
+                pass
 
         copy_relevant_files(config, SAMSEG_GATHER_DICT)
         write_volumes_to_file(config, VOLUMES_LIST)

@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 import os
+import re
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -32,7 +33,6 @@ PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
 DATA_DIR = os.path.join(PRJCT_DIR, 'data')
 MODEL_DIR = os.path.join(PRJCT_DIR, 'models')
 RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
-
 
 def collect_images_into_pdf(target_dir_str):
     """[summary]
@@ -272,10 +272,15 @@ def get_recon_shapes():
 
 
 def model_dice_map():
+    MODEL_DIR = '/space/calico/1/users/Harsha/SynthSeg/models/models-2022'
     model_dirs = sorted(glob.glob(os.path.join(MODEL_DIR, '*')))
+    # model_dirs = [
+    #     model_dir for model_dir in model_dirs if os.path.isdir(model_dir)
+    #     and re.search('^S16.+noflip$', os.path.basename(model_dir))
+    # ]
     model_dirs = [
         model_dir for model_dir in model_dirs if os.path.isdir(model_dir)
-        and os.path.basename(model_dir).startswith(('VS'))
+        and os.path.basename(model_dir).startswith(('S04', 'VS'))
     ]
 
     dice_list = []
@@ -285,15 +290,75 @@ def model_dice_map():
         dice_idx = os.path.basename(last_dice_file)[5:8]
         dice_list.append([os.path.basename(model_dir), dice_idx, ''])
 
-    with open(os.path.join(PRJCT_DIR, 'dice_ids.csv'), 'w', newline='') as f:
+    with open(os.path.join(PRJCT_DIR, 'dice_ids1.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(dice_list)
+
+
+def display_segs():
+    vols_dir = '/space/calico/1/users/Harsha/SynthSeg/results/20220328/new-recons-skip-1/S04R01/mri.scans'
+    segs = '/homes/5/hg824/segs'
+
+    vols = sorted(os.listdir(vols_dir))
+
+    for vol in vols:
+        sub_id = vol.split('.')[0]
+        seg = glob.glob(os.path.join(segs, sub_id + '*'))[0]
+        run_cmd = f'freeview -v {os.path.join(vols_dir, vol)} -v {seg}:colormap=lut &'
+        os.system(run_cmd)
+
+
+def pipeline2():
+    """Create labels mask (binary) for the segmentation.
+    This is used as a (hard) reference for reconstruction
+    """    
+    file_list = sorted(
+        glob.glob(
+            os.path.join(
+                '/space/calico/1/users/Harsha/SynthSeg/test/test.synthseg',
+                '*.rotated_synthseg.mgz')))
+
+    os.makedirs('/space/calico/1/users/Harsha/SynthSeg/test/test.cerebrum',
+                exist_ok=True)
+
+    for input_vol in file_list:
+        output_vol = os.path.join(
+            '/space/calico/1/users/Harsha/SynthSeg/test/test.cerebrum',
+            os.path.basename(input_vol).replace('synthseg', 'cerebrum'))
+
+        command1 = f'mri_extract_label {input_vol} 2 3 4 5 10 11 12 13 17 18 26 28 31 41 42 43 44 49 50 51 52 53 54 58 60 {output_vol}'
+        os.system(command1)
+
+
+def pipeline3():
+    """This script was used to generate the masked image
+    """    
+    vol2_list = sorted(
+        glob.glob(
+            os.path.join(
+                '/space/calico/1/users/Harsha/SynthSeg/test/test.synthseg',
+                '*.rotated_synthseg.mgz')))
+
+    os.makedirs('/space/calico/1/users/Harsha/SynthSeg/test/test.masked',
+                exist_ok=True)
+
+    for vol2 in vol2_list:
+        vol1 = os.path.join(
+            '/space/calico/1/users/Harsha/SynthSeg/test/mri.scans',
+            os.path.basename(vol2).replace('_synthseg', ''))
+
+        vol3 = os.path.join(
+            '/space/calico/1/users/Harsha/SynthSeg/test/test.masked',
+            os.path.basename(vol2).replace('synthseg', 'masked'))
+
+        command2 = f'mri_mask {vol1} {vol2} {vol3}'
+        os.system(command2)
 
 
 if __name__ == '__main__':
 
     # make_data_copy()
-    # collect_images_into_pdf('20220201/new-recons')
+    collect_images_into_pdf('20220328/new-recons-skip-1')
     # check_size_of_labels()
     # nonlinear_deformation()
-    model_dice_map()
+    # model_dice_map()

@@ -21,7 +21,7 @@ ENV_DIR := $(HOME)/venvs
 ENV_NAME := synthseg-venv
 CUDA_V := 10.1
 PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := noflip-S02R01
+MODEL_NAME := S16R02n
 CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
 # {echo | python | sbatch submit.sh}
 
@@ -34,6 +34,7 @@ MODEL_PATH = $(MODEL_DIR)/$(MODEL_NAME)
 
 # label maps parameters
 generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
+neutral_labels = '5'
 segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions.npy
 noisy_patches =
 
@@ -52,24 +53,24 @@ prior_std =
 # mix_prior_and_random = --mix_prior_and_random
 
 # spatial deformation parameters
-no_flipping = --no_flipping
+# no_flipping = --no_flipping
 scaling =
 rotation =
 shearing =
 translation = 
 nonlin_std = (4, 0, 4)
-nonlin_shape_factor = (0.0625, 0.5, 0.0625)
+nonlin_shape_factor = (0.0625, 0.0625, 0.0625)
 
 # blurring/resampling parameters
 # randomise_res = --randomise_res
-data_res = (1, 2, 1)
+data_res = (1, 16, 1)
 thickness = (1, 0.001, 1)
 downsample = --downsample
 blur_range = 1.03
 
 # bias field parameters
 bias_std = .5
-bias_shape_factor = (0.025, 0.5, 0.025)
+bias_shape_factor = (0.025, 0.0625, 0.025)
 # same_bias_for_all_channels = --same_bias_for_all_channels
 
 # architecture parameters
@@ -154,6 +155,7 @@ training:
 		$(SCRATCH_MODEL_DIR)/$(MODEL_NAME) \
 		\
 		--generation_labels $(generation_labels) \
+		--neutral_labels $(neutral_labels) \
 		--segmentation_labels $(segmentation_labels) \
 		\
 		--batch_size $(batch_size) \
@@ -198,7 +200,7 @@ training:
 		--wl2_epochs $(wl2_epochs) \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'Turned off flipping' \
+		--message 'set n_neutral_labels on 20220401' \
 		;
 
 ## resume-training: Use this target to resume training
@@ -287,13 +289,15 @@ predict-hard:
 
 samseg-%: PROJ_DIR := /space/calico/1/users/Harsha/SynthSeg
 samseg-%: DATA_DIR := $(PROJ_DIR)/data/UW_photo_recon/Photo_data
-samseg-%: SKIP := $(shell seq 1 4)
-samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220328/new-recons-skip
+samseg-%: SKIP := $(shell seq 1 1)
+samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220404/new-recons-skip
 samseg-%: FSDEV = $(HOME)/photo-samseg-orig
 samseg-%: ATL_FLAG := C0
 #{C0|C1|C2}
-samseg-%: REF_KEY := image
+samseg-%: REF_KEY := hard
 #{hard|soft|image}
+samseg-%: CMD := python
+# {echo | python | sbatch --job-name=$(REF_KEY)-new-$(ATL_FLAG)-skip-$$skip-$$sub_id submit-samseg.sh}
 ## samseg-new-recons: Run FS SAMSEG on new reconstructions
 # This feature is available in FS, so we can do away with this target
 samseg-new-recons:
@@ -303,7 +307,7 @@ samseg-new-recons:
 	for i in `ls -d $(DATA_DIR)/*-*/`; do \
 		for skip in $(SKIP); do \
 			sub_id=`basename $$i`
-			sbatch --job-name=$(REF_KEY)-$(ATL_FLAG)-skip-$$skip-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
+			 echo $(CMD) $(FSDEV)/python/scripts/run_samseg \
 			-i $(DATA_DIR)/$$sub_id/ref_$(REF_KEY)_skip_$$skip/photo_recon.mgz \
 			-o $(RESULTS_DIR)-$$skip/samseg_output_$(REF_KEY)_$(ATL_FLAG)/$$sub_id \
 			--threads 64 \
@@ -355,26 +359,28 @@ model_dice_map:
 # - Takes dice_ids.csv as input
 # - More on how this csv was generated can be found in scripts/photos_utils
 # 	or refer to the make target: model_dice_map
+run_synthseg_%: SKIP := $(shell seq 4 4)
 run_synthseg_inference:
-	out_dir=20220328
-	while IFS=, read -r model dice_idx _
-	do
-		sbatch --job-name=skip-2-$$model \
-		--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir submit-pipeline.sh
-	done < dice_ids.csv
+	out_dir=20220404
+	for skip in $(SKIP); do \
+		while IFS=, read -r model dice_idx _
+		do
+			sbatch --job-name=new-skip-$$skip-$$model \
+			--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir,script=new$$skip.py,idx=$$skip submit-pipeline.sh
+		done < dice_ids.csv; \
+	done
 
 ## just-plot: Plotting dice plots
-# - Necessitated because latex (via matplotlib) doesn't run on MLSC
+# Necessitated because latex (via matplotlib) doesn't run on MLSC
 just-plot:
-	out_dir=20220328
+	out_dir=20220404
 	while IFS=, read -r model dice_idx
 	do
-		python $(PROJ_DIR)/scripts/hg_dice_scripts/new.py --recon_flag 'new' --out_dir_name $$out_dir --model_name $$model --part 3;
-	done < dice_ids.csv	
-
+		python $(PROJ_DIR)/scripts/hg_dice_scripts/new4.py --recon_flag 'new' --out_dir_name $$out_dir --model_name $$model --part 3;
+	done < dice_ids4.csv	
 
 ## collect-plots: collect all dice images into a single pdf
 collect-plots:
-	out_dir=20220301
+	out_dir=20220404
 	folder_type=new
-	python -c "from scripts import photos_utils; photos_utils.collect_images_into_pdf('$$out_dir/$$folder_type-recons-skip2')"
+	python -c "from scripts import photos_utils; photos_utils.collect_images_into_pdf('$$out_dir/$$folder_type-recons-skip-4')"
