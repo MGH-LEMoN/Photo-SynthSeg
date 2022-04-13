@@ -30,7 +30,7 @@ ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
 
 # variables for SynthSeg
 labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_PATH = $(MODEL_DIR)/$(MODEL_NAME)
+MODEL_PATH = $(SCRATCH_MODEL_DIR)/$(MODEL_NAME)
 
 # label maps parameters
 generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
@@ -209,7 +209,7 @@ resume-training:
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
 	
-	python $(PROJ_DIR)/scripts/commands/training.py resume-train $(MODEL_PATH)
+	$(CMD) $(PROJ_DIR)/scripts/commands/training.py resume-train $(MODEL_PATH)
 
 ## predict: Inference using a trained model
 predict:
@@ -288,15 +288,15 @@ predict-hard:
 
 
 samseg-%: PROJ_DIR := /space/calico/1/users/Harsha/SynthSeg
-samseg-%: DATA_DIR := $(PROJ_DIR)/data/UW_photo_recon/Photo_data
-samseg-%: SKIP := $(shell seq 1 1)
-samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220404/new-recons-skip
+samseg-%: DATA_DIR := $(PROJ_DIR)/data/uw_photo/Photo_data
+samseg-%: SKIP := $(shell seq 1 4)
+samseg-%: RESULTS_DIR := $(PROJ_DIR)/results/20220411/new-recons-skip
 samseg-%: FSDEV = $(HOME)/photo-samseg-orig
 samseg-%: ATL_FLAG := C0
-#{C0|C1|C2}
+# { C0 | C1 | C2 }
 samseg-%: REF_KEY := hard
-#{hard|soft|image}
-samseg-%: CMD := python
+# { hard | soft | image }
+# samseg-%: CMD := sbatch --job-name=$(REF_KEY)-new-$(ATL_FLAG)-skip-$$skip-$$sub_id submit-samseg.sh
 # {echo | python | sbatch --job-name=$(REF_KEY)-new-$(ATL_FLAG)-skip-$$skip-$$sub_id submit-samseg.sh}
 ## samseg-new-recons: Run FS SAMSEG on new reconstructions
 # This feature is available in FS, so we can do away with this target
@@ -307,7 +307,7 @@ samseg-new-recons:
 	for i in `ls -d $(DATA_DIR)/*-*/`; do \
 		for skip in $(SKIP); do \
 			sub_id=`basename $$i`
-			 echo $(CMD) $(FSDEV)/python/scripts/run_samseg \
+			sbatch --job-name=$(REF_KEY)-new-$(ATL_FLAG)-skip-$$skip-$$sub_id submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
 			-i $(DATA_DIR)/$$sub_id/ref_$(REF_KEY)_skip_$$skip/photo_recon.mgz \
 			-o $(RESULTS_DIR)-$$skip/samseg_output_$(REF_KEY)_$(ATL_FLAG)/$$sub_id \
 			--threads 64 \
@@ -359,15 +359,15 @@ model_dice_map:
 # - Takes dice_ids.csv as input
 # - More on how this csv was generated can be found in scripts/photos_utils
 # 	or refer to the make target: model_dice_map
-run_synthseg_%: SKIP := $(shell seq 4 4)
+run_synthseg_%: SKIP := $(shell seq 1 1)
 run_synthseg_inference:
-	out_dir=20220404
+	out_dir=20220411
 	for skip in $(SKIP); do \
 		while IFS=, read -r model dice_idx _
 		do
 			sbatch --job-name=new-skip-$$skip-$$model \
 			--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir,script=new$$skip.py,idx=$$skip submit-pipeline.sh
-		done < dice_ids.csv; \
+		done < dice_ids$$skip.csv; \
 	done
 
 ## just-plot: Plotting dice plots

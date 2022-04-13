@@ -136,9 +136,9 @@ class Configuration:
             f'{args.recon_flag}-recons-skip-1', self.model_name)
 
         # input folders
-        self.UW_HARD_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/Photo_data/"
-        self.UW_SOFT_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/Photo_data/"
-        self.UW_MRI_SCAN = "/space/calico/1/users/Harsha/SynthSeg/data/UW_photo_recon/FLAIR_Scan_Data"
+        self.UW_HARD_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/uw_photo/Photo_data/"
+        self.UW_SOFT_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/uw_photo/Photo_data/"
+        self.UW_MRI_SCAN = "/space/calico/1/users/Harsha/SynthSeg/data/uw_photo/FLAIR_Scan_Data"
 
         self.SAMSEG_OUTPUT_HARD_C0 = f"{self.SYNTHSEG_RESULTS}/samseg_output_hard_C0"
         self.SAMSEG_OUTPUT_SOFT_C0 = f"{self.SYNTHSEG_RESULTS}/samseg_output_soft_C0"
@@ -224,9 +224,8 @@ class Configuration:
         self.IGNORE_LABELS = [0, 14, 26, 44, 58]
         self.ADDL_IGNORE_LABELS = [7, 8, 15, 16, 46, 47]
         self.LABEL_PAIRS = [
-            (2, 28)
+            # (2, 28, 41, 60),
             (2, 41),
-            (2, 60),
             (3, 42),
             (4, 5),
             (4, 43),
