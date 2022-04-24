@@ -4,17 +4,19 @@ import os
 import matplotlib.pyplot as plt
 import nibabel as nib
 import numpy as np
-from ext.hg_utils import zoom
-from ext.lab2im import utils
+from PIL import Image
 from scipy.ndimage import affine_transform
 from tqdm import tqdm
-from PIL import Image
 
+from ext.hg_utils import zoom
+from ext.lab2im import utils
+
+PRJCT_ID = 'hcp_test'  # '4harshaHCP'
 PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
 DATA_DIR = os.path.join(PRJCT_DIR, 'data')
 RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
-IN_DIR = os.path.join(DATA_DIR, '4harshaHCP')
-OUT_DIR = os.path.join(RESULTS_DIR, '4harshaHCP_extracts')
+IN_DIR = os.path.join(DATA_DIR, PRJCT_ID)
+OUT_DIR = os.path.join(RESULTS_DIR, PRJCT_ID)  # '4harshaHCP_extracts'
 
 
 def process_t1(t1_file, t1_name):
@@ -27,7 +29,11 @@ def process_t1(t1_file, t1_name):
 
     # 3. Build a rigid 3D rotation + translation (4x4) matrix using the rotations and shifts
     t1_rigid_mat = utils.create_affine_transformation_matrix(
-        3, scaling=None, rotation=rotation, shearing=None, translation=translation)
+        3,
+        scaling=None,
+        rotation=rotation,
+        shearing=None,
+        translation=translation)
 
     t1_rigid_out = os.path.join(OUT_DIR, t1_name, f'{t1_name}.rigid.npy')
     np.save(t1_rigid_out, t1_rigid_mat)
@@ -76,11 +82,20 @@ def process_t2(t2_file, t2_name):
             shearing = np.random.uniform(-0.1, 0.1, 2)
 
             # Build a 2D (3x3) matrix with the rotation, translations, and shears
-            translation_mat_1 = np.array([[1, 0, -0.5*curr_slice.shape[0]], [0, 1, -0.5*curr_slice.shape[1]], [0, 0, 1]]).astype(float)
-            translation_mat_2 = np.array([[1, 0, 0.5*curr_slice.shape[0]], [0, 1, 0.5*curr_slice.shape[1]], [0, 0, 1]]).astype(float)
+            translation_mat_1 = np.array([[1, 0, -0.5 * curr_slice.shape[0]],
+                                          [0, 1, -0.5 * curr_slice.shape[1]],
+                                          [0, 0, 1]]).astype(float)
+            translation_mat_2 = np.array([[1, 0, 0.5 * curr_slice.shape[0]],
+                                          [0, 1, 0.5 * curr_slice.shape[1]],
+                                          [0, 0, 1]]).astype(float)
             aff_mat = utils.create_affine_transformation_matrix(
-                2, scaling=None, rotation=rotation, shearing=shearing, translation=translation)
-            slice_aff_mat = np.matmul(translation_mat_2, np.matmul(aff_mat, translation_mat_1))
+                2,
+                scaling=None,
+                rotation=rotation,
+                shearing=shearing,
+                translation=translation)
+            slice_aff_mat = np.matmul(translation_mat_2,
+                                      np.matmul(aff_mat, translation_mat_1))
 
             # Save this matrix somewhere for evaluation later on eg as a numpy array
             slice_aff_out = os.path.join(AFFINE_DIR,

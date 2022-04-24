@@ -3,9 +3,9 @@ import glob
 import os
 
 import numpy as np
-from ext.lab2im import edit_volumes, utils
 from scipy import ndimage
 
+from ext.lab2im import edit_volumes, utils
 from scripts.fs_lut import fs_lut
 from scripts.photos_config import *
 

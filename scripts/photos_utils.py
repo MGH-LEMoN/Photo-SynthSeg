@@ -9,6 +9,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import csv
 import glob
 import os
+from itertools import compress
 
 import nibabel as nib
 import numpy as np
@@ -33,6 +34,61 @@ PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
 DATA_DIR = os.path.join(PRJCT_DIR, 'data')
 MODEL_DIR = os.path.join(PRJCT_DIR, 'models')
 RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
+
+
+def display_random_hcp_recons():
+    PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg/results'
+    mean_file = os.path.join(PRJCT_DIR, 'hcp_means.npy')
+
+    min = float(input('Enter Mean Minimum: '))
+    max = float(input('Enter Mean Maximum: '))
+
+    means = np.load(mean_file, allow_pickle=True).astype('float')
+    nan_mask = np.isnan(means)
+
+    RESULTS_DIR = os.path.join(PRJCT_DIR, '4harshaHCP_extracts')
+    subjects = sorted(os.listdir(RESULTS_DIR))
+
+    means = means[~nan_mask]
+    subjects = list(compress(subjects, ~nan_mask))
+
+    select = np.where((means > 0.39) & (means < 0.40))
+    select = np.random.choice(select[0][0])
+    curr_subject = subjects[select]
+
+    os.system(
+        f"cat /space/calico/1/users/Harsha/photo-reconstruction/logs/hcp-20220418/*.out | grep 'freeview' | grep {curr_subject}"
+    )
+
+
+def collect_images_into_pdf1(target_dir_str):
+    """[summary]
+
+    Args:
+        target_dir_str ([str]): string relative to RESULTS_DIR
+    """
+    target_dir = os.path.join(RESULTS_DIR, target_dir_str)
+    # out_file = os.path.basename(target_dir) + '.pdf'
+    out_file = 'all_results.pdf'
+    out_file = os.path.join(RESULTS_DIR, out_file)
+
+    model_dirs = sorted(glob.glob(os.path.join(target_dir, 'all_images')))
+
+    pdf_img_list = []
+    for model_dir in model_dirs:
+        # image_dir = os.path.join(model_dir, 'all_images')
+        # if not os.path.exists(image_dir):
+        #     continue
+        images = sorted(glob.glob(os.path.join(model_dir, '*')))
+
+        for image in images:
+            img = Image.open(image)
+            img = img.convert('RGB')
+            pdf_img_list.append(img)
+
+    pdf_img_list[0].save(out_file,
+                         save_all=True,
+                         append_images=pdf_img_list[1:])
 
 
 def collect_images_into_pdf(target_dir_str):
@@ -358,13 +414,29 @@ def pipeline3():
         os.system(command2)
 
 
+def make_submit_pipeline23():
+    PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
+    RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
+
+    for i in range(1, 2):
+        with open(os.path.join(RESULTS_DIR, f'dice_ids{i}.csv'), 'r') as f:
+            lines = f.read().splitlines()
+            for line in lines:
+                model, _ = line.rstrip(',').split(',')
+                # command1 = f'python {PRJCT_DIR}/scripts/hg_dice_scripts/new{i}.py --recon_flag "new" --out_dir_name 20220411 --model_name {model} --part 2'
+                command2 = f'python {PRJCT_DIR}/scripts/hg_dice_scripts/new{i}.py --recon_flag "new" --out_dir_name 20220411 --model_name {model} --part 3'
+                # os.system(command1)
+                os.system(command2)
+
+
 if __name__ == '__main__':
 
     # make_data_copy()
-    # collect_images_into_pdf('20220328/new-recons-skip-1')
+    collect_images_into_pdf1('20220411/new-recons-skip-*')
     # check_size_of_labels()
     # nonlinear_deformation()
-    model_dice_map()
+    # model_dice_map()
     # pipeline2()
     # pipeline3()
     # recon_ref_image()
+    # make_submit_pipeline23()
