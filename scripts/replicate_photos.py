@@ -1,5 +1,6 @@
 import glob
 import os
+from turtle import position
 
 import matplotlib.pyplot as plt
 import nibabel as nib
@@ -11,12 +12,14 @@ from tqdm import tqdm
 from ext.hg_utils import zoom
 from ext.lab2im import utils
 
-PRJCT_ID = 'hcp_test'  # '4harshaHCP'
+SKIP = 2
+PRJCT_ID = '4harshaHCP'  # '4harshaHCP'
 PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
 DATA_DIR = os.path.join(PRJCT_DIR, 'data')
 RESULTS_DIR = os.path.join(PRJCT_DIR, 'results')
 IN_DIR = os.path.join(DATA_DIR, PRJCT_ID)
-OUT_DIR = os.path.join(RESULTS_DIR, PRJCT_ID)  # '4harshaHCP_extracts'
+OUT_DIR = os.path.join(RESULTS_DIR,
+                       PRJCT_ID + '-skip-02')  # '4harshaHCP_extracts'
 
 
 def process_t1(t1_file, t1_name):
@@ -68,7 +71,7 @@ def process_t2(t2_file, t2_name):
     for z in range(Nslices_of_T2):
         curr_slice = t2_vol[..., z]
 
-        if np.sum(curr_slice) and not z % 6:
+        if np.sum(curr_slice) and not z % SKIP:
             c += 1
 
             curr_slice = np.pad(np.rot90(curr_slice), 25)
@@ -149,7 +152,7 @@ def main():
 
     assert len(t1_files) == len(t2_files), 'Subject Mismatch'
 
-    for i in tqdm(range(len(t1_files))):
+    for i in tqdm(range(len(t1_files)), position=0, leave=True):
         t1_file = t1_files[i]
         t2_file = t2_files[i]
 

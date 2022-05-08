@@ -21,6 +21,7 @@ data/SynthSeg*
 data/instructions.txt
 data/test*
 data/4harsha*
+data/uw_photo
 misc
 logs
 models
@@ -29,3 +30,4 @@ results
 .vscode
 **/*.pyc
 .ipynb_checkpoints
+trash

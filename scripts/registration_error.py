@@ -1,38 +1,29 @@
 import glob
 import os
 from multiprocessing import Pool
-
+from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
 
 from ext.lab2im import utils
+from scripts.replicate_photos import PRJCT_DIR
 
-RESULTS_DIR = '/space/calico/1/users/Harsha/SynthSeg/results/4harshaHCP_extracts/'
-CUSTOM = 'subject_133'
+# CUSTOM = 'subject_133'
+PRJCT_DIR = '/space/calico/1/users/Harsha/SynthSeg'
 
-
-def get_error_wrapper(sub_id, ):
-    subjects = subject_selector()
-    try:
-        return get_error(sub_id)
-    except:
-        print(f'Failed: {subjects[sub_id]}')
-        return None, None, None
-
-
-def get_error(sub_id=None):
+def get_error(skip, sub_id=None):
     PAD = 3  # for reconstruction
 
-    subjects = subject_selector()
+    results_dir, subjects = subject_selector(skip)
 
     subject_id = subjects[sub_id]
-    subject_dir = os.path.join(RESULTS_DIR, subject_id)
+    subject_dir = os.path.join(results_dir, subject_id)
+    # print(sub_id)
 
     # rigid transform from T1
     rigid_transform = np.load(
         os.path.join(subject_dir, f'{subject_id}.rigid.npy'))
     # print(rigid_transform.shape)
-    # print()
 
     # photo affine from T2
     photo_affines = sorted(
@@ -43,7 +34,7 @@ def get_error(sub_id=None):
     # print()
 
     recon_M = np.load(
-        os.path.join(subject_dir, 'ref_mask_skip_6', 'slice_matrix_M.npy'))
+        os.path.join(subject_dir, f'ref_mask_skip_{skip:02d}', 'slice_matrix_M.npy'))
     recon_M = recon_M[:, :,
                       PAD:-PAD]  # removing matrices corresponding to padding
     recon_M = recon_M[:, [0, 1, 3], :]
@@ -51,7 +42,7 @@ def get_error(sub_id=None):
     # print(recon_M.shape)
 
     all_paddings = np.load(
-        os.path.join(subject_dir, 'ref_mask_skip_6', 'all_paddings.npy'))
+        os.path.join(subject_dir, f'ref_mask_skip_{skip:02d}', 'all_paddings.npy'))
 
     assert photo_affine_matrix.shape[-1] == recon_M.shape[
         -1], 'Slice count mismatch'
@@ -66,10 +57,10 @@ def get_error(sub_id=None):
     errors_norm_slices = []
     for z in range(Nslices_of_T2):
         curr_slice = t2_vol[..., z]
-        if np.sum(curr_slice) and not z % 6:
+        if np.sum(curr_slice) and not z % skip:
             harshas_z = z
             break
-    skip = 6
+    skip = skip
 
     for z in range(photo_affine_matrix.shape[-1]):
         curr_slice = t2_vol[..., harshas_z + skip * z]
@@ -82,7 +73,7 @@ def get_error(sub_id=None):
         v = np.stack([i, j, np.ones(i.shape)])
         v2 = np.matmul(np.linalg.inv(photo_affine_matrix[:, :, z]), v)
 
-        recon = os.path.join(subject_dir, 'ref_mask_skip_6', 'photo_recon.mgz')
+        recon = os.path.join(subject_dir, f'ref_mask_skip_{skip:02d}', 'photo_recon.mgz')
         recon_vol, recon_aff, recon_hdr = utils.load_volume(recon,
                                                             im_only=False)
         recon_vol = recon_vol[:, :, PAD:
@@ -133,42 +124,55 @@ def get_error(sub_id=None):
             np.concatenate(errors_norm_slices))
 
 
-def save_errors(corr):
+def save_errors(skip, corr):
     all_errors = [item[0] for item in corr]
     all_means = [item[1] for item in corr]
     all_stds = [item[2] for item in corr]
 
     np.save(
         os.path.join(
-            '/space/calico/1/users/Harsha/SynthSeg/results/hcp_errors'),
+            f'{PRJCT_DIR}/results/hcp-errors/hcp-skip-{skip:02d}-errors'),
         all_errors)
     np.save(
         os.path.join(
-            '/space/calico/1/users/Harsha/SynthSeg/results/hcp_means'),
+            f'{PRJCT_DIR}/results/hcp-errors/hcp-skip-{skip:02d}-means'),
         all_means)
     np.save(
-        os.path.join('/space/calico/1/users/Harsha/SynthSeg/results/hcp_stds'),
+        os.path.join(f'{PRJCT_DIR}/results/hcp-errors/hcp-skip-{skip:02d}-stds'),
         all_stds)
 
 
-def subject_selector():
-    subjects = sorted(os.listdir(RESULTS_DIR))
+def get_results_dir(skip):
+    return f'{PRJCT_DIR}/results/4harshaHCP-skip-{skip:02d}'
+
+def subject_selector(skip):
+    results_dir = get_results_dir(skip)
+    subjects = sorted(os.listdir(results_dir))
     # subjects = [item for item in subjects if CUSTOM in item]
-    return subjects
+    return results_dir, subjects
 
 
-def main_mp():
-    subjects = subject_selector()
+def get_error_wrapper(sub_id, skip):
+    _, subjects = subject_selector(skip)
+    try:
+        return get_error(skip, sub_id)
+    except:
+        print(f'Failed: {subjects[sub_id]}')
+        return None, None, None
+
+
+def main_mp(skip):
+    _, subjects = subject_selector(skip)
 
     with Pool() as pool:
-        corr = pool.map(get_error_wrapper, list(range(len(subjects))))
+        corr = pool.map(partial(get_error_wrapper, skip=skip), range(len(subjects)))
+    
+    save_errors(skip, corr)
 
-    save_errors(corr)
 
-
-def plot_errors():
-    all_means = np.load('/space/calico/1/users/Harsha/results/hcp_means.npy')
-    all_stds = np.load('/space/calico/1/users/Harsha/results/hcp_stds.npy')
+def plot_errors(skip):
+    all_means = np.load(f'{PRJCT_DIR}/results/hcp-errors/hcp-skip-{skip:02d}-means.npy')
+    all_stds = np.load(f'{PRJCT_DIR}/results/hcp-errors/hcp-skip-{skip:02d}-stds.npy')
 
     n, bins, patches = plt.hist(all_means,
                                 50,
@@ -178,5 +182,8 @@ def plot_errors():
 
 
 if __name__ == '__main__':
-    main_mp()
-    plot_errors()
+    for skip in range(2, 17, 2):
+        print(f'SKIP: {skip:02d}')
+        if skip == 6:
+            continue
+        main_mp(skip)

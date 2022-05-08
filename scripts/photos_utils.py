@@ -52,7 +52,7 @@ def display_random_hcp_recons():
     means = means[~nan_mask]
     subjects = list(compress(subjects, ~nan_mask))
 
-    select = np.where((means > 0.39) & (means < 0.40))
+    select = np.where((means > min) & (means < max))
     select = np.random.choice(select[0][0])
     curr_subject = subjects[select]
 
