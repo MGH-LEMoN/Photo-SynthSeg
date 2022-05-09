@@ -347,7 +347,7 @@ def model_dice_map():
         dice_idx = os.path.basename(last_dice_file)[5:8]
         dice_list.append([os.path.basename(model_dir), dice_idx, ''])
 
-    with open(os.path.join(PRJCT_DIR, 'dice_ids4.csv'), 'w', newline='') as f:
+    with open(os.path.join(PRJCT_DIR, 'dice_ids41.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(dice_list)
 
@@ -432,10 +432,10 @@ def make_submit_pipeline23():
 if __name__ == '__main__':
 
     # make_data_copy()
-    collect_images_into_pdf1('20220411/new-recons-skip-*')
+    # collect_images_into_pdf1('20220411/new-recons-skip-*')
     # check_size_of_labels()
     # nonlinear_deformation()
-    # model_dice_map()
+    model_dice_map()
     # pipeline2()
     # pipeline3()
     # recon_ref_image()

@@ -29,7 +29,7 @@ sns.set(
     },
 )
 
-RESULTS_DIR = '/space/calico/1/users/Harsha/SynthSeg/results/20220404/new-recons-skip-4'
+RESULTS_DIR = '/space/calico/1/users/Harsha/SynthSeg/results/20220411/new-recons-skip-4'
 SYNTHSEG_RESULTS = RESULTS_DIR
 
 LABEL_PAIRS = [
@@ -208,9 +208,9 @@ def construct_average_dice_plots_from_files():
 
     all_folders = sorted(os.listdir(RESULTS_DIR))
     for search_str in [
-            '^S[0-9].+[0-9]$', '^S[0-9].+noflip$', '^VS0[0-9]$',
+            '^S[0-9].+[0-9]n$', '^S[0-9].+noflip$', '^VS0[0-9]n$',
             '^VS0[0-9]-noflip$', '^VS0[0-9]-accordion-noflip$',
-            '^VS0[0-9]-accordion$'
+            '^VS0[0-9]n-accordion$'
     ]:
         results_folders = [
             f for f in all_folders
@@ -474,11 +474,11 @@ def all_in_one_comparison(key_pair, out_folder):
 
 if __name__ == "__main__":
     regex_list = [
-        '^S[0-9].+[0-9]$',
+        '^S[0-9].+[0-9]n$',
         '^S[0-9].+noflip$',
-        '^VS0[0-9]$',
+        '^VS0[0-9]n$',
         '^VS0[0-9]-noflip$',
-        '^VS0[0-9]-accordion$',
+        '^VS0[0-9]n-accordion$',
         '^VS0[0-9]-accordion-noflip$',
     ]
 
