@@ -359,14 +359,14 @@ model_dice_map:
 # - Takes dice_ids.csv as input
 # - More on how this csv was generated can be found in scripts/photos_utils
 # 	or refer to the make target: model_dice_map
-run_synthseg_%: SKIP := $(shell seq 1 1)
+run_synthseg_%: SKIP := $(shell seq 1 4)
 run_synthseg_inference:
 	out_dir=20220411
 	for skip in $(SKIP); do \
 		while IFS=, read -r model dice_idx _
 		do
 			sbatch --job-name=new-skip-$$skip-$$model \
-			--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir,script=new$$skip.py,idx=$$skip submit-pipeline.sh
+			--export=ALL,model=$$model,dice_idx=$$dice_idx,out_dir=$$out_dir,idx=$$skip submit-pipeline.sh
 		done < dice_ids$$skip.csv; \
 	done
 

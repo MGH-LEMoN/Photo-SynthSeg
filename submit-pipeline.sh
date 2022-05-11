@@ -29,10 +29,11 @@ export CMD=python
 
 echo 'Node:' $HOSTNAME
 
-$CMD $PROJ_DIR/scripts/hg_dice_scripts/$script \
+$CMD $PROJ_DIR/scripts/hg_dice_scripts/new.py \
     --recon_flag 'new' \
     --out_dir_name $out_dir \
     --model_name $model \
+    --skip $idx
     --part 1
 
 ## predict-scans: Run MRI volumes through default SynthSeg
@@ -63,4 +64,4 @@ $CMD $PROJ_DIR/scripts/commands/predict.py \
     $H5_FILE \
     $LABEL_LIST
 
-$CMD $PROJ_DIR/scripts/hg_dice_scripts/$script --recon_flag 'new' --out_dir_name $out_dir --model_name $model --part 2
+$CMD $PROJ_DIR/scripts/hg_dice_scripts/new.py --recon_flag 'new' --out_dir_name $out_dir --model_name $model --skip $idx --part 2

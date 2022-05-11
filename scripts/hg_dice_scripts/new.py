@@ -19,104 +19,108 @@ from dice_volumes import write_correlations_to_file, write_volumes_to_file
 from uw_config import (CORRELATIONS_LIST, DICE2D_LIST, PLOTS_LIST,
                        SAMSEG_GATHER_DICT, VOLUMES_LIST)
 
-IDX = 1
-# use this dictionary to gather files from source to destination
-file_gather_dict = {
-    "mri_scan": {
-        "source": "UW_MRI_SCAN",
-        "destination": "MRI_SCANS",
-        "expr": ["*.rotated.mgz"],
-        "message": "Original 3D Scans",
-    },
-    "image_ref": {
-        "source": "UW_MRI_SCAN",
-        "destination": "MRI_SCANS_REF",
-        "expr": ["*.rotated_masked.mgz"],
-        "message": "3D Volume Masks",
-    },
-    "hard_ref": {
-        "source": "UW_MRI_SCAN",
-        "destination": "HARD_REF",
-        "expr": ["*.rotated_cerebrum.mgz"],
-        "message": "Hard References",
-    },
-    "hard_recon": {
-        "source": "UW_HARD_RECON",
-        "destination": ["HARD_RECONS3C", "HARD_RECONS"],
-        "expr": [f'ref_hard_skip_{IDX}', "*recon.mgz"],
-        "message": "Hard Reconstructions",
-    },
-    "soft_recon": {
-        "source": "UW_SOFT_RECON",
-        "destination": ["SOFT_RECONS3C", "SOFT_RECONS"],
-        "expr": [f'ref_soft_skip_{IDX}', "*recon.mgz"],
-        "message": "Soft Reconstrucions",
-    },
-    "hard_warped_ref": {
-        "source": "UW_HARD_RECON",
-        "destination": "HARD_REF_WARPED",
-        "expr": [],
-        "message": "Hard Warped References",
-    },
-    "soft_warped_ref": {
-        "source": "UW_SOFT_RECON",
-        "destination": "SOFT_REF_WARPED",
-        "expr": [f'ref_soft_skip_{IDX}', "registered_reference.mgz"],
-        "message": "Soft Warped References",
-    },
-    # "hard_samseg": {
-    #     "source": "UW_HARD_SAMSEG",
-    #     "destination": "HARD_SAMSEG",
-    #     "expr": ["*seg.mgz"],
-    #     "message": "Hard SAMSEG",
-    # },
-    # "soft_samseg": {
-    #     "source": "UW_SOFT_SAMSEG",
-    #     "destination": "SOFT_SAMSEG",
-    #     "expr": ["*seg.mgz"],
-    #     "message": "Soft SAMSEG",
-    # },
-    "hard_gt_labels": {
-        "source": "UW_HARD_RECON",
-        "destination": "HARD_MANUAL_LABELS_MERGED",
-        "expr": [f'ref_hard_skip_{IDX}', "propagated_labels", "*_seg_output.mgz"],
-        "message": "Hard Ground Truth",
-    },
-    "soft_gt_labels": {
-        "source": "UW_SOFT_RECON",
-        "destination": "SOFT_MANUAL_LABELS_MERGED",
-        "expr": [f'ref_soft_skip_{IDX}', "propagated_labels", "*seg_output.mgz"],
-        "message": "Soft Ground Truth",
-    },
-}
 
-mri_convert_items = [
-    {
-        "source": "MRI_SCANS_SYNTHSEG",
-        "reference": "HARD_SAMSEG_C0",
-        "target": "MRI_SYNTHSEG_IN_SAMSEG_SPACE",
-    },
-    {
-        "source": "HARD_SYNTHSEG",
-        "reference": "HARD_SAMSEG_C0",
-        "target": "HARD_SYNTHSEG_IN_SAMSEG_SPACE",
-    },
-    {
-        "source": "HARD_SYNTHSEG",
-        "reference": "MRI_SCANS_SYNTHSEG",
-        "target": "HARD_SYNTHSEG_IN_MRISEG_SPACE",
-    },
-    {
-        "source": "MRI_SCANS_SYNTHSEG",
-        "reference": "SOFT_SAMSEG_C0",
-        "target": "MRI_SYNTHSEG_IN_SAMSEG_SPACE",
-    },
-    {
-        "source": "SOFT_SYNTHSEG",
-        "reference": "SOFT_SAMSEG_C0",
-        "target": "SOFT_SYNTHSEG_IN_SAMSEG_SPACE",
-    },
-]
+def make_input_dicts(args):
+    IDX = args.skip
+    # use this dictionary to gather files from source to destination
+    file_gather_dict = {
+        "mri_scan": {
+            "source": "UW_MRI_SCAN",
+            "destination": "MRI_SCANS",
+            "expr": ["*.rotated.mgz"],
+            "message": "Original 3D Scans",
+        },
+        "image_ref": {
+            "source": "UW_MRI_SCAN",
+            "destination": "MRI_SCANS_REF",
+            "expr": ["*.rotated_masked.mgz"],
+            "message": "3D Volume Masks",
+        },
+        "hard_ref": {
+            "source": "UW_MRI_SCAN",
+            "destination": "HARD_REF",
+            "expr": ["*.rotated_cerebrum.mgz"],
+            "message": "Hard References",
+        },
+        "hard_recon": {
+            "source": "UW_HARD_RECON",
+            "destination": ["HARD_RECONS3C", "HARD_RECONS"],
+            "expr": [f'ref_hard_skip_{IDX}', "*recon.mgz"],
+            "message": "Hard Reconstructions",
+        },
+        "soft_recon": {
+            "source": "UW_SOFT_RECON",
+            "destination": ["SOFT_RECONS3C", "SOFT_RECONS"],
+            "expr": [f'ref_soft_skip_{IDX}', "*recon.mgz"],
+            "message": "Soft Reconstrucions",
+        },
+        "hard_warped_ref": {
+            "source": "UW_HARD_RECON",
+            "destination": "HARD_REF_WARPED",
+            "expr": [],
+            "message": "Hard Warped References",
+        },
+        "soft_warped_ref": {
+            "source": "UW_SOFT_RECON",
+            "destination": "SOFT_REF_WARPED",
+            "expr": [f'ref_soft_skip_{IDX}', "registered_reference.mgz"],
+            "message": "Soft Warped References",
+        },
+        # "hard_samseg": {
+        #     "source": "UW_HARD_SAMSEG",
+        #     "destination": "HARD_SAMSEG",
+        #     "expr": ["*seg.mgz"],
+        #     "message": "Hard SAMSEG",
+        # },
+        # "soft_samseg": {
+        #     "source": "UW_SOFT_SAMSEG",
+        #     "destination": "SOFT_SAMSEG",
+        #     "expr": ["*seg.mgz"],
+        #     "message": "Soft SAMSEG",
+        # },
+        "hard_gt_labels": {
+            "source": "UW_HARD_RECON",
+            "destination": "HARD_MANUAL_LABELS_MERGED",
+            "expr": [f'ref_hard_skip_{IDX}', "propagated_labels", "*_seg_output.mgz"],
+            "message": "Hard Ground Truth",
+        },
+        "soft_gt_labels": {
+            "source": "UW_SOFT_RECON",
+            "destination": "SOFT_MANUAL_LABELS_MERGED",
+            "expr": [f'ref_soft_skip_{IDX}', "propagated_labels", "*seg_output.mgz"],
+            "message": "Soft Ground Truth",
+        },
+    }
+
+    mri_convert_items = [
+        {
+            "source": "MRI_SCANS_SYNTHSEG",
+            "reference": "HARD_SAMSEG_C0",
+            "target": "MRI_SYNTHSEG_IN_SAMSEG_SPACE",
+        },
+        {
+            "source": "HARD_SYNTHSEG",
+            "reference": "HARD_SAMSEG_C0",
+            "target": "HARD_SYNTHSEG_IN_SAMSEG_SPACE",
+        },
+        {
+            "source": "HARD_SYNTHSEG",
+            "reference": "MRI_SCANS_SYNTHSEG",
+            "target": "HARD_SYNTHSEG_IN_MRISEG_SPACE",
+        },
+        {
+            "source": "MRI_SCANS_SYNTHSEG",
+            "reference": "SOFT_SAMSEG_C0",
+            "target": "MRI_SYNTHSEG_IN_SAMSEG_SPACE",
+        },
+        {
+            "source": "SOFT_SYNTHSEG",
+            "reference": "SOFT_SAMSEG_C0",
+            "target": "SOFT_SYNTHSEG_IN_SAMSEG_SPACE",
+        },
+    ]
+
+    return file_gather_dict, mri_convert_items
 
 
 class Configuration:
@@ -133,7 +137,7 @@ class Configuration:
         self.SYNTHSEG_PRJCT = project_dir
         self.SYNTHSEG_RESULTS = os.path.join(
             project_dir, 'results', args.out_dir_name,
-            f'{args.recon_flag}-recons-skip-1', self.model_name)
+            f'{args.recon_flag}-recons-skip-{args.skip}', self.model_name)
 
         # input folders
         self.UW_HARD_RECON = "/space/calico/1/users/Harsha/SynthSeg/data/uw_photo/Photo_data/"
@@ -304,10 +308,12 @@ if __name__ == "__main__":
                         dest="model_name",
                         default=None)
     parser.add_argument("--part", type=int, dest="part", default=None)
+    parser.add_argument("--skip", type=int, dest="skip", default=None)
 
     args = parser.parse_args()
-
     config = Configuration(PRJCT_DIR, args)
+
+    file_gather_dict, mri_convert_items = make_input_dicts(args)
 
     if args.part == 1:
         copy_relevant_files(config, file_gather_dict)
