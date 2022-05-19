@@ -3,10 +3,7 @@ import os
 import random
 from functools import partial
 from multiprocessing import Pool
-from turtle import position
 
-import matplotlib.pyplot as plt
-import nibabel as nib
 import numpy as np
 from PIL import Image
 from scipy.ndimage import affine_transform
@@ -17,7 +14,7 @@ from ext.lab2im import utils
 
 np.random.seed(0)
 
-#TODO: fix this function
+# TODO: fix this function
 # def get_min_max_idx(t2_file):
 #     # 7. Open the T2
 #     t2_vol = utils.load_volume(t2_file)
@@ -35,28 +32,45 @@ np.random.seed(0)
 #         s1= np.min(N)
 
 
-def get_slice_ids(args, t2_vol, method=1):
-    # find all non-zero slices
+def get_nonzero_slice_ids(t2_vol):
+    """find all non-zero slices"""
     slice_sum = np.sum(t2_vol, axis=(0, 1))
-    non_zero_slice_ids = np.where(slice_sum > 0)[0]
+    return np.where(slice_sum > 0)[0]
 
-    if method == 1:  # current method of selecting slices (bad)
-        first_nz_slice = non_zero_slice_ids[0]
-        slice_ids_of_interest = np.where(non_zero_slice_ids %
-                                         args["SKIP"] == 0)
-        slice_ids_of_interest = slice_ids_of_interest[0] + first_nz_slice
-        print(slice_ids_of_interest)
-    elif method == 2:  # another method: skipping from start (okay)
-        # first and last non-zero slice
-        # another method: skip 5 non zero slices on either end (good)
-        first_nz_slice = non_zero_slice_ids[0]  # + 5
-        last_nz_slice = non_zero_slice_ids[0]  # - 5
 
-        slice_ids_of_interest = np.arange(first_nz_slice, last_nz_slice + 1,
-                                          args["SKIP"])
-    else:
-        raise Exception("Bad method. Please check")
+def slice_ids_method1(args, t2_vol):
+    """current method of selecting slices
+    Example:
+    slice_idx: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    slices:    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1,  1,  0,  0,  0]
+    selected:  [0, 0, 0, 0, 1, 0, 1, 0, 1, 0,  1,  0,  0,  0] (skip = 2)
+    selected:  [0, 0, 0, 1, 0, 0, 1, 0, 0, 1,  0,  0,  0,  0] (skip = 3)
+    """
+    non_zero_slice_ids = get_nonzero_slice_ids(t2_vol)
 
+    first_nz_slice = non_zero_slice_ids[0]
+    slice_ids_of_interest = np.where(non_zero_slice_ids % args["SKIP"] == 0)
+    slice_ids_of_interest = slice_ids_of_interest[0] + first_nz_slice
+
+    return slice_ids_of_interest
+
+
+def slice_ids_method2(args, t2_vol):
+    """method: skipping from start
+    Example:
+    slice_idx: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    slices:    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1,  1,  0,  0,  0]
+    selected:  [0, 0, 0, 1, 0, 1, 0, 1, 0, 1,  0,  0,  0,  0] (skip = 2)
+    selected:  [0, 0, 0, 1, 0, 0, 1, 0, 0, 1,  0,  0,  0,  0] (skip = 3)
+    """
+    # another method: skip 5 non zero slices on either end (good)
+    non_zero_slice_ids = get_nonzero_slice_ids(t2_vol)
+
+    first_nz_slice = non_zero_slice_ids[0]  # + 5
+    last_nz_slice = non_zero_slice_ids[-1]  # - 5
+
+    slice_ids_of_interest = np.arange(first_nz_slice, last_nz_slice + 1,
+                                      args["SKIP"])
     return slice_ids_of_interest
 
 
@@ -104,7 +118,7 @@ def process_t2(args, t2_file, t2_name, jitter=0):
     t2_vol = utils.load_volume(t2_file)
     t2_vol = 255 * t2_vol / np.max(t2_vol)
 
-    slice_ids = get_slice_ids(args, t2_vol, 1)
+    slice_ids = slice_ids_method1(args, t2_vol)  # see method 2
 
     for c, z in enumerate(slice_ids, 1):
         curr_slice = t2_vol[..., z]
@@ -201,12 +215,6 @@ def process_t2(args, t2_file, t2_name, jitter=0):
         corrupted_PIL = Image.fromarray(np.uint8(corrupted_image))
         corrupted_PIL.save(img_out, "PNG")
 
-        # fig, ax = plt.subplots(1, 2)
-        # l0 = ax[0].imshow(curr_slice)
-        # l1 = ax[1].imshow(aff_slice)
-        # plt.colorbar(l0, ax=ax[0])
-        # plt.colorbar(l1, ax=ax[1])
-
 
 def sub_pipeline(args, t1_file, t2_file):
     # get file name
@@ -243,15 +251,10 @@ def sub_pipeline(args, t1_file, t2_file):
 
 
 def pipeline(args):
-    # list all T1 and T2 files
-    t1_files = sorted(glob.glob(os.path.join(args["IN_DIR"], "*T1.nii.gz")))
-    t2_files = sorted(glob.glob(os.path.join(args["IN_DIR"], "*T2.nii.gz")))
+    vol_pairs = get_t1_t2_pairs(args)
 
-    assert len(t1_files) == len(t2_files), "Subject Mismatch"
-
-    for i in tqdm(range(len(t1_files[:1])), position=0, leave=True):
-        t1_file = t1_files[i]
-        t2_file = t2_files[i]
+    for i in tqdm(range(len(vol_pairs)), position=0, leave=True):
+        t1_file, t2_file = vol_pairs[i]
         sub_pipeline(args, t1_file, t2_file)
 
 
