@@ -3,7 +3,6 @@ import os
 from functools import partial
 from multiprocessing import Pool
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -27,7 +26,17 @@ PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg"
 
 
 def get_error(skip, jitter, sub_id=None):
-    PAD = 3  # for reconstruction
+    """_summary_
+
+    Args:
+        skip (_type_): _description_
+        jitter (_type_): _description_
+        sub_id (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
+    pad = 3  # for reconstruction
 
     results_dir, subjects = subject_selector(skip, jitter)
 
@@ -47,38 +56,40 @@ def get_error(skip, jitter, sub_id=None):
     # print(photo_affine_matrix.shape)
     # print()
 
-    recon_M = np.load(
+    recon_matrix = np.load(
         os.path.join(subject_dir, f"ref_mask_skip_{skip:02d}", "slice_matrix_M.npy")
     )
-    recon_M = recon_M[:, :, PAD:-PAD]  # removing matrices corresponding to padding
-    recon_M = recon_M[:, [0, 1, 3], :]
-    recon_M = recon_M[[0, 1, 3], :, :]
-    # print(recon_M.shape)
+    recon_matrix = recon_matrix[
+        :, :, pad:-pad
+    ]  # removing matrices corresponding to padding
+    recon_matrix = recon_matrix[:, [0, 1, 3], :]
+    recon_matrix = recon_matrix[[0, 1, 3], :, :]
+    # print(recon_matrix.shape)
 
     all_paddings = np.load(
         os.path.join(subject_dir, f"ref_mask_skip_{skip:02d}", "all_paddings.npy")
     )
 
-    assert photo_affine_matrix.shape[-1] == recon_M.shape[-1], "Slice count mismatch"
+    assert (
+        photo_affine_matrix.shape[-1] == recon_matrix.shape[-1]
+    ), "Slice count mismatch"
 
     t1_path = os.path.join(subject_dir, f"{subject_id}.T1.nii.gz")
     t2_path = os.path.join(subject_dir, f"{subject_id}.T2.nii.gz")
 
-    t1_vol, t1_aff, t1_hdr = utils.load_volume(t1_path, im_only=False)
-    t2_vol, t2_aff, t2_hdr = utils.load_volume(t2_path, im_only=False)
+    _, t1_aff, _ = utils.load_volume(t1_path, im_only=False)
+    t2_vol, _, _ = utils.load_volume(t2_path, im_only=False)
 
-    Nslices_of_T2 = t2_vol.shape[-1]
+    num_slices_t2 = t2_vol.shape[-1]
     errors_norm_slices = []
-    for z in range(Nslices_of_T2):
+    for z in range(num_slices_t2):
         curr_slice = t2_vol[..., z]
         if np.sum(curr_slice) and not z % skip:
             harshas_z = z
             break
-    skip = skip
 
     for z in range(photo_affine_matrix.shape[-1]):
         curr_slice = t2_vol[..., harshas_z + skip * z]
-        # print(curr_slice.shape)
         curr_slice = np.pad(np.rot90(curr_slice), 25)
         # curr_slice[i-1:i+1, j-1:j+1] = 2 * np.max(curr_slice)
         # plt.imshow(curr_slice)
@@ -90,9 +101,9 @@ def get_error(skip, jitter, sub_id=None):
         recon = os.path.join(
             subject_dir, f"ref_mask_skip_{skip:02d}", "photo_recon.mgz"
         )
-        recon_vol, recon_aff, recon_hdr = utils.load_volume(recon, im_only=False)
+        recon_vol, recon_aff, _ = utils.load_volume(recon, im_only=False)
         recon_vol = recon_vol[
-            :, :, PAD:-PAD, :
+            :, :, pad:-pad, :
         ]  # removing slices corresponding to padding
         # print(recon_vol.shape)
 
@@ -102,14 +113,14 @@ def get_error(skip, jitter, sub_id=None):
         P[:-1, -1] = all_paddings[zp]
         Pinv = np.eye(3)
         Pinv[:-1, -1] = -all_paddings[zp]
-        M = recon_M[:, :, zp]
+        M = recon_matrix[:, :, zp]
 
         v3 = np.matmul(P, v2)
         v4 = np.matmul(np.linalg.inv(M), v3)
 
-        v5 = np.matmul(Pinv, v4)
+        # v5 = np.matmul(Pinv, v4)
 
-        v4_3d = np.stack([v4[0, :], v4[1, :], (zp + PAD) * v4[-1, :], v4[-1, :]])
+        v4_3d = np.stack([v4[0, :], v4[1, :], (zp + pad) * v4[-1, :], v4[-1, :]])
 
         # v4_3d = np.array([i4, j4, zp+3, 1])
         ras_new = np.matmul(recon_aff, v4_3d)
@@ -140,67 +151,120 @@ def get_error(skip, jitter, sub_id=None):
     )
 
 
-def save_errors(skip, jitter, corr):
+def save_errors(skip_val, jitter_val, corr):
+    """_summary_
+
+    Args:
+        skip (_type_): _description_
+        jitter (_type_): _description_
+        corr (_type_): _description_
+    """
     all_errors = [item[0] for item in corr]
     all_means = [item[1] for item in corr]
     all_stds = [item[2] for item in corr]
 
-    head_dir = get_results_dir(skip, jitter)
+    head_dir = get_results_dir(skip_val, jitter_val)
     os.makedirs(head_dir, exist_ok=True)
 
-    np.save(os.path.join(head_dir, f"hcp-skip-{skip:02d}-errors"), all_errors)
-    np.save(os.path.join(head_dir, f"hcp-skip-{skip:02d}-means"), all_means)
-    np.save(os.path.join(head_dir, f"hcp-skip-{skip:02d}-stds"), all_stds)
+    np.save(os.path.join(head_dir, f"hcp-skip-{skip_val:02d}-errors"), all_errors)
+    np.save(os.path.join(head_dir, f"hcp-skip-{skip_val:02d}-means"), all_means)
+    np.save(os.path.join(head_dir, f"hcp-skip-{skip_val:02d}-stds"), all_stds)
 
 
-def get_results_dir(skip, jitter):
-    return (
-        f"{PRJCT_DIR}/results/hcp-results-20220528/4harshaHCP-skip-{skip:02d}-r{jitter}"
+def get_results_dir(skip_val, jitter_val):
+    """_summary_
+
+    Args:
+        skip (_type_): _description_
+        jitter (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    return os.path.join(
+        PRJCT_DIR,
+        "results",
+        "hcp-results-20220528",
+        f"4harshaHCP-skip-{skip_val:02d}-jitter-{jitter_val}",
     )
 
 
-def subject_selector(skip, jitter):
-    results_dir = get_results_dir(skip, jitter)
+def subject_selector(skip_val, jitter_val):
+    """_summary_
+
+    Args:
+        skip (_type_): _description_
+        jitter (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    results_dir = get_results_dir(skip_val, jitter_val)
     subjects = sorted(os.listdir(results_dir))
     # subjects = [item for item in subjects if CUSTOM in item]
     return results_dir, subjects
 
 
-def get_error_wrapper(sub_id, skip, jitter):
-    _, subjects = subject_selector(skip, jitter)
+def get_error_wrapper(sub_id, skip_val, jitter_val):
+    """_summary_
+
+    Args:
+        sub_id (_type_): _description_
+        skip (_type_): _description_
+        jitter (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    _, subjects = subject_selector(skip_val, jitter_val)
     try:
-        return get_error(skip, jitter, sub_id)
-    except:
+        return get_error(skip_val, jitter_val, sub_id)
+    except Exception:
         print(f"Failed: {subjects[sub_id]}")
         return None, None, None
 
 
-def main_mp(skip, jitter):
-    _, subjects = subject_selector(skip, jitter)
+def main_mp(skip_val, jitter_val):
+    """_summary_
+
+    Args:
+        skip (_type_): _description_
+        jitter (_type_): _description_
+    """
+    _, subjects = subject_selector(skip_val, jitter_val)
 
     with Pool() as pool:
         corr = pool.map(
-            partial(get_error_wrapper, skip=skip, jitter=jitter), range(len(subjects))
+            partial(get_error_wrapper, skip=skip_val, jitter=jitter_val),
+            range(len(subjects)),
         )
 
     save_errors(skip, jitter, corr)
 
 
-def get_means_and_stds(jitter):
+def get_means_and_stds(jitter_val):
+    """_summary_
+
+    Args:
+        jitter (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     r3_means = []
     r3_stds = []
-    skip_range = list(range(2, 3, 2))
+    skip_vals = list(range(2, 3, 2))
 
-    for skip in skip_range:
+    for skip_val in skip_vals:
         means_file = os.path.join(
-            get_results_dir(skip, jitter), f"hcp-skip-{skip:02d}-means.npy"
+            get_results_dir(skip_val, jitter_val), f"hcp-skip-{skip_val:02d}-means.npy"
         )
         stds_file = os.path.join(
-            get_results_dir(skip, jitter), f"hcp-skip-{skip:02d}-stds.npy"
+            get_results_dir(skip_val, jitter_val), f"hcp-skip-{skip_val:02d}-stds.npy"
         )
 
         if not os.path.exists(means_file):
-            skip_range.remove(skip)
+            skip_vals.remove(skip_val)
             continue
 
         means = np.load(means_file, allow_pickle=True)
@@ -210,27 +274,29 @@ def get_means_and_stds(jitter):
         r3_stds.append(stds)
 
     r3_mean_df = pd.DataFrame(r3_means).T
-    r3_mean_df.columns = np.round(np.array(skip_range) * 0.7, 1)
+    r3_mean_df.columns = np.round(np.array(skip_vals) * 0.7, 1)
 
     r3_mean_df = r3_mean_df.stack().reset_index().drop(labels=["level_0"], axis=1)
     r3_mean_df.columns = ["Skip", "Mean Error"]
 
-    r3_mean_df["Jitter"] = jitter
+    r3_mean_df["Jitter"] = jitter_val
     return r3_mean_df
 
 
 def boxplot_jitter():
+    """_summary_"""
     df_list = []
-    for jitter in range(0, 4):
-        df_list.append(get_means_and_stds(jitter))
+    jitter_vals = range(0, 4)
+    for j_val in jitter_vals:
+        df_list.append(get_means_and_stds(j_val))
 
     final_df = pd.concat(df_list, axis=0)
 
-    ax = sns.boxplot(
+    bp_ax = sns.boxplot(
         x="Jitter", y="Mean Error", hue="Skip", data=final_df, palette="Greys_r"
     )
-    fig = ax.get_figure()
-    ax.legend(ncol=5, edgecolor="white", framealpha=0.25)
+    fig = bp_ax.get_figure()
+    bp_ax.legend(ncol=5, edgecolor="white", framealpha=0.25)
     fig.savefig("output_all_jitters.png")
 
 
