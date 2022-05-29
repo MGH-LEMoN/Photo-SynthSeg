@@ -1,3 +1,9 @@
+"""
+1. git clone https://github.com/bbillot/SynthSeg
+2. export PYTHONPATH=${PWD}/SynthSeg
+3. cd SynthSeg
+"""
+
 import argparse
 import glob
 import json
@@ -20,12 +26,6 @@ import scripts.photos_config as config
 from ext.lab2im import utils
 from ext.lab2im import utils as l2m_utils
 from ext.neuron import utils as nrn_utils
-
-"""
-1. git clone https://github.com/bbillot/SynthSeg
-2. export PYTHONPATH=${PWD}/SynthSeg
-3. cd SynthSeg
-"""
 
 NUM_COPIES = 50
 

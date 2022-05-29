@@ -16,22 +16,23 @@ Contact: adalca [at] csail [dot] mit [dot] edu
 License: GPLv3
 """
 
+from copy import deepcopy
+
 # third party
 import numpy as np
 import tensorflow as tf
 from keras import backend as K
-from keras.legacy import interfaces
-from keras.layers import Layer
 from keras.engine.topology import Node
-from copy import deepcopy
+from keras.layers import Layer
+from keras.legacy import interfaces
 
 # local
 from .utils import (
-    transform,
-    resize,
-    integrate_vec,
     affine_to_shift,
     combine_non_linear_and_aff_to_shift,
+    integrate_vec,
+    resize,
+    transform,
 )
 
 

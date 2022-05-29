@@ -12,11 +12,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib import rcParams
-from PIL import Image
-
 from dice_config import *
 from dice_plots import create_single_dataframe
+from matplotlib import rcParams
+from PIL import Image
 from uw_config import PLOTS_LIST
 
 rcParams.update({"figure.autolayout": True})

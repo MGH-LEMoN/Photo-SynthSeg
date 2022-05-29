@@ -19,19 +19,20 @@ License: GPLv3
 # python imports
 import itertools
 
-# third party imports
-import numpy as np
-from tqdm import tqdm_notebook as tqdm
-from pprint import pformat
-
-from ext.pytools import timer
-from ext.pytools import patchlib as pl
-
 # often changed file
 from imp import reload
+from pprint import pformat
+
 import keras
 import keras.backend as K
+
+# third party imports
+import numpy as np
 import tensorflow as tf
+from tqdm import tqdm_notebook as tqdm
+
+from ext.pytools import patchlib as pl
+from ext.pytools import timer
 
 reload(pl)
 

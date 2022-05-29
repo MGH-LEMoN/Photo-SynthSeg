@@ -5,6 +5,7 @@ Contact: adalca@csail.mit.edu
 """
 
 import numpy as np
+
 from . import ndutils as nd
 
 

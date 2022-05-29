@@ -1,17 +1,18 @@
 """ data processing for neuron project """
 
 # built-in
-import sys
 import os
 import shutil
-import six
+import sys
+
+import matplotlib.pyplot as plt
 
 # third party
 import nibabel as nib
 import numpy as np
 import scipy.ndimage.interpolation
+import six
 from PIL import Image
-import matplotlib.pyplot as plt
 
 # note sure if tqdm_notebook reverts back to
 try:
@@ -21,10 +22,10 @@ except:
     from tqdm import tqdm as tqdm
 
 # import local ndutils
-import ext.pynd.ndutils as nd
 import re
-
 from imp import reload
+
+import ext.pynd.ndutils as nd
 
 reload(nd)
 

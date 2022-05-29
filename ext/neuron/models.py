@@ -12,16 +12,17 @@ License: GPLv3
 
 import sys
 
-from . import layers
+import keras
+import keras.backend as K
+import keras.layers as KL
 
 # third party
 import numpy as np
 import tensorflow as tf
-import keras
-import keras.layers as KL
-from keras.models import Model
-import keras.backend as K
 from keras.constraints import maxnorm
+from keras.models import Model
+
+from . import layers
 
 
 def dilation_net(

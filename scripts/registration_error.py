@@ -1,15 +1,15 @@
 import glob
 import os
-from multiprocessing import Pool
 from functools import partial
+from multiprocessing import Pool
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
+from matplotlib import rcParams
 
 from ext.lab2im import utils
-
-import seaborn as sns
-import pandas as pd
-from matplotlib import rcParams
 
 rcParams.update({"figure.autolayout": True})
 

@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 from dice_utils import return_common_subjects
+
 from ext.lab2im import utils
 from SynthSeg.evaluate import fast_dice
 

@@ -10,10 +10,11 @@ Contact: adalca [at] csail [dot] mit [dot] edu
 License: GPLv3
 """
 
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+
 # third party
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable  # plotting
 

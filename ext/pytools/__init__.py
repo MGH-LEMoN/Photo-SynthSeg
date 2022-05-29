@@ -1,4 +1,1 @@
-from . import iniparse
-from . import patchlib
-from . import timer
-from . import plot
+from . import iniparse, patchlib, plot, timer

@@ -10,11 +10,12 @@ Contact: adalca [at] csail [dot] mit [dot] edu
 License: GPLv3
 """
 
+import keras.backend as K
+
 # third party
 import numpy as np
-import keras.backend as K
-from keras import losses
 import tensorflow as tf
+from keras import losses
 
 # local
 from . import utils

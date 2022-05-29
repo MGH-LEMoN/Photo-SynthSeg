@@ -5,19 +5,19 @@ Library for working with N-D patches.
 Modelled after the MATLAB patchlib (https://github.com/adalca/patchlib)
 """
 
-# built-in
-import sys
-from pprint import pformat
-from random import shuffle
 import random
 
+# built-in
+import sys
+from imp import reload
+from pprint import pformat
+from random import shuffle
 
 # third party
 import numpy as np
 
 # local
 from ext.pynd import ndutils as nd
-from imp import reload
 
 reload(nd)
 

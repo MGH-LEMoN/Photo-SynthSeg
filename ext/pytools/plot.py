@@ -2,10 +2,10 @@
 function to help in plotting
 """
 
-import numpy as np
-import six
 import matplotlib
 import matplotlib.pylab as plt
+import numpy as np
+import six
 
 
 def jitter(n=256, colmap="hsv", nargout=1):

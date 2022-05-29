@@ -1,8 +1,8 @@
 """ initializations for the neuron project """
 
 # general imports
-import numpy as np
 import keras.backend as K
+import numpy as np
 
 
 def output_init(shape, name=None, dim_ordering=None):

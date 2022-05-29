@@ -7,11 +7,20 @@ repos:
     -   id: check-yaml
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
+    -   id: check-docstring-first
+
 -   repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
     -   id: black
+
 -   repo: https://github.com/dfm/black_nbconvert
     rev: v0.4.0
     hooks:
     -   id: black_nbconvert
+
+-   repo: https://github.com/PyCQA/isort
+    rev: 5.10.1
+    hooks:
+    -   id: isort
+        args: ["--profile", "black"]

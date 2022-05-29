@@ -1,13 +1,17 @@
 """ generators for the neuron project """
 
 # general imports
-import sys
 import os
+import sys
 import zipfile
+
+# reload patchlib (it's often updated right now...)
+from imp import reload
+
+import nibabel as nib
 
 # third party imports
 import numpy as np
-import nibabel as nib
 import scipy
 from keras.utils import np_utils
 
@@ -15,9 +19,6 @@ from keras.utils import np_utils
 from ext.pynd import ndutils as nd
 from ext.pytools import patchlib as pl
 from ext.pytools import timer
-
-# reload patchlib (it's often updated right now...)
-from imp import reload
 
 reload(pl)
 

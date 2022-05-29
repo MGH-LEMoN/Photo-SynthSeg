@@ -3,18 +3,18 @@ tools for (v)ae processing, debugging, and exploration
 """
 from tempfile import NamedTemporaryFile
 
-# third party imports
-import tensorflow as tf
-import numpy as np
 import keras
 import matplotlib.pyplot as plt
-from keras import backend as K
-from tqdm import tqdm as tqdm
-from keras import layers as KL
-from sklearn.decomposition import PCA
-from keras.utils import plot_model
-from IPython.display import Image
+import numpy as np
 
+# third party imports
+import tensorflow as tf
+from IPython.display import Image
+from keras import backend as K
+from keras import layers as KL
+from keras.utils import plot_model
+from sklearn.decomposition import PCA
+from tqdm import tqdm as tqdm
 
 # project imports
 from ext import neuron as nrn_plt

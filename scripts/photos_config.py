@@ -1,8 +1,8 @@
-import os
-
 """
 This file contains all the static parameters needed for the project
 """
+
+import os
 
 PROJ_DIR = os.getcwd()
 DATA_DIR = os.path.join(PROJ_DIR, "data")

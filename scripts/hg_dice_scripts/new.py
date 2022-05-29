@@ -7,8 +7,6 @@ from shutil import copytree
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-from ext.lab2im import utils
-
 from dice_calculations import calculate_dice_for_dict
 from dice_gather import copy_relevant_files
 from dice_mri_utils import (
@@ -26,6 +24,8 @@ from uw_config import (
     SAMSEG_GATHER_DICT,
     VOLUMES_LIST,
 )
+
+from ext.lab2im import utils
 
 
 def make_input_dicts(args):

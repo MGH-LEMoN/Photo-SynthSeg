@@ -1,6 +1,5 @@
-""" callbacks for the neuron project """
+""" callbacks for the neuron project
 
-"""
 We'd like the following callback actions for neuron:
 
 - print metrics on the test and validation, especially surface-specific dice
@@ -13,16 +12,17 @@ We'd like the following callback actions for neuron:
 --- new callback, PlotSlices
 
 """
-import sys
 import collections
-
-import keras
-import numpy as np
-import matplotlib.pyplot as plt
+import sys
 import warnings
 from imp import reload
-from ext.pytools import timer
+
+import keras
+import matplotlib.pyplot as plt
+import numpy as np
+
 from ext.neuron import utils as nrn_utils
+from ext.pytools import timer
 
 
 class ModelWeightCheck(keras.callbacks.Callback):

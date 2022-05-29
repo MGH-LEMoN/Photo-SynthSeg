@@ -17,7 +17,6 @@ from dice_mri_utils import (
 from dice_plots import write_plots
 from dice_utils import run_make_target
 from dice_volumes import write_correlations_to_file, write_volumes_to_file
-from ext.lab2im import utils
 from uw_config import (
     CORRELATIONS_LIST,
     DICE2D_LIST,
@@ -25,6 +24,8 @@ from uw_config import (
     SAMSEG_GATHER_DICT,
     VOLUMES_LIST,
 )
+
+from ext.lab2im import utils
 
 # use this dictionary to gather files from source to destination
 file_gather_dict = {
