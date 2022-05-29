@@ -17,15 +17,15 @@ import sys
 
 def fs_lut():
     # Extract contents from look-up table
-    LUT_FILE = '/usr/local/freesurfer/dev/FreeSurferColorLUT.txt'
+    LUT_FILE = "/usr/local/freesurfer/dev/FreeSurferColorLUT.txt"
 
     if not os.path.exists(LUT_FILE):
-        LUT_FILE = '/usr/local/freesurfer/7.2.0/FreeSurferColorLUT.txt'
+        LUT_FILE = "/usr/local/freesurfer/7.2.0/FreeSurferColorLUT.txt"
 
-    with open(LUT_FILE, 'r') as f:
+    with open(LUT_FILE, "r") as f:
         lines = f.read().splitlines()
 
-    filter_lines = [line for line in lines if re.search('^[0-9]', line)]
+    filter_lines = [line for line in lines if re.search("^[0-9]", line)]
     split_lines = [line.split()[:2] for line in filter_lines]
     idx_to_label = dict(split_lines)
     label_to_idx = {v: k for k, v in idx_to_label.items()}
@@ -33,7 +33,7 @@ def fs_lut():
     return idx_to_label, label_to_idx
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     lut, reverse_lut = fs_lut()
 
     for arg in sys.argv[1:]:

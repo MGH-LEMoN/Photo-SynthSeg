@@ -16,10 +16,10 @@ def id_check(*args):
 
 
 def return_common_subjects(*args):
-    args = [{
-        os.path.split(input_file)[-1][:7]: input_file
-        for input_file in file_list
-    } for file_list in args]
+    args = [
+        {os.path.split(input_file)[-1][:7]: input_file for input_file in file_list}
+        for file_list in args
+    ]
 
     lst = [set(lst.keys()) for lst in args]
 

@@ -28,8 +28,7 @@ def extract_synthseg_vols(config, file_name):
     df.index.name = None
 
     df = combine_pairs(df, config.LABEL_PAIRS)
-    df = df.drop(
-        columns=[column for column in df.columns if "(" not in column])
+    df = df.drop(columns=[column for column in df.columns if "(" not in column])
 
     return df
 
@@ -47,15 +46,17 @@ def print_correlation_pairs(config, *args, flag=None, suffix=""):
 
     original_stdout = sys.stdout  # Save a reference to the original standard output
     with open(
-            os.path.join(config.SYNTHSEG_RESULTS, "volumes",
-                         "volume_correlations" + "_" + suffix),
-            "a+",
+        os.path.join(
+            config.SYNTHSEG_RESULTS, "volumes", "volume_correlations" + "_" + suffix
+        ),
+        "a+",
     ) as f:
         sys.stdout = f  # Change the standard output to the file we created.
 
         print(f"{flag} RECONSTRUCTIONS (n = {len(x)})")
-        print("{:^15}{:^15}{:^15}{:^15}".format("label", "SAMSEG", "SYNTHSEG",
-                                                "p-value"))
+        print(
+            "{:^15}{:^15}{:^15}{:^15}".format("label", "SAMSEG", "SYNTHSEG", "p-value")
+        )
         print("=" * 65)
         print("CORRELATIONS")
         print("=" * 65)
@@ -113,8 +114,7 @@ def extract_samseg_volumes(config, folder_path):
         folder_name = os.path.basename(folder)
 
         try:
-            subject_id = re.findall("\d+(?:-|_)\d+",
-                                    folder_name)[0].replace("_", "-")
+            subject_id = re.findall("\d+(?:-|_)\d+", folder_name)[0].replace("_", "-")
         except IndexError:
             continue
 
@@ -159,7 +159,8 @@ def extract_samseg_volumes(config, folder_path):
 
     df2 = combine_pairs(df2, config.LABEL_PAIRS)
     hard_samseg_df = df2.drop(
-        columns=[column for column in df2.columns if "(" not in column])
+        columns=[column for column in df2.columns if "(" not in column]
+    )
 
     return hard_samseg_df
 
@@ -173,9 +174,9 @@ def print_correlations(config, x, y, file_name=None):
     for col_name in col_names:
         corr_dict[col_name] = pearsonr(x[col_name], y[col_name])[0]
 
-    with open(os.path.join(config.SYNTHSEG_RESULTS, file_name),
-              "w",
-              encoding="utf-8") as fp:
+    with open(
+        os.path.join(config.SYNTHSEG_RESULTS, file_name), "w", encoding="utf-8"
+    ) as fp:
         json.dump(corr_dict, fp, sort_keys=True, indent=4)
 
 
@@ -229,14 +230,13 @@ def get_volumes(config, item):
 # DONE: separating printing
 # TODO: ignoring subjects in correlation analysis
 def write_volumes_to_file(config, item_list):
-    file_name = os.path.join(config.SYNTHSEG_RESULTS, "volumes",
-                             "volumes.xlsx")
+    file_name = os.path.join(config.SYNTHSEG_RESULTS, "volumes", "volumes.xlsx")
     for item in item_list:
         try:
             volumes = get_volumes(config, item)
         except:
             continue
-        
+
         if volumes is None:
             continue
 
@@ -256,8 +256,7 @@ def write_correlations_to_file(config, item_list, tags, flag=None, suffix=""):
     # for loop tp preserve order
     filtered_item_list = []
     for tag in tags:
-        filtered_item_list.append(
-            *[item for item in item_list if item["tag"] == tag])
+        filtered_item_list.append(*[item for item in item_list if item["tag"] == tag])
 
     vols_list = [get_volumes(config, item) for item in filtered_item_list]
 

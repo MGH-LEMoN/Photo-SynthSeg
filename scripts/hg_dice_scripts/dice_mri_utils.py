@@ -31,10 +31,12 @@ def run_mri_convert(in_file, ref_file, out_file):
 def perform_overlay(config):
     mri_scans_reg = utils.list_images_in_folder(config.HARD_REF_WARPED)
     mri_resampled_segs = utils.list_images_in_folder(
-        config.MRI_SCANS_SYNTHSEG_RESAMPLED)
+        config.MRI_SCANS_SYNTHSEG_RESAMPLED
+    )
 
     mri_scans_reg, mri_resampled_segs = return_common_subjects(
-        mri_scans_reg, mri_resampled_segs)
+        mri_scans_reg, mri_resampled_segs
+    )
 
     os.makedirs(config.MRI_SCANS_SYNTHSEG_REG_RES, exist_ok=True)
 
@@ -44,8 +46,7 @@ def perform_overlay(config):
         if not id_check(scan_reg, mri_resampled_seg):
             raise Exception("ID Check Failed")
 
-        _, scan_reg_aff, scan_reg_head = utils.load_volume(scan_reg,
-                                                           im_only=False)
+        _, scan_reg_aff, scan_reg_head = utils.load_volume(scan_reg, im_only=False)
         mrs_im = utils.load_volume(mri_resampled_seg)
 
         _, file_name = os.path.split(mri_resampled_seg)
@@ -70,8 +71,7 @@ def convert_to_single_channel(config, folder_str):
         config ([type]): [description]
         folder_str ([type]): [description]
     """
-    file_list = utils.list_images_in_folder(
-        config.__getattribute__(folder_str))
+    file_list = utils.list_images_in_folder(config.__getattribute__(folder_str))
     for file in file_list:
         im, aff, hdr = utils.load_volume(file, im_only=False)
 
@@ -86,8 +86,7 @@ def perform_registration(config, input_path, reference_path, output_path):
     input_files = utils.list_images_in_folder(input_path)
     reference_files = utils.list_images_in_folder(reference_path)
 
-    input_files, reference_files = return_common_subjects(
-        input_files, reference_files)
+    input_files, reference_files = return_common_subjects(input_files, reference_files)
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -119,8 +118,7 @@ def move_volumes_into_target_spaces(config, item_list):
             raise Exception(f'Source folder {item["source"]} does not exist')
 
         if not reference:
-            raise Exception(
-                f'Reference folder {item["reference"]} does not exist')
+            raise Exception(f'Reference folder {item["reference"]} does not exist')
 
         if not target:
             print(f"Target folder DNE: But adding now")

@@ -90,10 +90,10 @@ def make_right_hemis(im, PreferLeft, labels):
     Lright, _ = cropLabelVol(Lright)
     Lright_mapped = np.zeros(Lright.shape)
 
-    for r_label, l_label in zip(labels['right'], labels['left']):
+    for r_label, l_label in zip(labels["right"], labels["left"]):
         Lright_mapped[Lright == r_label] = l_label
 
-    for n_label in labels['neutral']:
+    for n_label in labels["neutral"]:
         Lright_mapped[Lright == n_label] = n_label
 
     Lright = np.fliplr(Lright_mapped)
@@ -165,10 +165,9 @@ def save_hemi_at_location(im, aff, hdr, file_name, side=None):
     return
 
 
-def get_list_labels(label_list=None,
-                    labels_dir=None,
-                    save_label_list=None,
-                    FS_sort=False):
+def get_list_labels(
+    label_list=None, labels_dir=None, save_label_list=None, FS_sort=False
+):
     """This function reads or computes a list of all label values used in a set of label maps.
     It can also sort all labels according to FreeSurfer lut.
     :param label_list: (optional) already computed label_list. Can be a sequence, a 1d numpy array, or the path to
@@ -187,8 +186,8 @@ def get_list_labels(label_list=None,
     # load label list if previously computed
     if label_list is not None:
         label_list = np.array(
-            utils.reformat_to_list(label_list, load_as_numpy=True,
-                                   dtype='int'))
+            utils.reformat_to_list(label_list, load_as_numpy=True, dtype="int")
+        )
 
     # compute label list from all label files
     elif labels_dir is not None:
@@ -202,51 +201,120 @@ def get_list_labels(label_list=None,
         #                            print_time=True)
         for _, path in enumerate(labels_paths):
             # loop_info.update(lab_idx)
-            y = utils.load_volume(path, dtype='int32')
+            y = utils.load_volume(path, dtype="int32")
             y_unique = np.unique(y)
-            label_list = np.unique(np.concatenate(
-                (label_list, y_unique))).astype('int')
+            label_list = np.unique(np.concatenate((label_list, y_unique))).astype("int")
 
     else:
         raise Exception(
-            'either label_list, path_label_list or labels_dir should be provided'
+            "either label_list, path_label_list or labels_dir should be provided"
         )
 
     # sort labels in neutral/left/right according to FS labels
     n_neutral_labels = 0
     if FS_sort:
         neutral_FS_labels = [
-            0, 14, 15, 16, 21, 22, 23, 24, 72, 77, 80, 85, 100, 101, 102, 103,
-            104, 105, 106, 107, 108, 109, 165, 200, 201, 202, 203, 204, 205,
-            206, 207, 208, 209, 210, 251, 252, 253, 254, 255, 258, 259, 260,
-            331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 502, 506, 507,
-            508, 509, 511, 512, 514, 515, 516, 517, 530, 531, 532, 533, 534,
-            535, 536, 537
+            0,
+            14,
+            15,
+            16,
+            21,
+            22,
+            23,
+            24,
+            72,
+            77,
+            80,
+            85,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            165,
+            200,
+            201,
+            202,
+            203,
+            204,
+            205,
+            206,
+            207,
+            208,
+            209,
+            210,
+            251,
+            252,
+            253,
+            254,
+            255,
+            258,
+            259,
+            260,
+            331,
+            332,
+            333,
+            334,
+            335,
+            336,
+            337,
+            338,
+            339,
+            340,
+            502,
+            506,
+            507,
+            508,
+            509,
+            511,
+            512,
+            514,
+            515,
+            516,
+            517,
+            530,
+            531,
+            532,
+            533,
+            534,
+            535,
+            536,
+            537,
         ]
         neutral = list(set(label_list) & set(neutral_FS_labels))
-        left = list(label_list[((label_list > 0) & (label_list < 14))
-                               | ((label_list > 16) & (label_list < 21))
-                               | ((label_list > 24) & (label_list < 40))
-                               | ((label_list > 135) & (label_list < 138))
-                               | ((label_list > 20100) &
-                                  (label_list < 20110))])
-        right = list(label_list[((label_list > 39) & (label_list < 72))
-                                | ((label_list > 162) & (label_list < 165))
-                                | ((label_list > 20000) &
-                                   (label_list < 20010))])
+        left = list(
+            label_list[
+                ((label_list > 0) & (label_list < 14))
+                | ((label_list > 16) & (label_list < 21))
+                | ((label_list > 24) & (label_list < 40))
+                | ((label_list > 135) & (label_list < 138))
+                | ((label_list > 20100) & (label_list < 20110))
+            ]
+        )
+        right = list(
+            label_list[
+                ((label_list > 39) & (label_list < 72))
+                | ((label_list > 162) & (label_list < 165))
+                | ((label_list > 20000) & (label_list < 20010))
+            ]
+        )
 
-        missing_labels = set.difference(set(label_list),
-                                        set(neutral + left + right))
+        missing_labels = set.difference(set(label_list), set(neutral + left + right))
 
         if missing_labels:
-            raise Exception("labels {} not in our current FS classification, "
-                            "please update get_list_labels in utils.py".format(
-                                missing_labels))
-        label_list = np.concatenate(
-            [sorted(neutral), sorted(left),
-             sorted(right)])
-        if ((len(left) > 0) & (len(right) > 0)) | ((len(left) == 0) &
-                                                   (len(right) == 0)):
+            raise Exception(
+                "labels {} not in our current FS classification, "
+                "please update get_list_labels in utils.py".format(missing_labels)
+            )
+        label_list = np.concatenate([sorted(neutral), sorted(left), sorted(right)])
+        if ((len(left) > 0) & (len(right) > 0)) | (
+            (len(left) == 0) & (len(right) == 0)
+        ):
             n_neutral_labels = len(neutral)
         else:
             n_neutral_labels = len(label_list)
@@ -270,9 +338,7 @@ def return_labels_from_map(label_map):
     Returns:
         [type]: [description]
     """
-    label_list, n_neutral_labels = get_list_labels(None,
-                                                   label_map,
-                                                   FS_sort=True)
+    label_list, n_neutral_labels = get_list_labels(None, label_map, FS_sort=True)
 
     # label_list is of the form [neutral, left, right]
     neutral = label_list[:n_neutral_labels]
@@ -328,8 +394,7 @@ def main():
     total_label_maps = len(label_maps)
 
     for idx, label_map in enumerate(label_maps, 1):
-        print(
-            f'{idx:04d} of {total_label_maps} - {get_file_name(label_map)[0]}')
+        print(f"{idx:04d} of {total_label_maps} - {get_file_name(label_map)[0]}")
 
         # Return Neutral, Left and Right Labels
         labels = return_labels_from_map(label_map)
@@ -338,8 +403,8 @@ def main():
         im, aff, hdr = utils.load_volume(label_map, im_only=False)
 
         # Compute binary masks for each side
-        left_mask = compute_binary_mask(im, labels, 'left')
-        right_mask = compute_binary_mask(im, labels, 'right')
+        left_mask = compute_binary_mask(im, labels, "left")
+        right_mask = compute_binary_mask(im, labels, "right")
 
         # Compute Distance maps and decision mask
         PreferLeft = compute_decision_mask(left_mask, right_mask)
@@ -353,9 +418,9 @@ def main():
 
 
 def main1():
-    npy_files = glob.glob(os.path.join(PARAM_FILES_DIR, '*.npy'))
+    npy_files = glob.glob(os.path.join(PARAM_FILES_DIR, "*.npy"))
 
-    lh_param_files_dir = PARAM_FILES_DIR + '_lh'
+    lh_param_files_dir = PARAM_FILES_DIR + "_lh"
     os.makedirs(lh_param_files_dir, exist_ok=True)
 
     for npy_file in npy_files:
@@ -365,16 +430,15 @@ def main1():
         np_array = np.load(npy_file)
         np_array = np_array[:21]  # TODO: Hardcoded
 
-        new_file_name = file_name + '_lh' + ext
+        new_file_name = file_name + "_lh" + ext
         new_file_name = os.path.join(lh_param_files_dir, new_file_name)
 
         np.save(new_file_name, np_array)
 
 
 def pad_hemispheres():
-    labels_dir = os.path.join(LABEL_MAPS_DIR + '_*')
-    file_list = sorted(
-        glob.glob(os.path.join(LABEL_MAPS_DIR + '_*', '*.nii.gz')))
+    labels_dir = os.path.join(LABEL_MAPS_DIR + "_*")
+    file_list = sorted(glob.glob(os.path.join(LABEL_MAPS_DIR + "_*", "*.nii.gz")))
 
     im_shapes = []
     for file in file_list[:15]:

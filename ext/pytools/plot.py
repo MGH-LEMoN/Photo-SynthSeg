@@ -36,10 +36,12 @@ def jitter(n=256, colmap="hsv", nargout=1):
 
     # pad with -1 to make it transformable to a square
     nb_elems = np.ceil(n / m) * m
-    idx = np.pad(idx, [0, (nb_elems - n).astype(int)], 'constant', constant_values=-1)
+    idx = np.pad(idx, [0, (nb_elems - n).astype(int)], "constant", constant_values=-1)
 
     # permute elements by resizing to a matrix, transposing, and re-flatteneing
-    idxnew = np.array(np.reshape(idx, [m, (nb_elems // m).astype(int)]).transpose().flatten())
+    idxnew = np.array(
+        np.reshape(idx, [m, (nb_elems // m).astype(int)]).transpose().flatten()
+    )
 
     # throw away the extra elements
     idxnew = idxnew[np.where(idxnew >= 0)]

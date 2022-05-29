@@ -17,15 +17,14 @@ def print_dice_to_file(config, dice_scores, **kwargs):
     merge_tag = "merge" if kwargs["merge"] else "no-merge"
 
     with open(
-            os.path.join(config.dice_dir,
-                         f"{kwargs['output_name']}_{merge_tag}.json"),
-            "w",
-            encoding="utf-8",
+        os.path.join(config.dice_dir, f"{kwargs['output_name']}_{merge_tag}.json"),
+        "w",
+        encoding="utf-8",
     ) as fp:
         json.dump(dice_scores, fp, sort_keys=True, indent=4)
 
 
-#FIXME: Maybe a dataframe is preferable instead of a dict object
+# FIXME: Maybe a dataframe is preferable instead of a dict object
 # (use tabulate on the dataframe to nicely print the values)
 def calculate_and_print_dice(config, **kwargs):
     """[summary]
@@ -33,10 +32,8 @@ def calculate_and_print_dice(config, **kwargs):
     Args:
         config ([type]): [description]
     """
-    source_list = utils.list_images_in_folder(getattr(config,
-                                                      kwargs["source"]))
-    target_list = utils.list_images_in_folder(getattr(config,
-                                                      kwargs["target"]))
+    source_list = utils.list_images_in_folder(getattr(config, kwargs["source"]))
+    target_list = utils.list_images_in_folder(getattr(config, kwargs["target"]))
 
     source_list, target_list = return_common_subjects(source_list, target_list)
 
@@ -49,7 +46,7 @@ def calculate_and_print_dice(config, **kwargs):
 
         # assert x.shape[:-1] == y.shape[:-1], "Shape Mismatch"
         if x.shape[:-1] != y.shape[:-1]:
-            print(f'{subject_id}, {x.shape[:-1]}, {y.shape[:-1]}')
+            print(f"{subject_id}, {x.shape[:-1]}, {y.shape[:-1]}")
             continue
 
         if slice:
@@ -72,7 +69,7 @@ def calculate_and_print_dice(config, **kwargs):
         dice_coeff = fast_dice(x, y, required_labels)
         final_dice_scores[subject_id] = dict(zip(required_labels, dice_coeff))
 
-        #FIXME: Should I pass just the relevant keys or is **kwargs fine?
+        # FIXME: Should I pass just the relevant keys or is **kwargs fine?
         print_dice_to_file(config, final_dice_scores, **kwargs)
 
 
@@ -145,8 +142,8 @@ def calculate_dice_for_dict(config, item_list):
                     config.MERGE_LABEL_PAIRS
     """
     for item in item_list:
-        print(item['message'])
+        print(item["message"])
         if not verify_dice_dict(config, item):
-            print('Skipping...')
+            print("Skipping...")
             continue
         calculate_and_print_dice(config, **item)

@@ -57,7 +57,7 @@ prior_std =
 scaling =
 rotation =
 shearing =
-translation = 
+translation =
 nonlin_std = (4, 0, 4)
 nonlin_shape_factor = (0.0625, 0.0625, 0.0625)
 
@@ -149,7 +149,7 @@ training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
-	
+
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py train\
 		$(labels_dir) \
 		$(SCRATCH_MODEL_DIR)/$(MODEL_NAME) \
@@ -208,7 +208,7 @@ resume-training:
 	$(ACTIVATE_ENV)
 	export PYTHONPATH=$(PROJ_DIR)
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):/usr/pubsw/packages/CUDA/$(CUDA_V)/lib64
-	
+
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py resume-train $(MODEL_PATH)
 
 ## predict: Inference using a trained model
@@ -303,7 +303,7 @@ samseg-%: REF_KEY := hard
 samseg-new-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
-	
+
 	for i in `ls -d $(DATA_DIR)/*-*/`; do \
 		for skip in $(SKIP); do \
 			sub_id=`basename $$i`
@@ -322,7 +322,7 @@ samseg-new-recons:
 samseg-hard-on-old-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
-	
+
 	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
 		sub_id=`basename $$i`
 		mkdir -p $(RESULTS_DIR)/SAMSEG_OUTPUT_HARD_C2/$$sub_id
@@ -339,7 +339,7 @@ samseg-hard-on-old-recons:
 samseg-soft-on-old-recons:
 	$(ACTIVATE_FS)
 	export PYTHONPATH=$(FSDEV)/python/packages
-	
+
 	for i in `ls -d /cluster/vive/UW_photo_recon/Photo_data/*-*/`; do \
 		sub_id=`basename $$i`
 		sbatch submit-samseg.sh $(FSDEV)/python/scripts/run_samseg \
@@ -377,7 +377,7 @@ just-plot:
 	while IFS=, read -r model dice_idx
 	do
 		python $(PROJ_DIR)/scripts/hg_dice_scripts/new4.py --recon_flag 'new' --out_dir_name $$out_dir --model_name $$model --part 3;
-	done < dice_ids4.csv	
+	done < dice_ids4.csv
 
 ## collect-plots: collect all dice images into a single pdf
 collect-plots:

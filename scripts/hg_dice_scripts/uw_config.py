@@ -55,61 +55,17 @@ SAMSEG_GATHER_DICT = {
 }
 
 VOLUMES_LIST = [
-    {
-        "type": "samseg",
-        "source": "SAMSEG_OUTPUT_HARD_C0",
-        "tag": "Hard-Samseg-C0"
-    },
-    {
-        "type": "samseg",
-        "source": "SAMSEG_OUTPUT_SOFT_C0",
-        "tag": "Soft-Samseg-C0"
-    },
-    {
-        "type": "samseg",
-        "source": "SAMSEG_OUTPUT_HARD_C1",
-        "tag": "Hard-Samseg-C1"
-    },
-    {
-        "type": "samseg",
-        "source": "SAMSEG_OUTPUT_SOFT_C1",
-        "tag": "Soft-Samseg-C1"
-    },
-    {
-        "type": "samseg",
-        "source": "SAMSEG_OUTPUT_HARD_C2",
-        "tag": "Hard-Samseg-C2"
-    },
-    {
-        "type": "samseg",
-        "source": "SAMSEG_OUTPUT_SOFT_C2",
-        "tag": "Soft-Samseg-C2"
-    },
-    {
-        "type": "samseg",
-        "source": "HARD_SAMSEG_STATS",
-        "tag": "Hard-Samseg-Old"
-    },
-    {
-        "type": "samseg",
-        "source": "SOFT_SAMSEG_STATS",
-        "tag": "Soft-Samseg-Old"
-    },
-    {
-        "type": "synthseg",
-        "source": "mri_synthseg_vols_file",
-        "tag": "MRI-Synthseg"
-    },
-    {
-        "type": "synthseg",
-        "source": "hard_synthseg_vols_file",
-        "tag": "Hard-Synthseg"
-    },
-    {
-        "type": "synthseg",
-        "source": "soft_synthseg_vols_file",
-        "tag": "Soft-Synthseg"
-    },
+    {"type": "samseg", "source": "SAMSEG_OUTPUT_HARD_C0", "tag": "Hard-Samseg-C0"},
+    {"type": "samseg", "source": "SAMSEG_OUTPUT_SOFT_C0", "tag": "Soft-Samseg-C0"},
+    {"type": "samseg", "source": "SAMSEG_OUTPUT_HARD_C1", "tag": "Hard-Samseg-C1"},
+    {"type": "samseg", "source": "SAMSEG_OUTPUT_SOFT_C1", "tag": "Soft-Samseg-C1"},
+    {"type": "samseg", "source": "SAMSEG_OUTPUT_HARD_C2", "tag": "Hard-Samseg-C2"},
+    {"type": "samseg", "source": "SAMSEG_OUTPUT_SOFT_C2", "tag": "Soft-Samseg-C2"},
+    {"type": "samseg", "source": "HARD_SAMSEG_STATS", "tag": "Hard-Samseg-Old"},
+    {"type": "samseg", "source": "SOFT_SAMSEG_STATS", "tag": "Soft-Samseg-Old"},
+    {"type": "synthseg", "source": "mri_synthseg_vols_file", "tag": "MRI-Synthseg"},
+    {"type": "synthseg", "source": "hard_synthseg_vols_file", "tag": "Hard-Synthseg"},
+    {"type": "synthseg", "source": "soft_synthseg_vols_file", "tag": "Soft-Synthseg"},
 ]
 
 CORRELATIONS_LIST = [
@@ -131,8 +87,7 @@ DICE2D_LIST = [
         "output_name": "hard_manual_vs_hard_synth_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space",
     },
     {
         "source": "HARD_MANUAL_LABELS_MERGED",
@@ -140,8 +95,7 @@ DICE2D_LIST = [
         "output_name": "hard_manual_vs_hard_sam_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
     {
         "source": "HARD_MANUAL_LABELS_MERGED",
@@ -149,8 +103,7 @@ DICE2D_LIST = [
         "output_name": "hard_manual_vs_hard_sam_c0_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
     {
         "source": "HARD_MANUAL_LABELS_MERGED",
@@ -158,8 +111,7 @@ DICE2D_LIST = [
         "output_name": "hard_manual_vs_hard_sam_c1_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
     {
         "source": "HARD_MANUAL_LABELS_MERGED",
@@ -167,8 +119,7 @@ DICE2D_LIST = [
         "output_name": "hard_manual_vs_hard_sam_c2_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
     {
         "source": "SOFT_MANUAL_LABELS_MERGED",
@@ -176,8 +127,7 @@ DICE2D_LIST = [
         "output_name": "soft_manual_vs_soft_synth_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSynthSeg) in PhotoSAMSEG space",
     },
     {
         "source": "SOFT_MANUAL_LABELS_MERGED",
@@ -185,8 +135,7 @@ DICE2D_LIST = [
         "output_name": "soft_manual_vs_soft_sam_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
     {
         "source": "SOFT_MANUAL_LABELS_MERGED",
@@ -194,8 +143,7 @@ DICE2D_LIST = [
         "output_name": "soft_manual_vs_soft_sam_c0_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
     {
         "source": "SOFT_MANUAL_LABELS_MERGED",
@@ -203,8 +151,7 @@ DICE2D_LIST = [
         "output_name": "soft_manual_vs_soft_sam_c1_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
     {
         "source": "SOFT_MANUAL_LABELS_MERGED",
@@ -212,8 +159,7 @@ DICE2D_LIST = [
         "output_name": "soft_manual_vs_soft_sam_c2_in_sam_space",
         "slice": 1,
         "merge": merge,
-        "message":
-        "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
+        "message": "Dice_2D(PhotoManualLabel, PhotoSamSeg) in PhotoSAMSEG space",
     },
 ]
 

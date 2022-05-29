@@ -66,11 +66,10 @@ def slice_ids_method2(args, t2_vol):
     # another method: skip 5 non zero slices on either end (good)
     non_zero_slice_ids = get_nonzero_slice_ids(t2_vol)
 
-    first_nz_slice = non_zero_slice_ids[0]  # + 5
-    last_nz_slice = non_zero_slice_ids[-1]  # - 5
+    first_nz_slice = non_zero_slice_ids[0] + 6
+    last_nz_slice = non_zero_slice_ids[-1] - 6
 
-    slice_ids_of_interest = np.arange(first_nz_slice, last_nz_slice + 1,
-                                      args["SKIP"])
+    slice_ids_of_interest = np.arange(first_nz_slice, last_nz_slice + 1, args["SKIP"])
     return slice_ids_of_interest
 
 
@@ -84,14 +83,10 @@ def process_t1(args, t1_file, t1_name):
 
     # 3. Build a rigid 3D rotation + translation (4x4) matrix using the rotations and shifts
     t1_rigid_mat = utils.create_affine_transformation_matrix(
-        3,
-        scaling=None,
-        rotation=rotation,
-        shearing=None,
-        translation=translation)
+        3, scaling=None, rotation=rotation, shearing=None, translation=translation
+    )
 
-    t1_rigid_out = os.path.join(args["OUT_DIR"], t1_name,
-                                f"{t1_name}.rigid.npy")
+    t1_rigid_out = os.path.join(args["OUT_DIR"], t1_name, f"{t1_name}.rigid.npy")
     np.save(t1_rigid_out, t1_rigid_mat)
 
     # 4. Open the T1, and premultiply the affine matrix of the header (“vox2ras”) by the matrix from 3.
@@ -100,8 +95,7 @@ def process_t1(args, t1_file, t1_name):
     hdr.set_sform(new_aff)
 
     # 5. Binarize the T1 volume by thresholding at 0 and save it with the new header, and call it “mri.mask.mgz”
-    t1_out_path = os.path.join(args["OUT_DIR"], t1_name,
-                               f"{t1_name}.mri.mask.mgz")
+    t1_out_path = os.path.join(args["OUT_DIR"], t1_name, f"{t1_name}.mri.mask.mgz")
     utils.save_volume(volume > 0, new_aff, hdr, t1_out_path)
 
 
@@ -118,7 +112,7 @@ def process_t2(args, t2_file, t2_name, jitter=0):
     t2_vol = utils.load_volume(t2_file)
     t2_vol = 255 * t2_vol / np.max(t2_vol)
 
-    slice_ids = slice_ids_method1(args, t2_vol)  # see method 2
+    slice_ids = slice_ids_method2(args, t2_vol)  # see method 2
 
     for c, z in enumerate(slice_ids, 1):
         curr_slice = t2_vol[..., z]
@@ -158,16 +152,20 @@ def process_t2(args, t2_file, t2_name, jitter=0):
         shearing = np.random.uniform(-0.1, 0.1, 2)
 
         # Build a 2D (3x3) matrix with the rotation, translations, and shears
-        translation_mat_1 = np.array([
-            [1, 0, -0.5 * curr_slice.shape[0]],
-            [0, 1, -0.5 * curr_slice.shape[1]],
-            [0, 0, 1],
-        ]).astype(float)
-        translation_mat_2 = np.array([
-            [1, 0, 0.5 * curr_slice.shape[0]],
-            [0, 1, 0.5 * curr_slice.shape[1]],
-            [0, 0, 1],
-        ]).astype(float)
+        translation_mat_1 = np.array(
+            [
+                [1, 0, -0.5 * curr_slice.shape[0]],
+                [0, 1, -0.5 * curr_slice.shape[1]],
+                [0, 0, 1],
+            ]
+        ).astype(float)
+        translation_mat_2 = np.array(
+            [
+                [1, 0, 0.5 * curr_slice.shape[0]],
+                [0, 1, 0.5 * curr_slice.shape[1]],
+                [0, 0, 1],
+            ]
+        ).astype(float)
         aff_mat = utils.create_affine_transformation_matrix(
             2,
             scaling=None,
@@ -175,19 +173,18 @@ def process_t2(args, t2_file, t2_name, jitter=0):
             shearing=shearing,
             translation=translation,
         )
-        slice_aff_mat = np.matmul(translation_mat_2,
-                                  np.matmul(aff_mat, translation_mat_1))
+        slice_aff_mat = np.matmul(
+            translation_mat_2, np.matmul(aff_mat, translation_mat_1)
+        )
 
         # Save this matrix somewhere for evaluation later on eg as a numpy array
-        slice_aff_out = os.path.join(AFFINE_DIR,
-                                     f"{t2_name}.slice.{c:03d}.npy")
+        slice_aff_out = os.path.join(AFFINE_DIR, f"{t2_name}.slice.{c:03d}.npy")
         np.save(slice_aff_out, slice_aff_mat)
 
         # Use this matrix to deform the slice
-        deformed_slice = affine_transform(curr_slice,
-                                          slice_aff_mat,
-                                          mode="constant",
-                                          order=1)
+        deformed_slice = affine_transform(
+            curr_slice, slice_aff_mat, mode="constant", order=1
+        )
 
         # Threshold the deformed slice at zero to get a mask (1 inside, 0 outside)
         mask = deformed_slice > 0
@@ -216,7 +213,7 @@ def process_t2(args, t2_file, t2_name, jitter=0):
         corrupted_PIL.save(img_out, "PNG")
 
 
-def sub_pipeline(args, t1_file, t2_file):
+def sub_pipeline(args, t1_file, t2_file, jitter=0):
     # get file name
     t1_fname = os.path.split(t1_file)[1]
     t2_fname = os.path.split(t2_file)[1]
@@ -247,31 +244,32 @@ def sub_pipeline(args, t1_file, t2_file):
 
     # work on T1 and T2 volumes
     process_t1(args, t1_file, t1_subject_name)
-    process_t2(args, t2_file, t2_subject_name, jitter=3)
+    process_t2(args, t2_file, t2_subject_name, jitter=jitter)
 
 
-def pipeline(args):
+def pipeline(args, jitter=0):
     vol_pairs = get_t1_t2_pairs(args)
 
     for i in tqdm(range(len(vol_pairs)), position=0, leave=True):
         t1_file, t2_file = vol_pairs[i]
-        sub_pipeline(args, t1_file, t2_file)
+        sub_pipeline(args, t1_file, t2_file, jitter=jitter)
 
 
-def make_args(skip):
+def make_args(skip, jitter):
     PRJCT_ID = "4harshaHCP"  # '4harshaHCP'
     PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg"
     DATA_DIR = os.path.join(PRJCT_DIR, "data")
-    RESULTS_DIR = os.path.join(PRJCT_DIR, "test-results/hcp-results")
+    RESULTS_DIR = os.path.join(PRJCT_DIR, "results/hcp-results-20220528")
     IN_DIR = os.path.join(DATA_DIR, PRJCT_ID)
-    OUT_DIR = os.path.join(RESULTS_DIR, PRJCT_ID +
-                           f"-skip-{skip:02d}-r3")  # '4harshaHCP_extracts'
+    OUT_DIR = os.path.join(
+        RESULTS_DIR, PRJCT_ID + f"-skip-{skip:02d}-r{jitter}"
+    )  # '4harshaHCP_extracts'
 
     return dict(IN_DIR=IN_DIR, OUT_DIR=OUT_DIR, SKIP=skip)
 
 
-def pipeline_wrapper(idx, args):
-    sub_pipeline(args, *get_t1_t2_pairs(args)[idx])
+def pipeline_wrapper(idx, args, jitter):
+    sub_pipeline(args, *get_t1_t2_pairs(args)[idx], jitter=jitter)
 
 
 def get_t1_t2_pairs(args):
@@ -283,22 +281,40 @@ def get_t1_t2_pairs(args):
     return list(zip(t1_files, t2_files))
 
 
-def pipeline_mp(args):
+def pipeline_mp(args, jitter=0):
     file_count = len(get_t1_t2_pairs(args))
+
+    input_ids = range(file_count)
+    input_ids = np.random.choice(range(file_count), 100, replace=False)
+    # input_ids = input_ids[100:]
+
+    save_ids = (
+        "/space/calico/1/users/Harsha/SynthSeg/results/hcp-results-20220528/ids_01.npy"
+    )
+    os.makedirs(os.path.dirname(save_ids), exist_ok=True)
+
+    if not os.path.exists(save_ids):
+        np.save(save_ids, input_ids)
+    else:
+        old_ids = np.load(save_ids)
+        if not np.array_equal(input_ids, old_ids):
+            raise Exception()
 
     with Pool() as pool:
         pool.map(
-            partial(pipeline_wrapper, args=args),
-            range(file_count),
+            partial(pipeline_wrapper, args=args, jitter=jitter),
+            input_ids,
         )
 
 
 def main():
     for skip in range(2, 17, 2):
-        print(f"Running Skip {skip:02d}")
-        args = make_args(skip)
-        pipeline(args)
-        # pipeline_mp(args)
+        for jitter in range(0, 4):
+            np.random.seed(0)  # reset seed for reproducibility
+            print(f"Running Skip {skip:02d}, Jitter {jitter}")
+            args = make_args(skip, jitter)
+            # pipeline(args)
+            pipeline_mp(args, jitter)
 
 
 if __name__ == "__main__":

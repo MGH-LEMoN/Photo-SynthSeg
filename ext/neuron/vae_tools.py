@@ -35,21 +35,21 @@ def extract_z_dec(model, sample_layer_name, vis=False, wt_chk=False):
     # get new input
     sample_layer = model.get_layer(sample_layer_name)
     enc_size = sample_layer.get_output_at(0).get_shape().as_list()[1:]
-    new_z_input = KL.Input(enc_size, name='z_input')
+    new_z_input = KL.Input(enc_size, name="z_input")
 
     # prepare outputs
     # assumes z was first input.
     new_inputs = [new_z_input, *model.inputs[1:]]
     input_layers = [sample_layer_name, *model.input_layers[1:]]
-    z_dec_model_outs = nrn_utils.mod_submodel(tmp_model,
-                                              new_input_nodes=new_inputs,
-                                              input_layers=input_layers)
+    z_dec_model_outs = nrn_utils.mod_submodel(
+        tmp_model, new_input_nodes=new_inputs, input_layers=input_layers
+    )
 
     # get new model
     z_dec_model = keras.models.Model(new_inputs, z_dec_model_outs)
 
     if vis:
-        outfile = NamedTemporaryFile().name + '.png'
+        outfile = NamedTemporaryFile().name + ".png"
         plot_model(z_dec_model, to_file=outfile, show_shapes=True)
         Image(outfile, width=100)
 
@@ -61,8 +61,9 @@ def extract_z_dec(model, sample_layer_name, vis=False, wt_chk=False):
                 continue
             wts2 = model.get_layer(layer.name).get_weights()
             if len(wts1) > 0:
-                assert np.all([np.mean(wts1[i] - wts2[i]) < 1e-9 for i,
-                               _ in enumerate(wts1)]), "model copy failed"
+                assert np.all(
+                    [np.mean(wts1[i] - wts2[i]) < 1e-9 for i, _ in enumerate(wts1)]
+                ), "model copy failed"
 
     return z_dec_model
 
@@ -98,23 +99,25 @@ def z_effect(model, gen, z_layer_name, nb_samples=100, do_plot=False, tqdm=tqdm)
     if do_plot:
         plt.figure()
         plt.plot(np.sort(all_gradients))
-        plt.xlabel('sorted z index')
-        plt.ylabel('mean(|grad|)')
+        plt.xlabel("sorted z index")
+        plt.ylabel("mean(|grad|)")
         plt.show()
 
     return all_gradients
 
 
-def sample_dec(z_dec_model,
-               z_mu=None,
-               z_logvar=None,
-               nb_samples=5,
-               tqdm=tqdm,
-               z_id=None,
-               do_sweep=False,
-               nb_sweep_stds=3,
-               extra_inputs=[],
-               nargout=1):
+def sample_dec(
+    z_dec_model,
+    z_mu=None,
+    z_logvar=None,
+    nb_samples=5,
+    tqdm=tqdm,
+    z_id=None,
+    do_sweep=False,
+    nb_sweep_stds=3,
+    extra_inputs=[],
+    nargout=1,
+):
     """
     sample from the decoder (i.e. sample z, compute x_mu|z)
 
@@ -135,7 +138,7 @@ def sample_dec(z_dec_model,
         z_logvar = np.reshape(z_logvar, [1, *input_shape])
 
     # get standard deviation
-    z_std = np.exp(z_logvar/2)
+    z_std = np.exp(z_logvar / 2)
 
     # get samples
     if do_sweep:
@@ -149,15 +152,14 @@ def sample_dec(z_dec_model,
             high = z_mu - nb_sweep_stds * z_std
 
         x_sweep = np.linspace(0, 1, nb_samples)
-        z_samples = [x * high + (1-x) * low for x in x_sweep]
+        z_samples = [x * high + (1 - x) * low for x in x_sweep]
 
     else:
         std = np.copy(z_std)
         if z_id is not None:
-            std = np.ones(len(z_std)) * np.finfo('float').eps
+            std = np.ones(len(z_std)) * np.finfo("float").eps
             std[0, z_id] = z_std[0, z_id]
-        z_samples = [np.random.normal(loc=z_mu, scale=z_std)
-                     for _ in range(nb_samples)]
+        z_samples = [np.random.normal(loc=z_mu, scale=z_std) for _ in range(nb_samples)]
 
     # propagate
     outs = [None] * nb_samples
@@ -170,11 +172,17 @@ def sample_dec(z_dec_model,
         return (outs, z_samples)
 
 
-def sweep_dec_given_x(full_model, z_dec_model, sample1, sample2, sample_layer_name,
-                      sweep_z_samples=False,
-                      nb_samples=10,
-                      nargout=1,
-                      tqdm=tqdm):
+def sweep_dec_given_x(
+    full_model,
+    z_dec_model,
+    sample1,
+    sample2,
+    sample_layer_name,
+    sweep_z_samples=False,
+    nb_samples=10,
+    nargout=1,
+    tqdm=tqdm,
+):
     """
     sweep the latent space given two samples in the original space
     specificaly, get z_mu = enc(x) for both samples, and sweep between those z_mus
@@ -186,8 +194,10 @@ def sweep_dec_given_x(full_model, z_dec_model, sample1, sample2, sample_layer_na
     """
 
     # get a model that also outputs the samples z
-    full_output = [*full_model.outputs,
-                   full_model.get_layer(sample_layer_name).get_output_at(1)]
+    full_output = [
+        *full_model.outputs,
+        full_model.get_layer(sample_layer_name).get_output_at(1),
+    ]
     full_model_plus = keras.models.Model(full_model.inputs, full_output)
 
     # get full predictions for these samples
@@ -203,11 +213,13 @@ def sweep_dec_given_x(full_model, z_dec_model, sample1, sample2, sample_layer_na
     outs = [None] * nb_samples
     for xi, x in enumerate(tqdm(x_range)):
         if sweep_z_samples:
-            z = x * pred1[3] + (1-x) * pred2[3]
+            z = x * pred1[3] + (1 - x) * pred2[3]
         else:
-            z = x * pred1[1] + (1-x) * pred2[1]
+            z = x * pred1[1] + (1 - x) * pred2[1]
 
-        if isinstance(sample1[0], (list, tuple)):  # assuming prior or something like that
+        if isinstance(
+            sample1[0], (list, tuple)
+        ):  # assuming prior or something like that
             outs[xi] = z_dec_model.predict([z, *sample1[0][1:]])
         else:
             outs[xi] = z_dec_model.predict(z)
@@ -218,13 +230,18 @@ def sweep_dec_given_x(full_model, z_dec_model, sample1, sample2, sample_layer_na
         return (outs, [pred1, pred2])
 
 
-def pca_init_dense(model, mu_dense_layer_name, undense_layer_name, generator,
-                   input_len=None,
-                   do_vae=True,
-                   logvar_dense_layer_name=None,
-                   nb_samples=None,
-                   tqdm=tqdm,
-                   vis=False):
+def pca_init_dense(
+    model,
+    mu_dense_layer_name,
+    undense_layer_name,
+    generator,
+    input_len=None,
+    do_vae=True,
+    logvar_dense_layer_name=None,
+    nb_samples=None,
+    tqdm=tqdm,
+    vis=False,
+):
     """
     initialize the (V)AE middle *dens*e layer with PCA
     Warning: this modifies the weights in your model!
@@ -257,20 +274,20 @@ def pca_init_dense(model, mu_dense_layer_name, undense_layer_name, generator,
         except:
             if i == nb_inbound_nodes - 1:
                 raise Exception(
-                    'Could not initialize pre_mu model. Something went wrong :(')
+                    "Could not initialize pre_mu model. Something went wrong :("
+                )
 
     # extract PCA sizes
     if input_len is None:
-        input_len = mu_dense_layer.get_input_at(
-            node_idx).get_shape().as_list()[1:]
-        assert len(input_len) == 1, 'layer input size is not 0'
+        input_len = mu_dense_layer.get_input_at(node_idx).get_shape().as_list()[1:]
+        assert len(input_len) == 1, "layer input size is not 0"
         input_len = input_len[0]
         if input_len is None:
             input_len = mu_dense_layer.get_weights()[0].shape[0]
         assert input_len is not None, "could not figure out input len"
 
     enc_size = mu_dense_layer.get_output_at(node_idx).get_shape().as_list()[1:]
-    assert len(enc_size) == 1, 'encoding size is not 0'
+    assert len(enc_size) == 1, "encoding size is not 0"
     enc_len = enc_size[0]
 
     # number of samples
@@ -279,27 +296,29 @@ def pca_init_dense(model, mu_dense_layer_name, undense_layer_name, generator,
 
     # mu pca
     pca_mu, x, y = model_output_pca(
-        pre_mu_model, generator, nb_samples, enc_len, vis=vis, tqdm=tqdm)
+        pre_mu_model, generator, nb_samples, enc_len, vis=vis, tqdm=tqdm
+    )
     W_mu = pca_mu.components_  # enc_size * input_len
 
     # fix pca
     # y = x @ W + y_mean = (x + x_mu) @ W
     # x = y @ np.transpose(W) - x_mu
-    mu_dense_layer.set_weights([np.transpose(W_mu), - (W_mu @ pca_mu.mean_)])
-    mu_undense_layer.set_weights([W_mu, + pca_mu.mean_])
+    mu_dense_layer.set_weights([np.transpose(W_mu), -(W_mu @ pca_mu.mean_)])
+    mu_undense_layer.set_weights([W_mu, +pca_mu.mean_])
 
     # set var components with mu pca as well.
     if do_vae:
         model.get_layer(logvar_dense_layer_name).set_weights(
-            [np.transpose(W_mu), - x_mu])
+            [np.transpose(W_mu), -x_mu]
+        )
 
     # return pca data at least for debugging
     return (pca_mu, x, y)
 
 
-def model_output_pca(pre_mu_model, generator, nb_samples, nb_components,
-                     vis=False,
-                     tqdm=tqdm):
+def model_output_pca(
+    pre_mu_model, generator, nb_samples, nb_components, vis=False, tqdm=tqdm
+):
     """
     compute PCA of model outputs
     """
@@ -316,8 +335,10 @@ def model_output_pca(pre_mu_model, generator, nb_samples, nb_components,
         y = np.vstack(zs)
 
     else:
-        assert nb_batch_samples == nb_samples, \
-            "generator should either give us 1 sample or %d samples at once. got: %d" % (nb_samples, nb_batch_samples)
+        assert nb_batch_samples == nb_samples, (
+            "generator should either give us 1 sample or %d samples at once. got: %d"
+            % (nb_samples, nb_batch_samples)
+        )
         y = pre_mu_model.predict(sample[0])
 
     # pca
@@ -328,7 +349,7 @@ def model_output_pca(pre_mu_model, generator, nb_samples, nb_components,
     if vis:
         nrn_plt.pca(pca, x, y)
 
-    """ 
+    """
     Test pca model assaignment:
     # make input, then dense, then dense, then output, and see if input is output for y samples.
     inp = KL.Input(pca.mean_.shape)
@@ -372,11 +393,13 @@ def latent_stats(model, gen, nb_reps=100, tqdm=tqdm):
     logvar_data = np.vstack(logvar_data)
     logvar_data = np.reshape(logvar_data, (logvar_data.shape[0], -1))
 
-    data = {'mu': mu_data, 'logvar': logvar_data}
+    data = {"mu": mu_data, "logvar": logvar_data}
     return data
 
 
-def latent_stats_plots(model, gen, nb_reps=100, dim_1=0, dim_2=1, figsize=(15, 7), tqdm=tqdm):
+def latent_stats_plots(
+    model, gen, nb_reps=100, dim_1=0, dim_2=1, figsize=(15, 7), tqdm=tqdm
+):
     """
     Make some debug/info (mostly latent-stats-related) plots
 
@@ -386,26 +409,26 @@ def latent_stats_plots(model, gen, nb_reps=100, dim_1=0, dim_2=1, figsize=(15, 7
     """
 
     data = latent_stats(model, gen, nb_reps=nb_reps, tqdm=tqdm)
-    mu_data = data['mu']
-    logvar_data = data['logvar']
+    mu_data = data["mu"]
+    logvar_data = data["logvar"]
 
     z = mu_data.shape[0]
     colors = np.linspace(0, 1, z)
-    print('colors:', colors.shape)
-    print('VAE plots: colors represent sample index')
+    print("colors:", colors.shape)
+    print("VAE plots: colors represent sample index")
 
     # plot
     plt.figure(figsize=figsize)
     plt.subplot(1, 2, 1)
     plt.scatter(mu_data[:, dim_1], mu_data[:, dim_2], c=colors)
-    plt.title('mu dist. nb_reps=%d. colors = sample idx.' % nb_reps)
-    plt.xlabel('dim %d' % dim_1)
-    plt.ylabel('dim %d' % dim_2)
+    plt.title("mu dist. nb_reps=%d. colors = sample idx." % nb_reps)
+    plt.xlabel("dim %d" % dim_1)
+    plt.ylabel("dim %d" % dim_2)
     plt.subplot(1, 2, 2)
     plt.scatter(logvar_data[:, dim_1], logvar_data[:, dim_2], c=colors)
-    plt.title('std dist. nb_reps=%d. colors = sample idx.' % nb_reps)
-    plt.xlabel('dim %d' % dim_1)
-    plt.ylabel('dim %d' % dim_2)
+    plt.title("std dist. nb_reps=%d. colors = sample idx." % nb_reps)
+    plt.xlabel("dim %d" % dim_1)
+    plt.ylabel("dim %d" % dim_2)
     plt.show()
 
     # plot means and variances
@@ -420,31 +443,31 @@ def latent_stats_plots(model, gen, nb_reps=100, dim_1=0, dim_2=1, figsize=(15, 7
     mu_mean_sort = mu_mean[mu_idx]
     mu_std_sort = np.std(mu_data, 0)[mu_idx]
     plt.scatter(x, mu_mean_sort, c=colors[mu_idx])
-    plt.plot(x, mu_mean_sort + mu_std_sort, 'k')
-    plt.plot(x, mu_mean_sort - mu_std_sort, 'k')
-    plt.title('mean mu. nb_reps=%d. colors = sorted dim.' % nb_reps)
-    plt.xlabel('sorted dims')
-    plt.ylabel('mean mu')
+    plt.plot(x, mu_mean_sort + mu_std_sort, "k")
+    plt.plot(x, mu_mean_sort - mu_std_sort, "k")
+    plt.title("mean mu. nb_reps=%d. colors = sorted dim." % nb_reps)
+    plt.xlabel("sorted dims")
+    plt.ylabel("mean mu")
 
     plt.subplot(1, 2, 2)
     logvar_mean = np.mean(logvar_data, 0)
     logvar_mean_sort = logvar_mean[mu_idx]
     logvar_std_sort = np.std(logvar_data, 0)[mu_idx]
     plt.scatter(x, logvar_mean_sort, c=colors[mu_idx])
-    plt.plot(x, logvar_mean_sort + logvar_std_sort, 'k')
-    plt.plot(x, logvar_mean_sort - logvar_std_sort, 'k')
-    plt.title('mean logvar. nb_reps=%d' % nb_reps)
-    plt.xlabel('sorted dims (diff than mu)')
-    plt.ylabel('mean std')
+    plt.plot(x, logvar_mean_sort + logvar_std_sort, "k")
+    plt.plot(x, logvar_mean_sort - logvar_std_sort, "k")
+    plt.title("mean logvar. nb_reps=%d" % nb_reps)
+    plt.xlabel("sorted dims (diff than mu)")
+    plt.ylabel("mean std")
     plt.show()
 
     return data
 
 
-
 ###############################################################################
 # helper functions
 ###############################################################################
+
 
 def _sample_batch_size(sample):
     """

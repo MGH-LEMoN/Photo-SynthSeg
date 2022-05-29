@@ -1,9 +1,9 @@
 """
 tensorflow/keras utilities for the neuron project
 
-If you use this code, please cite 
+If you use this code, please cite
 Dalca AV, Guttag J, Sabuncu MR
-Anatomical Priors in Convolutional Networks for Unsupervised Biomedical Segmentation, 
+Anatomical Priors in Convolutional Networks for Unsupervised Biomedical Segmentation,
 CVPR 2018
 
 or for the transformation/integration functions:
@@ -26,17 +26,23 @@ from keras.engine.topology import Node
 from copy import deepcopy
 
 # local
-from .utils import transform, resize, integrate_vec, affine_to_shift, combine_non_linear_and_aff_to_shift
+from .utils import (
+    transform,
+    resize,
+    integrate_vec,
+    affine_to_shift,
+    combine_non_linear_and_aff_to_shift,
+)
 
 
 class SpatialTransformer(Layer):
     """
     N-D Spatial Transformer Tensorflow / Keras Layer
 
-    The Layer can handle both affine and dense transforms. 
+    The Layer can handle both affine and dense transforms.
     Both transforms are meant to give a 'shift' from the current position.
     Therefore, a dense transform gives displacements (not absolute locations) at each voxel,
-    and an affine transform gives the *difference* of the affine matrix from 
+    and an affine transform gives the *difference* of the affine matrix from
     the identity matrix.
 
     If you find this function useful, please cite:
@@ -44,25 +50,23 @@ class SpatialTransformer(Layer):
       Adrian V. Dalca, Guha Balakrishnan, John Guttag, Mert R. Sabuncu
       MICCAI 2018.
 
-    Originally, this code was based on voxelmorph code, which 
-    was in turn transformed to be dense with the help of (affine) STN code 
+    Originally, this code was based on voxelmorph code, which
+    was in turn transformed to be dense with the help of (affine) STN code
     via https://github.com/kevinzakka/spatial-transformer-network
 
-    Since then, we've re-written the code to be generalized to any 
+    Since then, we've re-written the code to be generalized to any
     dimensions, and along the way wrote grid and interpolation functions
     """
 
-    def __init__(self,
-                 interp_method='linear',
-                 indexing='ij',
-                 single_transform=False,
-                 **kwargs):
+    def __init__(
+        self, interp_method="linear", indexing="ij", single_transform=False, **kwargs
+    ):
         """
-        Parameters: 
+        Parameters:
             interp_method: 'linear' or 'nearest'
             single_transform: whether a single transform supplied for the whole batch
             indexing (default: 'ij'): 'ij' (matrix) or 'xy' (cartesian)
-                'xy' indexing will have the first two entries of the flow 
+                'xy' indexing will have the first two entries of the flow
                 (along last axis) flipped compared to 'ij' indexing
         """
         self.interp_method = interp_method
@@ -71,7 +75,10 @@ class SpatialTransformer(Layer):
         self.single_transform = single_transform
         self.is_affine = list()
 
-        assert indexing in ['ij', 'xy'], "indexing has to be 'ij' (matrix) or 'xy' (cartesian)"
+        assert indexing in [
+            "ij",
+            "xy",
+        ], "indexing has to be 'ij' (matrix) or 'xy' (cartesian)"
         self.indexing = indexing
 
         super(self.__class__, self).__init__(**kwargs)
@@ -96,8 +103,10 @@ class SpatialTransformer(Layer):
         """
 
         if len(input_shape) > 3:
-            raise Exception('Spatial Transformer must be called on a list of min length 2 and max length 3.'
-                            'First argument is the image followed by the affine and non linear transforms.')
+            raise Exception(
+                "Spatial Transformer must be called on a list of min length 2 and max length 3."
+                "First argument is the image followed by the affine and non linear transforms."
+            )
 
         # set up number of dimensions
         self.ndims = len(input_shape[0]) - 2
@@ -109,18 +118,26 @@ class SpatialTransformer(Layer):
             # the transform is an affine iff:
             # it's a 1D Tensor [dense transforms need to be at least ndims + 1]
             # it's a 2D Tensor and shape == [N+1, N+1].
-            self.is_affine.append(len(shape) == 1 or
-                                  (len(shape) == 2 and all([f == (self.ndims + 1) for f in shape])))
+            self.is_affine.append(
+                len(shape) == 1
+                or (len(shape) == 2 and all([f == (self.ndims + 1) for f in shape]))
+            )
 
             # check sizes
             if self.is_affine[i] and len(shape) == 1:
                 ex = self.ndims * (self.ndims + 1)
                 if shape[0] != ex:
-                    raise Exception('Expected flattened affine of len %d but got %d' % (ex, shape[0]))
+                    raise Exception(
+                        "Expected flattened affine of len %d but got %d"
+                        % (ex, shape[0])
+                    )
 
             if not self.is_affine[i]:
                 if shape[-1] != self.ndims:
-                    raise Exception('Offset flow field size expected: %d, found: %d' % (self.ndims, shape[-1]))
+                    raise Exception(
+                        "Offset flow field size expected: %d, found: %d"
+                        % (self.ndims, shape[-1])
+                    )
 
         # confirm built
         self.built = True
@@ -132,17 +149,21 @@ class SpatialTransformer(Layer):
         """
 
         # check shapes
-        assert 1 < len(inputs) < 4, "inputs has to be len 2 or 3, found: %d" % len(inputs)
+        assert 1 < len(inputs) < 4, "inputs has to be len 2 or 3, found: %d" % len(
+            inputs
+        )
         vol = inputs[0]
         trf = inputs[1:]
 
         # necessary for multi_gpu models...
         vol = K.reshape(vol, [-1, *self.inshape[0][1:]])
         for i in range(len(trf)):
-            trf[i] = K.reshape(trf[i], [-1, *self.inshape[i+1][1:]])
+            trf[i] = K.reshape(trf[i], [-1, *self.inshape[i + 1][1:]])
 
         # reorder transforms, non linear first and affine second
-        ind_nonlinear_linear = [i[0] for i in sorted(enumerate(self.is_affine), key=lambda x:x[1])]
+        ind_nonlinear_linear = [
+            i[0] for i in sorted(enumerate(self.is_affine), key=lambda x: x[1])
+        ]
         self.is_affine = [self.is_affine[i] for i in ind_nonlinear_linear]
         self.inshape = [self.inshape[i] for i in ind_nonlinear_linear]
         trf = [trf[i] for i in ind_nonlinear_linear]
@@ -151,13 +172,21 @@ class SpatialTransformer(Layer):
         if len(trf) == 1:
             trf = trf[0]
             if self.is_affine[0]:
-                trf = tf.map_fn(lambda x: self._single_aff_to_shift(x, vol.shape[1:-1]), trf, dtype=tf.float32)
+                trf = tf.map_fn(
+                    lambda x: self._single_aff_to_shift(x, vol.shape[1:-1]),
+                    trf,
+                    dtype=tf.float32,
+                )
         # combine non linear and affine to obtain a single deformation field
         elif len(trf) == 2:
-            trf = tf.map_fn(lambda x: self._non_linear_and_aff_to_shift(x, vol.shape[1:-1]), trf, dtype=tf.float32)
+            trf = tf.map_fn(
+                lambda x: self._non_linear_and_aff_to_shift(x, vol.shape[1:-1]),
+                trf,
+                dtype=tf.float32,
+            )
 
         # prepare location shift
-        if self.indexing == 'xy':  # shift the first two dimensions
+        if self.indexing == "xy":  # shift the first two dimensions
             trf_split = tf.split(trf, trf.shape[-1], axis=-1)
             trf_lst = [trf_split[1], trf_split[0], *trf_split[2:]]
             trf = tf.concat(trf_lst, -1)
@@ -186,8 +215,8 @@ class VecInt(Layer):
     """
     Vector Integration Layer
 
-    Enables vector integration via several methods 
-    (ode or quadrature for time-dependent vector fields, 
+    Enables vector integration via several methods
+    (ode or quadrature for time-dependent vector fields,
     scaling and squaring for stationary fields)
 
     If you find this function useful, please cite:
@@ -196,10 +225,17 @@ class VecInt(Layer):
       MICCAI 2018.
     """
 
-    def __init__(self, indexing='ij', method='ss', int_steps=7, out_time_pt=1,
-                 ode_args=None,
-                 odeint_fn=None, **kwargs):
-        """        
+    def __init__(
+        self,
+        indexing="ij",
+        method="ss",
+        int_steps=7,
+        out_time_pt=1,
+        ode_args=None,
+        odeint_fn=None,
+        **kwargs
+    ):
+        """
         Parameters:
             method can be any of the methods in neuron.utils.integrate_vec
             indexing can be 'xy' (switches first two dimensions) or 'ij'
@@ -207,7 +243,10 @@ class VecInt(Layer):
             out_time_pt is time point at which to output if using odeint integration
         """
 
-        assert indexing in ['ij', 'xy'], "indexing has to be 'ij' (matrix) or 'xy' (cartesian)"
+        assert indexing in [
+            "ij",
+            "xy",
+        ], "indexing has to be 'ij' (matrix) or 'xy' (cartesian)"
         self.indexing = indexing
         self.method = method
         self.int_steps = int_steps
@@ -216,7 +255,7 @@ class VecInt(Layer):
         self.odeint_fn = odeint_fn  # if none then will use a tensorflow function
         self.ode_args = ode_args
         if ode_args is None:
-            self.ode_args = {'rtol': 1e-6, 'atol': 1e-12}
+            self.ode_args = {"rtol": 1e-6, "atol": 1e-12}
         super(self.__class__, self).__init__(**kwargs)
 
     def get_config(self):
@@ -239,8 +278,10 @@ class VecInt(Layer):
         self.inshape = trf_shape
 
         if trf_shape[-1] != len(trf_shape) - 2:
-            raise Exception('transform ndims %d does not match expected ndims %d' \
-                            % (trf_shape[-1], len(trf_shape) - 2))
+            raise Exception(
+                "transform ndims %d does not match expected ndims %d"
+                % (trf_shape[-1], len(trf_shape) - 2)
+            )
 
     def call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
@@ -252,13 +293,19 @@ class VecInt(Layer):
         loc_shift._keras_shape = inputs[0]._keras_shape
 
         # prepare location shift
-        if self.indexing == 'xy':  # shift the first two dimensions
+        if self.indexing == "xy":  # shift the first two dimensions
             loc_shift_split = tf.split(loc_shift, loc_shift.shape[-1], axis=-1)
-            loc_shift_lst = [loc_shift_split[1], loc_shift_split[0], *loc_shift_split[2:]]
+            loc_shift_lst = [
+                loc_shift_split[1],
+                loc_shift_split[0],
+                *loc_shift_split[2:],
+            ]
             loc_shift = tf.concat(loc_shift_lst, -1)
 
         if len(inputs) > 1:
-            assert self.out_time_pt is None, 'out_time_pt should be None if providing batch_based out_time_pt'
+            assert (
+                self.out_time_pt is None
+            ), "out_time_pt should be None if providing batch_based out_time_pt"
 
         # map transform across batch
         out = tf.map_fn(self._single_int, [loc_shift] + inputs[1:], dtype=tf.float32)
@@ -271,11 +318,14 @@ class VecInt(Layer):
         out_time_pt = self.out_time_pt
         if len(inputs) == 2:
             out_time_pt = inputs[1]
-        return integrate_vec(vel, method=self.method,
-                             nb_steps=self.int_steps,
-                             ode_args=self.ode_args,
-                             out_time_pt=out_time_pt,
-                             odeint_fn=self.odeint_fn)
+        return integrate_vec(
+            vel,
+            method=self.method,
+            nb_steps=self.int_steps,
+            ode_args=self.ode_args,
+            out_time_pt=out_time_pt,
+            odeint_fn=self.odeint_fn,
+        )
 
 
 class Resize(Layer):
@@ -285,21 +335,17 @@ class Resize(Layer):
 
     If you find this function useful, please cite:
         Anatomical Priors in Convolutional Networks for Unsupervised Biomedical Segmentation,Dalca AV, Guttag J, Sabuncu MR
-        CVPR 2018  
+        CVPR 2018
 
-    Since then, we've re-written the code to be generalized to any 
+    Since then, we've re-written the code to be generalized to any
     dimensions, and along the way wrote grid and interpolation functions
     """
 
-    def __init__(self,
-                 zoom_factor=None,
-                 size=None,
-                 interp_method='linear',
-                 **kwargs):
+    def __init__(self, zoom_factor=None, size=None, interp_method="linear", **kwargs):
         """
-        Parameters: 
+        Parameters:
             interp_method: 'linear' or 'nearest'
-                'xy' indexing will have the first two entries of the flow 
+                'xy' indexing will have the first two entries of the flow
                 (along last axis) flipped compared to 'ij' indexing
         """
         self.zoom_factor = zoom_factor
@@ -330,7 +376,7 @@ class Resize(Layer):
         #     raise Exception('Either zoom_factor or size should be specified')
 
         if isinstance(input_shape[0], (list, tuple)) and len(input_shape) > 1:
-            raise Exception('Resize must be called on a list of length 1.')
+            raise Exception("Resize must be called on a list of length 1.")
 
         if isinstance(input_shape[0], (list, tuple)):
             input_shape = input_shape[0]
@@ -346,10 +392,15 @@ class Resize(Layer):
             self.zoom_factor0 = [0] * self.ndims
         elif isinstance(self.zoom_factor, (list, tuple)):
             self.zoom_factor0 = deepcopy(self.zoom_factor)
-            assert len(self.zoom_factor0) == self.ndims, \
-                'zoom factor length {} does not match number of dimensions {}'.format(len(self.zoom_factor), self.ndims)
+            assert (
+                len(self.zoom_factor0) == self.ndims
+            ), "zoom factor length {} does not match number of dimensions {}".format(
+                len(self.zoom_factor), self.ndims
+            )
         else:
-            raise Exception('zoom_factor should be an int or a list/tuple of int (or None if size is not set to None)')
+            raise Exception(
+                "zoom_factor should be an int or a list/tuple of int (or None if size is not set to None)"
+            )
 
         # check size
         if isinstance(self.size, int):
@@ -358,10 +409,15 @@ class Resize(Layer):
             self.size0 = [0] * self.ndims
         elif isinstance(self.size, (list, tuple)):
             self.size0 = deepcopy(self.size)
-            assert len(self.size0) == self.ndims, \
-                'size length {} does not match number of dimensions {}'.format(len(self.size0), self.ndims)
+            assert (
+                len(self.size0) == self.ndims
+            ), "size length {} does not match number of dimensions {}".format(
+                len(self.size0), self.ndims
+            )
         else:
-            raise Exception('size should be an int or a list/tuple of int (or None if zoom_factor is not set to None)')
+            raise Exception(
+                "size should be an int or a list/tuple of int (or None if zoom_factor is not set to None)"
+            )
 
         # confirm built
         self.built = True
@@ -386,9 +442,14 @@ class Resize(Layer):
 
         # set value of missing size or zoom_factor
         if not any(self.zoom_factor0):
-            self.zoom_factor0 = [self.size0[i] / self.inshape[i+1] for i in range(self.ndims)]
+            self.zoom_factor0 = [
+                self.size0[i] / self.inshape[i + 1] for i in range(self.ndims)
+            ]
         else:
-            self.size0 = [int(self.inshape[f+1] * self.zoom_factor0[f]) for f in range(self.ndims)]
+            self.size0 = [
+                int(self.inshape[f + 1] * self.zoom_factor0[f])
+                for f in range(self.ndims)
+            ]
 
         # map transform across batch
         return tf.map_fn(self._single_resize, vol, dtype=vol.dtype)
@@ -396,12 +457,16 @@ class Resize(Layer):
     def compute_output_shape(self, input_shape):
 
         output_shape = [input_shape[0]]
-        output_shape += [int(input_shape[1:-1][f] * self.zoom_factor0[f]) for f in range(self.ndims)]
+        output_shape += [
+            int(input_shape[1:-1][f] * self.zoom_factor0[f]) for f in range(self.ndims)
+        ]
         output_shape += [input_shape[-1]]
         return tuple(output_shape)
 
     def _single_resize(self, inputs):
-        return resize(inputs, self.zoom_factor0, self.size0, interp_method=self.interp_method)
+        return resize(
+            inputs, self.zoom_factor0, self.size0, interp_method=self.interp_method
+        )
 
 
 # Zoom naming of resize, to match scipy's naming
@@ -409,7 +474,7 @@ Zoom = Resize
 
 
 class SpatiallySparse_Dense(Layer):
-    """ 
+    """
     Spatially-Sparse Dense Layer (great name, huh?)
     This is a Densely connected (Fully connected) layer with sparse observations.
 
@@ -422,9 +487,15 @@ class SpatiallySparse_Dense(Layer):
     # tensor inputs should be [enc], and output will be vol
     """
 
-    def __init__(self, input_shape, output_len, use_bias=False,
-                 kernel_initializer='RandomNormal',
-                 bias_initializer='RandomNormal', **kwargs):
+    def __init__(
+        self,
+        input_shape,
+        output_len,
+        use_bias=False,
+        kernel_initializer="RandomNormal",
+        bias_initializer="RandomNormal",
+        **kwargs
+    ):
         self.kernel_initializer = kernel_initializer
         self.bias_initializer = bias_initializer
         self.output_len = output_len
@@ -445,11 +516,12 @@ class SpatiallySparse_Dense(Layer):
     def build(self, input_shape):
 
         # Create a trainable weight variable for this layer.
-        self.kernel = self.add_weight(name='mult-kernel',
-                                      shape=(np.prod(self.orig_input_shape),
-                                             self.output_len),
-                                      initializer=self.kernel_initializer,
-                                      trainable=True)
+        self.kernel = self.add_weight(
+            name="mult-kernel",
+            shape=(np.prod(self.orig_input_shape), self.output_len),
+            initializer=self.kernel_initializer,
+            trainable=True,
+        )
 
         M = K.reshape(self.kernel, [-1, self.output_len])  # D x d
         mt = K.transpose(M)  # d x D
@@ -457,17 +529,21 @@ class SpatiallySparse_Dense(Layer):
         self.W = K.dot(mtm_inv, mt)  # d x D
 
         if self.use_bias:
-            self.bias = self.add_weight(name='bias-kernel',
-                                        shape=(self.output_len,),
-                                        initializer=self.bias_initializer,
-                                        trainable=True)
+            self.bias = self.add_weight(
+                name="bias-kernel",
+                shape=(self.output_len,),
+                initializer=self.bias_initializer,
+                trainable=True,
+            )
 
         # self.sigma_sq = self.add_weight(name='bias-kernel',
         #                                 shape=(1, ),
         #                                 initializer=self.initializer,
         #                                 trainable=True)
 
-        super(SpatiallySparse_Dense, self).build(input_shape)  # Be sure to call this somewhere!
+        super(SpatiallySparse_Dense, self).build(
+            input_shape
+        )  # Be sure to call this somewhere!
 
     def call(self, args):
 
@@ -488,7 +564,9 @@ class SpatiallySparse_Dense(Layer):
             W = self.W  # d x D
 
             w_tmp = K.expand_dims(W, 0)  # 1 x d x D
-            Wo = K.permute_dimensions(w_tmp, [0, 2, 1]) * K.expand_dims(y_mask_flat, -1)  # N x D x d
+            Wo = K.permute_dimensions(w_tmp, [0, 2, 1]) * K.expand_dims(
+                y_mask_flat, -1
+            )  # N x D x d
             WoT = K.permute_dimensions(Wo, [0, 2, 1])  # N x d x D
             WotWo_inv = tf.matrix_inverse(K.batch_dot(WoT, Wo))  # N x d x d
             pre = K.batch_dot(WotWo_inv, WoT)  # N x d x D
@@ -527,13 +605,14 @@ class SpatiallySparse_Dense(Layer):
 # "Local" layers -- layers with parameters at each voxel
 #########################################################
 
+
 class LocalBias(Layer):
-    """ 
+    """
     Local bias layer: each pixel/voxel has its own bias operation (one parameter)
     out[v] = in[v] + b
     """
 
-    def __init__(self, my_initializer='RandomNormal', biasmult=1.0, **kwargs):
+    def __init__(self, my_initializer="RandomNormal", biasmult=1.0, **kwargs):
         self.initializer = my_initializer
         self.biasmult = biasmult
         super(LocalBias, self).__init__(**kwargs)
@@ -546,10 +625,12 @@ class LocalBias(Layer):
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        self.kernel = self.add_weight(name='kernel',
-                                      shape=input_shape[1:],
-                                      initializer=self.initializer,
-                                      trainable=True)
+        self.kernel = self.add_weight(
+            name="kernel",
+            shape=input_shape[1:],
+            initializer=self.initializer,
+            trainable=True,
+        )
         super(LocalBias, self).build(input_shape)  # Be sure to call this somewhere!
 
     def call(self, x):
@@ -560,13 +641,9 @@ class LocalBias(Layer):
 
 
 class LocalParam_new(Layer):
-
-    def __init__(self,
-                 shape,
-                 my_initializer='RandomNormal',
-                 name=None,
-                 mult=1.0,
-                 **kwargs):
+    def __init__(
+        self, shape, my_initializer="RandomNormal", name=None, mult=1.0, **kwargs
+    ):
 
         self.shape = tuple([1, *shape])
         self.my_initializer = my_initializer
@@ -584,11 +661,15 @@ class LocalParam_new(Layer):
     def build(self, input_shape):
 
         # Create a trainable weight variable for this layer.
-        self.kernel = self.add_weight(name='kernel',
-                                      shape=tuple(self.shape[1:]),
-                                      initializer='uniform',
-                                      trainable=True)
-        super(LocalParam_new, self).build(input_shape)  # Be sure to call this at the end
+        self.kernel = self.add_weight(
+            name="kernel",
+            shape=tuple(self.shape[1:]),
+            initializer="uniform",
+            trainable=True,
+        )
+        super(LocalParam_new, self).build(
+            input_shape
+        )  # Be sure to call this at the end
 
     def call(self, _):
         # make sure it has a shape
@@ -604,37 +685,36 @@ class LocalParam_new(Layer):
 
 
 class LocalParam(Layer):
-    """ 
+    """
     Local Parameter layer: each pixel/voxel has its own parameter (one parameter)
     out[v] = b
 
-    using code from 
+    using code from
     https://github.com/YerevaNN/R-NET-in-Keras/blob/master/layers/SharedWeight.py
     and
     https://github.com/keras-team/keras/blob/ee02d256611b17d11e37b86bd4f618d7f2a37d84/keras/engine/input_layer.py
     """
 
-    def __init__(self,
-                 shape,
-                 my_initializer='RandomNormal',
-                 name=None,
-                 mult=1.0,
-                 **kwargs):
+    def __init__(
+        self, shape, my_initializer="RandomNormal", name=None, mult=1.0, **kwargs
+    ):
         self.shape = [1, *shape]
         self.my_initializer = my_initializer
         self.mult = mult
 
         if not name:
-            prefix = 'param'
-            name = '%s_%d' % (prefix, K.get_uid(prefix))
+            prefix = "param"
+            name = "%s_%d" % (prefix, K.get_uid(prefix))
         Layer.__init__(self, name=name, **kwargs)
 
         # Create a trainable weight variable for this layer.
         with K.name_scope(self.name):
-            self.kernel = self.add_weight(name='kernel',
-                                          shape=self.shape,
-                                          initializer=self.my_initializer,
-                                          trainable=True)
+            self.kernel = self.add_weight(
+                name="kernel",
+                shape=self.shape,
+                initializer=self.my_initializer,
+                trainable=True,
+            )
 
         # prepare output tensor, which is essentially the kernel.
         output_tensor = self.kernel * self.mult
@@ -648,25 +728,27 @@ class LocalParam(Layer):
         self.is_placeholder = False
 
         # create new node
-        Node(self,
-             inbound_layers=[],
-             node_indices=[],
-             tensor_indices=[],
-             input_tensors=[],
-             output_tensors=[output_tensor],
-             input_masks=[],
-             output_masks=[None],
-             input_shapes=[],
-             output_shapes=[self.shape])
+        Node(
+            self,
+            inbound_layers=[],
+            node_indices=[],
+            tensor_indices=[],
+            input_tensors=[],
+            output_tensors=[output_tensor],
+            input_masks=[],
+            output_masks=[None],
+            input_shapes=[],
+            output_shapes=[self.shape],
+        )
 
     def get_config(self):
         config = super().get_config()
         config["shape"] = self.shape
         config["my_initializer"] = self.my_initializer
         config["mult"] = self.mult
-        config['_batch_input_shape'] = self.shape
-        config['_keras_shape'] = self.shape
-        config['name'] = self.name
+        config["_batch_input_shape"] = self.shape
+        config["_keras_shape"] = self.shape
+        config["name"] = self.name
         return config
 
     def call(self, _):
@@ -685,12 +767,12 @@ class LocalParam(Layer):
 
 
 class LocalLinear(Layer):
-    """ 
+    """
     Local linear layer: each pixel/voxel has its own linear operation (two parameters)
     out[v] = a * in[v] + b
     """
 
-    def __init__(self, my_initializer='RandomNormal', **kwargs):
+    def __init__(self, my_initializer="RandomNormal", **kwargs):
         self.initializer = my_initializer
         super(LocalLinear, self).__init__(**kwargs)
 
@@ -701,14 +783,18 @@ class LocalLinear(Layer):
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        self.mult = self.add_weight(name='mult-kernel',
-                                    shape=input_shape[1:],
-                                    initializer=self.initializer,
-                                    trainable=True)
-        self.bias = self.add_weight(name='bias-kernel',
-                                    shape=input_shape[1:],
-                                    initializer=self.initializer,
-                                    trainable=True)
+        self.mult = self.add_weight(
+            name="mult-kernel",
+            shape=input_shape[1:],
+            initializer=self.initializer,
+            trainable=True,
+        )
+        self.bias = self.add_weight(
+            name="bias-kernel",
+            shape=input_shape[1:],
+            initializer=self.initializer,
+            trainable=True,
+        )
         super(LocalLinear, self).build(input_shape)  # Be sure to call this somewhere!
 
     def call(self, x):
@@ -798,31 +884,35 @@ class LocallyConnected3D(Layer):
     """
 
     @interfaces.legacy_conv3d_support
-    def __init__(self, filters,
-                 kernel_size,
-                 strides=(1, 1, 1),
-                 padding='valid',
-                 data_format=None,
-                 activation=None,
-                 use_bias=True,
-                 kernel_initializer='glorot_uniform',
-                 bias_initializer='zeros',
-                 kernel_regularizer=None,
-                 bias_regularizer=None,
-                 activity_regularizer=None,
-                 kernel_constraint=None,
-                 bias_constraint=None,
-                 **kwargs):
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1, 1),
+        padding="valid",
+        data_format=None,
+        activation=None,
+        use_bias=True,
+        kernel_initializer="glorot_uniform",
+        bias_initializer="zeros",
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        **kwargs
+    ):
 
         super(LocallyConnected3D, self).__init__(**kwargs)
         self.filters = filters
-        self.kernel_size = conv_utils.normalize_tuple(
-            kernel_size, 3, 'kernel_size')
-        self.strides = conv_utils.normalize_tuple(strides, 3, 'strides')
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, 3, "kernel_size")
+        self.strides = conv_utils.normalize_tuple(strides, 3, "strides")
         self.padding = conv_utils.normalize_padding(padding)
-        if self.padding != 'valid':
-            raise ValueError('Invalid border mode for LocallyConnected3D '
-                             '(only "valid" is supported): ' + padding)
+        if self.padding != "valid":
+            raise ValueError(
+                "Invalid border mode for LocallyConnected3D "
+                '(only "valid" is supported): ' + padding
+            )
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -837,110 +927,127 @@ class LocallyConnected3D(Layer):
 
     def build(self, input_shape):
 
-        if self.data_format == 'channels_last':
+        if self.data_format == "channels_last":
             input_row, input_col, input_z = input_shape[1:-1]
             input_filter = input_shape[4]
         else:
             input_row, input_col, input_z = input_shape[2:]
             input_filter = input_shape[1]
         if input_row is None or input_col is None:
-            raise ValueError('The spatial dimensions of the inputs to '
-                             ' a LocallyConnected3D layer '
-                             'should be fully-defined, but layer received '
-                             'the inputs shape ' + str(input_shape))
-        output_row = conv_utils.conv_output_length(input_row, self.kernel_size[0],
-                                                   self.padding, self.strides[0])
-        output_col = conv_utils.conv_output_length(input_col, self.kernel_size[1],
-                                                   self.padding, self.strides[1])
-        output_z = conv_utils.conv_output_length(input_z, self.kernel_size[2],
-                                                 self.padding, self.strides[2])
+            raise ValueError(
+                "The spatial dimensions of the inputs to "
+                " a LocallyConnected3D layer "
+                "should be fully-defined, but layer received "
+                "the inputs shape " + str(input_shape)
+            )
+        output_row = conv_utils.conv_output_length(
+            input_row, self.kernel_size[0], self.padding, self.strides[0]
+        )
+        output_col = conv_utils.conv_output_length(
+            input_col, self.kernel_size[1], self.padding, self.strides[1]
+        )
+        output_z = conv_utils.conv_output_length(
+            input_z, self.kernel_size[2], self.padding, self.strides[2]
+        )
         self.output_row = output_row
         self.output_col = output_col
         self.output_z = output_z
-        self.kernel_shape = (output_row * output_col * output_z,
-                             self.kernel_size[0] *
-                             self.kernel_size[1] *
-                             self.kernel_size[2] * input_filter,
-                             self.filters)
-        self.kernel = self.add_weight(shape=self.kernel_shape,
-                                      initializer=self.kernel_initializer,
-                                      name='kernel',
-                                      regularizer=self.kernel_regularizer,
-                                      constraint=self.kernel_constraint)
+        self.kernel_shape = (
+            output_row * output_col * output_z,
+            self.kernel_size[0]
+            * self.kernel_size[1]
+            * self.kernel_size[2]
+            * input_filter,
+            self.filters,
+        )
+        self.kernel = self.add_weight(
+            shape=self.kernel_shape,
+            initializer=self.kernel_initializer,
+            name="kernel",
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint,
+        )
         if self.use_bias:
-            self.bias = self.add_weight(shape=(output_row, output_col, output_z, self.filters),
-                                        initializer=self.bias_initializer,
-                                        name='bias',
-                                        regularizer=self.bias_regularizer,
-                                        constraint=self.bias_constraint)
+            self.bias = self.add_weight(
+                shape=(output_row, output_col, output_z, self.filters),
+                initializer=self.bias_initializer,
+                name="bias",
+                regularizer=self.bias_regularizer,
+                constraint=self.bias_constraint,
+            )
         else:
             self.bias = None
-        if self.data_format == 'channels_first':
+        if self.data_format == "channels_first":
             self.input_spec = InputSpec(ndim=5, axes={1: input_filter})
         else:
             self.input_spec = InputSpec(ndim=5, axes={-1: input_filter})
         self.built = True
 
     def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
+        if self.data_format == "channels_first":
             rows = input_shape[2]
             cols = input_shape[3]
             z = input_shape[4]
-        elif self.data_format == 'channels_last':
+        elif self.data_format == "channels_last":
             rows = input_shape[1]
             cols = input_shape[2]
             z = input_shape[3]
 
-        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
-                                             self.padding, self.strides[0])
-        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
-                                             self.padding, self.strides[1])
-        z = conv_utils.conv_output_length(z, self.kernel_size[2],
-                                          self.padding, self.strides[2])
+        rows = conv_utils.conv_output_length(
+            rows, self.kernel_size[0], self.padding, self.strides[0]
+        )
+        cols = conv_utils.conv_output_length(
+            cols, self.kernel_size[1], self.padding, self.strides[1]
+        )
+        z = conv_utils.conv_output_length(
+            z, self.kernel_size[2], self.padding, self.strides[2]
+        )
 
-        if self.data_format == 'channels_first':
+        if self.data_format == "channels_first":
             return (input_shape[0], self.filters, rows, cols, z)
-        elif self.data_format == 'channels_last':
+        elif self.data_format == "channels_last":
             return (input_shape[0], rows, cols, z, self.filters)
 
     def call(self, inputs):
 
-        output = self.local_conv3d(inputs,
-                                   self.kernel,
-                                   self.kernel_size,
-                                   self.strides,
-                                   (self.output_row, self.output_col, self.output_z),
-                                   self.data_format)
+        output = self.local_conv3d(
+            inputs,
+            self.kernel,
+            self.kernel_size,
+            self.strides,
+            (self.output_row, self.output_col, self.output_z),
+            self.data_format,
+        )
 
         if self.use_bias:
-            output = K.bias_add(output, self.bias,
-                                data_format=self.data_format)
+            output = K.bias_add(output, self.bias, data_format=self.data_format)
 
         output = self.activation(output)
         return output
 
     def get_config(self):
         config = {
-            'filters': self.filters,
-            'kernel_size': self.kernel_size,
-            'strides': self.strides,
-            'padding': self.padding,
-            'data_format': self.data_format,
-            'activation': activations.serialize(self.activation),
-            'use_bias': self.use_bias,
-            'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'bias_initializer': initializers.serialize(self.bias_initializer),
-            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-            'kernel_constraint': constraints.serialize(self.kernel_constraint),
-            'bias_constraint': constraints.serialize(self.bias_constraint)
+            "filters": self.filters,
+            "kernel_size": self.kernel_size,
+            "strides": self.strides,
+            "padding": self.padding,
+            "data_format": self.data_format,
+            "activation": activations.serialize(self.activation),
+            "use_bias": self.use_bias,
+            "kernel_initializer": initializers.serialize(self.kernel_initializer),
+            "bias_initializer": initializers.serialize(self.bias_initializer),
+            "kernel_regularizer": regularizers.serialize(self.kernel_regularizer),
+            "bias_regularizer": regularizers.serialize(self.bias_regularizer),
+            "activity_regularizer": regularizers.serialize(self.activity_regularizer),
+            "kernel_constraint": constraints.serialize(self.kernel_constraint),
+            "bias_constraint": constraints.serialize(self.bias_constraint),
         }
-        base_config = super(
-            LocallyConnected3D, self).get_config()
+        base_config = super(LocallyConnected3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    def local_conv3d(self, inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+    def local_conv3d(
+        self, inputs, kernel, kernel_size, strides, output_shape, data_format=None
+    ):
         """Apply 3D conv with un-shared weights.
         # Arguments
             inputs: 4D tensor with shape:
@@ -970,8 +1077,8 @@ class LocallyConnected3D(Layer):
         """
         if data_format is None:
             data_format = K.image_data_format()
-        if data_format not in {'channels_first', 'channels_last'}:
-            raise ValueError('Unknown data_format: ' + str(data_format))
+        if data_format not in {"channels_first", "channels_last"}:
+            raise ValueError("Unknown data_format: " + str(data_format))
 
         stride_row, stride_col, stride_z = strides
         output_row, output_col, output_z = output_shape
@@ -982,25 +1089,29 @@ class LocallyConnected3D(Layer):
         for i in range(output_row):
             for j in range(output_col):
                 for k in range(output_z):
-                    slice_row = slice(i * stride_row,
-                                      i * stride_row + kernel_size[0])
-                    slice_col = slice(j * stride_col,
-                                      j * stride_col + kernel_size[1])
-                    slice_z = slice(k * stride_z,
-                                    k * stride_z + kernel_size[2])
-                    if data_format == 'channels_first':
-                        xs.append(K.reshape(inputs[:, :, slice_row, slice_col, slice_z],
-                                            (1, -1, feature_dim)))
+                    slice_row = slice(i * stride_row, i * stride_row + kernel_size[0])
+                    slice_col = slice(j * stride_col, j * stride_col + kernel_size[1])
+                    slice_z = slice(k * stride_z, k * stride_z + kernel_size[2])
+                    if data_format == "channels_first":
+                        xs.append(
+                            K.reshape(
+                                inputs[:, :, slice_row, slice_col, slice_z],
+                                (1, -1, feature_dim),
+                            )
+                        )
                     else:
-                        xs.append(K.reshape(inputs[:, slice_row, slice_col, slice_z, :],
-                                            (1, -1, feature_dim)))
+                        xs.append(
+                            K.reshape(
+                                inputs[:, slice_row, slice_col, slice_z, :],
+                                (1, -1, feature_dim),
+                            )
+                        )
 
         x_aggregate = K.concatenate(xs, axis=0)
         output = K.batch_dot(x_aggregate, kernel)
-        output = K.reshape(output,
-                           (output_row, output_col, output_z, -1, filters))
+        output = K.reshape(output, (output_row, output_col, output_z, -1, filters))
 
-        if data_format == 'channels_first':
+        if data_format == "channels_first":
             output = K.permute_dimensions(output, (3, 4, 0, 1, 2))
         else:
             output = K.permute_dimensions(output, (3, 0, 1, 2, 4))
@@ -1010,10 +1121,10 @@ class LocallyConnected3D(Layer):
 # class LocalParam(InputLayer):
 
 #     def __init__(self, shape, mult=1, my_initializer='RandomNormal', **kwargs):
-#         super(LocalParam, self).__init__(input_shape=shape, **kwargs)       
+#         super(LocalParam, self).__init__(input_shape=shape, **kwargs)
 
 #         # Create a trainable weight variable for this layer.
-#         self.kernel = self.add_weight(name='kernel', 
+#         self.kernel = self.add_weight(name='kernel',
 #                                       shape=tuple(shape),
 #                                       initializer=my_initializer,
 #                                       trainable=True)
@@ -1039,15 +1150,15 @@ class LocallyConnected3D(Layer):
 
 
 class MeanStream(Layer):
-    """ 
-    Maintain stream of data mean. 
+    """
+    Maintain stream of data mean.
 
     cap refers to mainting an approximation of up to that number of subjects -- that is,
     any incoming datapoint will have at least 1/cap weight.
     """
 
     def __init__(self, cap=100, **kwargs):
-        self.cap = K.variable(cap, dtype='float32')
+        self.cap = K.variable(cap, dtype="float32")
         super(MeanStream, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -1055,14 +1166,12 @@ class MeanStream(Layer):
         # These are weights because just maintaining variables don't get saved with the model, and we'd like
         # to have these numbers saved when we save the model.
         # But we need to make sure that the weights are untrainable.
-        self.mean = self.add_weight(name='mean',
-                                    shape=input_shape[1:],
-                                    initializer='zeros',
-                                    trainable=False)
-        self.count = self.add_weight(name='count',
-                                     shape=[1],
-                                     initializer='zeros',
-                                     trainable=False)
+        self.mean = self.add_weight(
+            name="mean", shape=input_shape[1:], initializer="zeros", trainable=False
+        )
+        self.count = self.add_weight(
+            name="count", shape=[1], initializer="zeros", trainable=False
+        )
 
         # self.mean = K.zeros(input_shape[1:], name='mean')
         # self.count = K.variable(0.0, name='count')
@@ -1082,40 +1191,37 @@ class MeanStream(Layer):
         z = K.ones(p)
 
         # the first few 1000 should not matter that much towards this cost
-        return K.minimum(1., new_count / self.cap) * (z * K.expand_dims(new_mean, 0))
+        return K.minimum(1.0, new_count / self.cap) * (z * K.expand_dims(new_mean, 0))
 
     def compute_output_shape(self, input_shape):
         return input_shape
 
 
 class CovStream(Layer):
-    """ 
-    Maintain stream of data mean. 
+    """
+    Maintain stream of data mean.
 
     cap refers to mainting an approximation of up to that number of subjects -- that is,
     any incoming datapoint will have at least 1/cap weight.
     """
 
     def __init__(self, cap=100, **kwargs):
-        self.cap = K.variable(cap, dtype='float32')
+        self.cap = K.variable(cap, dtype="float32")
         super(CovStream, self).__init__(**kwargs)
 
     def build(self, input_shape):
         # Create mean, cov and and count
         # See note in MeanStream.build()
-        self.mean = self.add_weight(name='mean',
-                                    shape=input_shape[1:],
-                                    initializer='zeros',
-                                    trainable=False)
+        self.mean = self.add_weight(
+            name="mean", shape=input_shape[1:], initializer="zeros", trainable=False
+        )
         v = np.prod(input_shape[1:])
-        self.cov = self.add_weight(name='cov',
-                                   shape=[v, v],
-                                   initializer='zeros',
-                                   trainable=False)
-        self.count = self.add_weight(name='count',
-                                     shape=[1],
-                                     initializer='zeros',
-                                     trainable=False)
+        self.cov = self.add_weight(
+            name="cov", shape=[v, v], initializer="zeros", trainable=False
+        )
+        self.count = self.add_weight(
+            name="count", shape=[1], initializer="zeros", trainable=False
+        )
 
         super(CovStream, self).build(input_shape)  # Be sure to call this somewhere!
 
@@ -1124,7 +1230,7 @@ class CovStream(Layer):
 
         # x reshape
         this_bs_int = K.shape(x)[0]
-        this_bs = tf.cast(this_bs_int, 'float32')  # this batch size
+        this_bs = tf.cast(this_bs_int, "float32")  # this batch size
         prev_count = self.count
         x = K.batch_flatten(x)  # B x N
 
@@ -1148,7 +1254,7 @@ class CovStream(Layer):
         p = tf.concat((K.reshape(this_bs_int, (1,)), K.shape(self.cov)), 0)
         z = K.ones(p)
 
-        return K.minimum(1., new_count / self.cap) * (z * K.expand_dims(new_cov, 0))
+        return K.minimum(1.0, new_count / self.cap) * (z * K.expand_dims(new_cov, 0))
 
     def compute_output_shape(self, input_shape):
         v = np.prod(input_shape[1:])
@@ -1158,7 +1264,7 @@ class CovStream(Layer):
 def _mean_update(pre_mean, pre_count, x, pre_cap=None):
     # compute this batch stats
     this_sum = tf.reduce_sum(x, 0)
-    this_bs = tf.cast(K.shape(x)[0], 'float32')  # this batch size
+    this_bs = tf.cast(K.shape(x)[0], "float32")  # this batch size
 
     # increase count and compute weights
     new_count = pre_count + this_bs

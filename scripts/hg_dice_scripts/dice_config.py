@@ -9,6 +9,7 @@ class Configuration:
     """
     This configuration object is a collection of all variables relevant to the analysis
     """
+
     def __init__(self):
         self.PROJECT_ID = "UW.photos"
         self.SYNTHSEG_PRJCT = "/space/calico/1/users/Harsha/SynthSeg"
@@ -46,16 +47,21 @@ class Configuration:
         self.SURFACE_RECONS = f"{self.PREFIX}.surface.recon"
 
         # Note: All of these are in photo RAS space (just resampling based on reference)
-        self.MRI_SYNTHSEG_IN_SAMSEG_SPACE = (self.MRI_SCANS_SEG_REG_RES +
-                                             ".in_samseg_space")
-        self.MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE = (self.MRI_SCANS_SEG_REG_RES +
-                                                 ".in_softsamseg_space")
-        self.HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE = (self.HARD_RECON_SYNTHSEG +
-                                                    ".in_samseg_space")
-        self.HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE = (self.HARD_RECON_SYNTHSEG +
-                                                    ".in_mri_space")
-        self.SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE = (self.SOFT_RECON_SYNTHSEG +
-                                                    ".in_samseg_space")
+        self.MRI_SYNTHSEG_IN_SAMSEG_SPACE = (
+            self.MRI_SCANS_SEG_REG_RES + ".in_samseg_space"
+        )
+        self.MRI_SYNTHSEG_IN_SOFTSAMSEG_SPACE = (
+            self.MRI_SCANS_SEG_REG_RES + ".in_softsamseg_space"
+        )
+        self.HARD_RECON_SYNTHSEG_IN_SAMSEG_SPACE = (
+            self.HARD_RECON_SYNTHSEG + ".in_samseg_space"
+        )
+        self.HARD_RECON_SYNTHSEG_IN_MRISEG_SPACE = (
+            self.HARD_RECON_SYNTHSEG + ".in_mri_space"
+        )
+        self.SOFT_RECON_SYNTHSEG_IN_SAMSEG_SPACE = (
+            self.SOFT_RECON_SYNTHSEG + ".in_samseg_space"
+        )
 
         self.mri_synthseg_vols_file = f"{self.PREFIX}.mri.scans.segmentations.csv"
         self.soft_synthseg_vols_file = f"{self.PREFIX}.soft.recon.segmentations.jei.csv"
@@ -63,9 +69,11 @@ class Configuration:
 
         #### Extract SAMSEG Volumes
         self.UW_HARD_RECON_HENRY = (
-            "/cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard")
+            "/cluster/vive/UW_photo_recon/recons/results_Henry/Results_hard"
+        )
         self.UW_SOFT_RECON_HENRY = (
-            "/cluster/vive/UW_photo_recon/recons/results_Henry/Results_soft")
+            "/cluster/vive/UW_photo_recon/recons/results_Henry/Results_soft"
+        )
 
         self.HARD_SAMSEG_STATS = f"{self.UW_HARD_RECON_HENRY}/SAMSEG/"
         self.SOFT_SAMSEG_STATS = f"{self.UW_SOFT_RECON_HENRY}/SAMSEG/"
@@ -128,7 +136,8 @@ class Configuration:
         self._write_config()
 
         self.required_labels = np.array(
-            list(set(self.ALL_LABELS) - set(self.IGNORE_LABELS)))
+            list(set(self.ALL_LABELS) - set(self.IGNORE_LABELS))
+        )
 
     def _write_config(self, file_name=None):
         """Write configuration to a file

@@ -36,25 +36,27 @@ from SynthSeg.brain_generator import BrainGenerator
 
 # script parameters
 n_examples = 5  # number of examples to generate in this script
-result_dir = './generated_examples'  # folder where examples will be saved
+result_dir = "./generated_examples"  # folder where examples will be saved
 
 # path training label maps
-path_label_map = '../../data/training_label_maps'
-generation_labels = '../../data/labels_classes_priors/generation_labels.npy'
-output_labels = '../../data/labels_classes_priors/segmentation_labels.npy'
+path_label_map = "../../data/training_label_maps"
+generation_labels = "../../data/labels_classes_priors/generation_labels.npy"
+output_labels = "../../data/labels_classes_priors/segmentation_labels.npy"
 n_neutral_labels = 18
 output_shape = 160
 
 # ---------- GMM sampling parameters ----------
 
 # Here we use Gaussian priors to control the means and standard deviations of the GMM.
-prior_distributions = 'normal'
+prior_distributions = "normal"
 
 # Here we still regroup labels into classes of similar tissue types:
 # Example: (continuing the example of tutorial 1)  generation_labels = [0, 24, 507, 2, 3, 4, 17, 25, 41, 42, 43, 53, 57]
 #                                                 generation_classes = [0,  1,   2, 3, 4, 5,  4,  6,  3,  4,  5,  4,  6]
 # Note that structures with right/left labels are now associated with the same class.
-generation_classes = '../../data/labels_classes_priors/generation_classes_contrast_specific.npy'
+generation_classes = (
+    "../../data/labels_classes_priors/generation_classes_contrast_specific.npy"
+)
 
 # We specify here the hyperparameters governing the prior distribution of the GMM.
 # As these prior distributions are Gaussians, they are each controlled by a mean and a standard deviation.
@@ -75,9 +77,9 @@ generation_classes = '../../data/labels_classes_priors/generation_classes_contra
 # mean of Gaussian for labels 4 and 43 drawn from N(40,15)
 # mean of Gaussian for labels 25 and 57 drawn from N(70,30)
 # These hyperparameters were estimated with the function SynthSR/estimate_priors.py/build_intensity_stats()
-prior_means = '../../data/labels_classes_priors/prior_means_t1.npy'
+prior_means = "../../data/labels_classes_priors/prior_means_t1.npy"
 # same as for prior_means, but for the standard deviations of the GMM.
-prior_stds = '../../data/labels_classes_priors/prior_stds_t1.npy'
+prior_stds = "../../data/labels_classes_priors/prior_stds_t1.npy"
 
 # ---------- Resolution parameters ----------
 
@@ -89,8 +91,8 @@ blur_range = 1.03
 # We specify here the slice spacing/thickness that we want the synthetic scans to mimic. The axes refer to the *RAS*
 # axes, as all the provided data (label maps and images) will be automatically aligned to those axes during training.
 # RAS refers to Right-left/Anterior-posterior/Superior-inferior axes, i.e. sagittal/coronal/axial directions.
-data_res = np.array([1., 1., 3.])  # slice spacing i.e. resolution to mimic
-thickness = np.array([1., 1., 3.])  # slice thickness
+data_res = np.array([1.0, 1.0, 3.0])  # slice spacing i.e. resolution to mimic
+thickness = np.array([1.0, 1.0, 3.0])  # slice thickness
 
 # Because we have a large gap between the resolution at which we sample the GMM (1mm iso) and the LR we want to
 # simulate, we decide here to downsample the Gaussian image to LR. If downsampled, the data will then be upsampled back
@@ -102,20 +104,22 @@ downsample = True
 # ------------------------------------------------------ Generate ------------------------------------------------------
 
 # instantiate BrainGenerator object
-brain_generator = BrainGenerator(labels_dir=path_label_map,
-                                 generation_labels=generation_labels,
-                                 output_labels=output_labels,
-                                 n_neutral_labels=n_neutral_labels,
-                                 output_shape=output_shape,
-                                 prior_distributions=prior_distributions,
-                                 generation_classes=generation_classes,
-                                 prior_means=prior_means,
-                                 prior_stds=prior_stds,
-                                 randomise_res=randomise_res,
-                                 data_res=data_res,
-                                 thickness=thickness,
-                                 downsample=downsample,
-                                 blur_range=blur_range)
+brain_generator = BrainGenerator(
+    labels_dir=path_label_map,
+    generation_labels=generation_labels,
+    output_labels=output_labels,
+    n_neutral_labels=n_neutral_labels,
+    output_shape=output_shape,
+    prior_distributions=prior_distributions,
+    generation_classes=generation_classes,
+    prior_means=prior_means,
+    prior_stds=prior_stds,
+    randomise_res=randomise_res,
+    data_res=data_res,
+    thickness=thickness,
+    downsample=downsample,
+    blur_range=blur_range,
+)
 
 for n in range(n_examples):
 
@@ -123,7 +127,15 @@ for n in range(n_examples):
     im, lab = brain_generator.generate_brain()
 
     # save output image and label map
-    utils.save_volume(im, brain_generator.aff, brain_generator.header,
-                      os.path.join(result_dir, 'image_t1_%s.nii.gz' % n))
-    utils.save_volume(lab, brain_generator.aff, brain_generator.header,
-                      os.path.join(result_dir, 'labels_t1_%s.nii.gz' % n))
+    utils.save_volume(
+        im,
+        brain_generator.aff,
+        brain_generator.header,
+        os.path.join(result_dir, "image_t1_%s.nii.gz" % n),
+    )
+    utils.save_volume(
+        lab,
+        brain_generator.aff,
+        brain_generator.header,
+        os.path.join(result_dir, "labels_t1_%s.nii.gz" % n),
+    )

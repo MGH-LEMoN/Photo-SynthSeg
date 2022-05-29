@@ -1,4 +1,4 @@
-''' A collection of general python utilities '''
+""" A collection of general python utilities """
 
 import time
 
@@ -12,7 +12,7 @@ class Timer(object):
     with Timer('foo_stuff'):
     # do some foo
     # do some stuff
-    as an alternative to 
+    as an alternative to
     t = time.time()
     # do stuff
     elapsed = time.time() - t
@@ -28,5 +28,5 @@ class Timer(object):
     def __exit__(self, type, value, traceback):
         if self.verbose:
             if self.name:
-                print('[%s]' % self.name, end="")
-            print('Elapsed: %6.4s' % (time.time() - self.tstart))
+                print("[%s]" % self.name, end="")
+            print("Elapsed: %6.4s" % (time.time() - self.tstart))

@@ -7,7 +7,7 @@ from tracemalloc import start
 
 import matplotlib
 
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ sns.set(
     },
 )
 
-RESULTS_DIR = '/space/calico/1/users/Harsha/SynthSeg/results/20220411/new-recons-skip-4'
+RESULTS_DIR = "/space/calico/1/users/Harsha/SynthSeg/results/20220411/new-recons-skip-4"
 SYNTHSEG_RESULTS = RESULTS_DIR
 
 LABEL_PAIRS = [
@@ -59,11 +59,7 @@ LABEL_PAIR_NAMES = [
 def dice_plot_from_df(df, out_file_name, something="avg_images"):
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111)
-    ax = sns.boxplot(x="struct",
-                     y="score",
-                     hue="type",
-                     data=df,
-                     palette="Greys_r")
+    ax = sns.boxplot(x="struct", y="score", hue="type", data=df, palette="Greys_r")
 
     # Setting width and color of outer box
     [i.set_linewidth(1.5) for i in ax.spines.values()]
@@ -84,16 +80,13 @@ def dice_plot_from_df(df, out_file_name, something="avg_images"):
 
     ax.set_ylim(-0.0, 1.0)
     ax.set_xlim(-1, 9)
-    [
-        ax.axvline(x + 0.5, color="k", linestyle=":", lw=0.5)
-        for x in ax.get_xticks()
-    ]
+    [ax.axvline(x + 0.5, color="k", linestyle=":", lw=0.5) for x in ax.get_xticks()]
     [ax.axvline(x, 0, 0.020, color="k", lw=1) for x in ax.get_xticks()]
     [ax.axvline(x, 0.98, 1, color="k", lw=1) for x in ax.get_xticks()]
 
-    #HACK: To print a meaningful title (for models with SxxRxx namming)
+    # HACK: To print a meaningful title (for models with SxxRxx namming)
     title_string, _ = os.path.splitext(os.path.basename(out_file_name))
-    model_name, recon_type, _, sam_type, _ = title_string.split('_')
+    model_name, recon_type, _, sam_type, _ = title_string.split("_")
 
     os.makedirs(os.path.join(SYNTHSEG_RESULTS, something), exist_ok=True)
     old_file = os.path.join(SYNTHSEG_RESULTS, something, out_file_name)
@@ -108,11 +101,9 @@ def dice_plot_from_df(df, out_file_name, something="avg_images"):
     ax.set_xlabel("")
     ax.set_ylabel("Dice Overlap", fontsize=20, fontweight="bold")
     # LABEL_PAIR_NAMES = [fr"\textbf{{{item}}}" for item in LABEL_PAIR_NAMES]
-    ax.set_xticklabels(LABEL_PAIR_NAMES,
-                       rotation=45,
-                       color="k",
-                       fontweight="bold",
-                       ha="right")
+    ax.set_xticklabels(
+        LABEL_PAIR_NAMES, rotation=45, color="k", fontweight="bold", ha="right"
+    )
 
     plt.yticks(fontsize=15)
     plt.xticks(fontsize=15)
@@ -120,11 +111,9 @@ def dice_plot_from_df(df, out_file_name, something="avg_images"):
     # Working with Legend
     handles, labels = ax.get_legend_handles_labels()
     ax.get_legend().remove()
-    ax.legend(handles=handles,
-              labels=labels,
-              fontsize=10,
-              frameon=True,
-              edgecolor="black")
+    ax.legend(
+        handles=handles, labels=labels, fontsize=10, frameon=True, edgecolor="black"
+    )
 
     plt.savefig(os.path.join(SYNTHSEG_RESULTS, something, out_file_name))
     plt.close()
@@ -161,8 +150,7 @@ def extract_scores(hard_dice_json, merge=0):
         for subject in hard_dice:
             for label_pair in LABEL_PAIRS:
                 dice_pair = [
-                    hard_dice[subject].get(str(label), 0)
-                    for label in label_pair
+                    hard_dice[subject].get(str(label), 0) for label in label_pair
                 ]
 
                 # if np.all(dice_pair):  # Remove (0, x)/(x, 0)/(0, 0)
@@ -179,8 +167,7 @@ def create_single_dataframe(data1, flag1=None, flag2=None):
     ha1 = pd.DataFrame(data1, index=LABEL_PAIRS)
 
     ha1 = ha1.stack().reset_index()
-    ha1 = ha1.rename(
-        columns=dict(zip(ha1.columns, ["struct", "subject", "score"])))
+    ha1 = ha1.rename(columns=dict(zip(ha1.columns, ["struct", "subject", "score"])))
     if flag1:
         ha1["type"] = flag1
     if flag2:
@@ -193,13 +180,12 @@ def create_single_dataframe1(data1, flag1=None, flag2=None):
     ha1 = pd.DataFrame(data1, index=LABEL_PAIRS)
 
     ha1 = ha1.stack().reset_index()
-    ha1 = ha1.rename(
-        columns=dict(zip(ha1.columns, ["struct", "subject", "score"])))
+    ha1 = ha1.rename(columns=dict(zip(ha1.columns, ["struct", "subject", "score"])))
 
     if flag1:
         ha1["type"] = flag1
 
-    ha1 = ha1.set_index(ha1.columns.difference(['score'], sort=False).tolist())
+    ha1 = ha1.set_index(ha1.columns.difference(["score"], sort=False).tolist())
 
     return ha1
 
@@ -208,21 +194,23 @@ def construct_average_dice_plots_from_files():
 
     all_folders = sorted(os.listdir(RESULTS_DIR))
     for search_str in [
-            '^S[0-9].+[0-9]n$', '^S[0-9].+noflip$', '^VS0[0-9]n$',
-            '^VS0[0-9]-noflip$', '^VS0[0-9]-accordion-noflip$',
-            '^VS0[0-9]n-accordion$'
+        "^S[0-9].+[0-9]n$",
+        "^S[0-9].+noflip$",
+        "^VS0[0-9]n$",
+        "^VS0[0-9]-noflip$",
+        "^VS0[0-9]-accordion-noflip$",
+        "^VS0[0-9]n-accordion$",
     ]:
         results_folders = [
-            f for f in all_folders
-            if re.search(search_str, os.path.basename(f))
+            f for f in all_folders if re.search(search_str, os.path.basename(f))
         ]
-        if results_folders[0].startswith('S'):
-            if '-' in results_folders[0]:
+        if results_folders[0].startswith("S"):
+            if "-" in results_folders[0]:
                 start_str = results_folders[0][:3] + results_folders[0][6:]
             else:
                 start_str = results_folders[0][:3]
-        elif results_folders[0].startswith('VS'):
-            start_str = 'VS' + results_folders[0][4:]
+        elif results_folders[0].startswith("VS"):
+            start_str = "VS" + results_folders[0][4:]
         else:
             print("Something's Off")
 
@@ -234,7 +222,7 @@ def construct_average_dice_plots_from_files():
                 continue
             file1, file2, merge_flag, _, out_name = item
 
-            dice_flag = ['samseg', 'synthseg']
+            dice_flag = ["samseg", "synthseg"]
             plot_df = []
             for flag_idx, dice_file in enumerate([file1, file2]):
 
@@ -242,19 +230,17 @@ def construct_average_dice_plots_from_files():
                 for folder in results_folders:
                     folder = os.path.join(RESULTS_DIR, folder)
                     data = extract_scores(
-                        os.path.join(folder, 'dice_files', dice_file),
-                        merge_flag)
-                    data_df = create_single_dataframe(data,
-                                                      dice_flag[flag_idx])
+                        os.path.join(folder, "dice_files", dice_file), merge_flag
+                    )
+                    data_df = create_single_dataframe(data, dice_flag[flag_idx])
 
                     dice_data_df_list.append(data_df)
 
-                plot_df.append(
-                    pd.concat(dice_data_df_list, axis=0, ignore_index=True))
+                plot_df.append(pd.concat(dice_data_df_list, axis=0, ignore_index=True))
 
             plot_df = pd.concat(plot_df, axis=0, ignore_index=True)
 
-            out_name = f'{start_str}_{out_name}'
+            out_name = f"{start_str}_{out_name}"
             dice_plot_from_df(plot_df, out_name)
 
 
@@ -265,21 +251,19 @@ def collect_images_into_pdf(target_dir_str):
         target_dir_str ([str]): string relative to RESULTS_DIR
     """
     target_dir = os.path.join(RESULTS_DIR, target_dir_str)
-    out_file = '_'.join(target_dir.split('/')[-2:])
-    out_file = out_file + '.pdf'
+    out_file = "_".join(target_dir.split("/")[-2:])
+    out_file = out_file + ".pdf"
     out_file = os.path.join(RESULTS_DIR, out_file)
 
-    images = sorted(glob.glob(os.path.join(target_dir, '*')))
+    images = sorted(glob.glob(os.path.join(target_dir, "*")))
 
     pdf_img_list = []
     for image in images:
         img = Image.open(image)
-        img = img.convert('RGB')
+        img = img.convert("RGB")
         pdf_img_list.append(img)
 
-    pdf_img_list[0].save(out_file,
-                         save_all=True,
-                         append_images=pdf_img_list[1:])
+    pdf_img_list[0].save(out_file, save_all=True, append_images=pdf_img_list[1:])
 
 
 # def construct_comparison_dice_plots_from_files(key_pair):
@@ -370,19 +354,17 @@ def match_model_dirs(all_folders, search_str):
     Returns:
         List: folders matching the regular expression
     """
-    return [
-        f for f in all_folders if re.search(search_str, os.path.basename(f))
-    ]
+    return [f for f in all_folders if re.search(search_str, os.path.basename(f))]
 
 
 def model_output_string(results_folders):
-    if results_folders[0].startswith('S'):
-        if '-' in results_folders[0]:
+    if results_folders[0].startswith("S"):
+        if "-" in results_folders[0]:
             start_str = results_folders[0][:3] + results_folders[0][6:]
         else:
             start_str = results_folders[0][:3]
-    elif results_folders[0].startswith('VS'):
-        start_str = 'VS' + results_folders[0][4:]
+    elif results_folders[0].startswith("VS"):
+        start_str = "VS" + results_folders[0][4:]
     else:
         print("Something's Off")
 
@@ -393,8 +375,7 @@ def make_model_dice_df(results_folders, dice_file, key, merge_flag):
     dice_data_df_list = []
     for folder in results_folders:
         folder = os.path.join(RESULTS_DIR, folder)
-        data = extract_scores(os.path.join(folder, 'dice_files', dice_file),
-                              merge_flag)
+        data = extract_scores(os.path.join(folder, "dice_files", dice_file), merge_flag)
 
         data_df = create_single_dataframe1(data, key)
 
@@ -404,16 +385,21 @@ def make_model_dice_df(results_folders, dice_file, key, merge_flag):
 
 
 def avg_dice_across_models(df_list):
-    return pd.concat(df_list, axis=1).replace(
-        0, np.NaN).mean(axis=1).reset_index().rename(columns={0: 'score'})
+    return (
+        pd.concat(df_list, axis=1)
+        .replace(0, np.NaN)
+        .mean(axis=1)
+        .reset_index()
+        .rename(columns={0: "score"})
+    )
 
 
 def make_dict_key(flag_idx, start_str):
-    dice_flag = ['samseg', 'synthseg']
+    dice_flag = ["samseg", "synthseg"]
     if flag_idx == 0:
         key = dice_flag[flag_idx]
     else:
-        key = start_str + '-' + dice_flag[flag_idx]
+        key = start_str + "-" + dice_flag[flag_idx]
     return key
 
 
@@ -431,7 +417,8 @@ def all_in_one_comparison(key_pair, out_folder):
 
         # skipping couple of redundant plots
         # HACK: This is a hack to ignore the first and fifth plots
-        if plot_item_idx in [0, 4]: continue
+        if plot_item_idx in [0, 4]:
+            continue
 
         file1, file2, merge_flag, _, out_name = item
 
@@ -443,7 +430,8 @@ def all_in_one_comparison(key_pair, out_folder):
 
         for search_str in key_pair:
             matching_models = match_model_dirs(all_folders, search_str)
-            if not matching_models: continue
+            if not matching_models:
+                continue
 
             # specify the output name
             start_str = model_output_string(matching_models)
@@ -452,19 +440,18 @@ def all_in_one_comparison(key_pair, out_folder):
             for flag_idx, dice_file in enumerate([file1, file2]):
 
                 key = make_dict_key(flag_idx, start_str)
-                if key in model_dice_dict: continue
+                if key in model_dice_dict:
+                    continue
 
-                dice_data_df_list = make_model_dice_df(matching_models,
-                                                       dice_file, key,
-                                                       merge_flag)
-                model_dice_dict[key] = avg_dice_across_models(
-                    dice_data_df_list)
+                dice_data_df_list = make_model_dice_df(
+                    matching_models, dice_file, key, merge_flag
+                )
+                model_dice_dict[key] = avg_dice_across_models(dice_data_df_list)
 
         out_df = pd.concat(model_dice_dict.values(), axis=0, ignore_index=True)
 
-        prefix_str = '-vs-'.join(
-            start_name_list) if len(key_pair) < 2 else 'All'
-        out_name = f'{prefix_str}_{out_name}'
+        prefix_str = "-vs-".join(start_name_list) if len(key_pair) < 2 else "All"
+        out_name = f"{prefix_str}_{out_name}"
 
         # now that we got the big df, let's make a boxplot
         dice_plot_from_df(out_df, out_name, out_folder)
@@ -474,12 +461,12 @@ def all_in_one_comparison(key_pair, out_folder):
 
 if __name__ == "__main__":
     regex_list = [
-        '^S[0-9].+[0-9]n$',
-        '^S[0-9].+noflip$',
-        '^VS0[0-9]n$',
-        '^VS0[0-9]-noflip$',
-        '^VS0[0-9]n-accordion$',
-        '^VS0[0-9]-accordion-noflip$',
+        "^S[0-9].+[0-9]n$",
+        "^S[0-9].+noflip$",
+        "^VS0[0-9]n$",
+        "^VS0[0-9]-noflip$",
+        "^VS0[0-9]n-accordion$",
+        "^VS0[0-9]-accordion-noflip$",
     ]
 
     key_pairs = [
@@ -496,7 +483,7 @@ if __name__ == "__main__":
 
     # The following 2 lines are used to plot "all" models in one file
     all_in_one_comparison(regex_list, "all_images")
-    collect_images_into_pdf('all_images')
+    collect_images_into_pdf("all_images")
 
     # NOTE: I guess the following function needs a cleanup
     # The following 2 lines are used to plot "all" models in one file

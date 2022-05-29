@@ -2,7 +2,7 @@
 
 \
 \
-:tada: Update 29/10/2021: SynthSeg is now available on the dev version of 
+:tada: Update 29/10/2021: SynthSeg is now available on the dev version of
 [FreeSurfer](https://surfer.nmr.mgh.harvard.edu/fswiki/DownloadAndInstall)   !! :tada: \
 See [here](https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg) on how to use it.
 \
@@ -12,13 +12,13 @@ In this repository, we present SynthSeg, the first convolutional neural network 
 any contrast and resolution, without retraining or fine-tuning. In addition, SynthSeg is also robust to:
 - a wide array of subject populations: from young and healthy to ageing and diseased subjects,
 - white matter lesions,
-- scans with or without preprocessing, including bias field corruption, skull stripping, intensity normalisation, 
+- scans with or without preprocessing, including bias field corruption, skull stripping, intensity normalisation,
 template registration, etc.
 
-As a result, SynthSeg relies on a single model that can be used out-of-the-box without retraining or fine-tuning. 
-Here, we distribute the open-source model along with the corresponding code to enable researchers to run SynthSeg on 
+As a result, SynthSeg relies on a single model that can be used out-of-the-box without retraining or fine-tuning.
+Here, we distribute the open-source model along with the corresponding code to enable researchers to run SynthSeg on
 their own data. We emphasise that predictions are given at 1mm isotropic resolution (regardless of the resolution of the
-input images), and can be obtained either by running on the GPU (6s per scan) or on the CPU (1min). 
+input images), and can be obtained either by running on the GPU (6s per scan) or on the CPU (1min).
 \
 \
 ![Generation examples](data/README_figures/segmentations.png)
@@ -38,8 +38,8 @@ This can also be a folder, in which case all the image inside that folder will b
 This must be a folder if `<image>` designates a folder.
 - `<post>` (optional) is the path where the posteriors (given as soft probability maps) will be saved. \
 This must be a folder if `<image>` designates a folder.
-- `<resample>` (optional) SynthSeg segmentations are always given at 1mm isotropic resolution. Therefore, 
-images are internally resampled to this resolution (except if they aleady are at 1mm resolution). 
+- `<resample>` (optional) SynthSeg segmentations are always given at 1mm isotropic resolution. Therefore,
+images are internally resampled to this resolution (except if they aleady are at 1mm resolution).
 Use this optional flag to save the resampled images: it must be the path to a single image, or a folder
 if `<image>` designates a folder.
 - `<vol>` (optional) is the path to an output csv file where the volumes of every segmented structures
@@ -51,13 +51,13 @@ Additional optional flags are also available:
 - `--threads`: to indicate the number of cores to be used if running on a CPU (example: `--threads 3` to run on 3 cores).
 This value defaults to 1, but we recommend increasing it for faster analysis.
 - `--crop`: to crop the input images to a given shape before segmentation. The given size must be divisible by 32.
-Images are cropped around their centre, and their segmentations are given at the original size). It can be given as a 
+Images are cropped around their centre, and their segmentations are given at the original size). It can be given as a
 single (i.e., `--crop 160` to run on 160<sup>3</sup> patches), or several integers (i.e, `--crop 160 128 192` to crop to
 different sizes in each direction, ordered in RAS coordinates). This value defaults to 192, but it can be decreased
 for faster analysis or to fit in your GPU.
 
 
-**IMPORTANT:** Because SynthSeg may produce segmentations at higher resolution than the images (i.e., at 
+**IMPORTANT:** Because SynthSeg may produce segmentations at higher resolution than the images (i.e., at
 1mm<sup>3</sup>), some viewers will not display them correctly when overlaying the segmentations on the
 original images. If that’s the case, you can use the `--resample` flag to obtain a resampled image that
 lives in the same space as the segmentation, such that any viewer can be used to visualize them together.
@@ -80,9 +80,9 @@ All the python requirements are listed in requirements.txt. We give here the imp
 
 This code also relies on several external packages (already included in `\ext` for convenience):
 
-- [lab2im](https://github.com/BBillot/lab2im): contains functions for data augmentation, and a simple version of 
+- [lab2im](https://github.com/BBillot/lab2im): contains functions for data augmentation, and a simple version of
  the generative model, on which we build to build `label_to_image_model`
-- [neuron](https://github.com/adalca/neuron): contains functions for deforming, and resizing tensors, as well as 
+- [neuron](https://github.com/adalca/neuron): contains functions for deforming, and resizing tensors, as well as
 functions to build the segmentation network [1,2].
 - [pytool-lib](https://github.com/adalca/pytools-lib): library required by the *neuron* package.
 
@@ -96,12 +96,12 @@ If you wish to run SynthSeg on the GPU, or to train your own model, you will als
 ### How does it work ?
 
 In short, we train a network with synthetic images sampled on the fly from a generative model based on the forward
-model of Bayesian segmentation. Crucially, we adopt a domain randomisation strategy where we fully randomise the 
+model of Bayesian segmentation. Crucially, we adopt a domain randomisation strategy where we fully randomise the
 generation parameters which are drawn from uninformative uniform distributions. Therefore, by maximising the variability
-of the training data, we force the network to learn domain-agnostic features. As a result, SynthSeg is able to readily 
-segment real scans of any target domain, without retraining or fine-tuning. 
+of the training data, we force the network to learn domain-agnostic features. As a result, SynthSeg is able to readily
+segment real scans of any target domain, without retraining or fine-tuning.
 
-The following figure first illustrates the workflow of a training iteration, and then provides an overview of the 
+The following figure first illustrates the workflow of a training iteration, and then provides an overview of the
 different steps of the generative model:
 \
 \
@@ -126,8 +126,8 @@ MR contrast but not resolution).
 ### Train your own model
 
 This repository contains all the code and data necessary to train, validate, and test your own network. Importantly, the
-proposed method only requires a set of anatomical segmentations to be trained (no images), which we include in 
-[data](data/training_label_maps). While the provided functions are thoroughly documented, we highly recommend to start 
+proposed method only requires a set of anatomical segmentations to be trained (no images), which we include in
+[data](data/training_label_maps). While the provided functions are thoroughly documented, we highly recommend to start
 with the following tutorials:
 
 - [1-generation_visualisation](scripts/tutorials/1-generation_visualisation.py): This very simple script shows examples
@@ -140,17 +140,17 @@ how the synthetic data is formed before you start training your own models.
 - [3-training](scripts/tutorials/3-training.py): This scripts re-uses the parameters explained in the previous tutorial
 and focuses on the learning/architecture parameters. The script here is the very one we used to train SynthSeg !
 
-- [4-training](scripts/tutorials/4-prediction.py): This scripts shows how to make predictions, once the network has been 
+- [4-training](scripts/tutorials/4-prediction.py): This scripts shows how to make predictions, once the network has been
 trained.
 
-- [5-generation_advanced](scripts/tutorials/5-generation_advanced.py): Here we detail more advanced generation options, 
+- [5-generation_advanced](scripts/tutorials/5-generation_advanced.py): Here we detail more advanced generation options,
 in the case of training a version of SynthSeg that is specific to a given contrast and/or resolution (although these
 types of variants were shown to be outperformed by the SynthSeg model trained in the 3rd tutorial).
 
-- [6-intensity_estimation](scripts/tutorials/6-intensity_estimation.py): Finally, this script shows how to estimate the 
+- [6-intensity_estimation](scripts/tutorials/6-intensity_estimation.py): Finally, this script shows how to estimate the
 Gaussian priors of the GMM when training a contrast-specific version of SynthSeg.
 
-These tutorials cover a lot of materials and will enable you to train your own SynthSeg model. Moreover, even more 
+These tutorials cover a lot of materials and will enable you to train your own SynthSeg model. Moreover, even more
 detailed information is provided in the docstrings of all functions, so don't hesitate to have a look at these !
 
 ----------------
@@ -160,22 +160,22 @@ detailed information is provided in the docstrings of all functions, so don't he
 - [SynthSeg](SynthSeg): this is the main folder containing the generative model and training function:
 
   - [labels_to_image_model.py](SynthSeg/labels_to_image_model.py): contains the generative model for MRI scans.
-  
-  - [brain_generator.py](SynthSeg/brain_generator.py): contains the class `BrainGenerator`, which is a wrapper around 
-  `labels_to_image_model`. New images can simply be generated by instantiating an object of this class, and call the 
+
+  - [brain_generator.py](SynthSeg/brain_generator.py): contains the class `BrainGenerator`, which is a wrapper around
+  `labels_to_image_model`. New images can simply be generated by instantiating an object of this class, and call the
   method `generate_image()`.
-  
-  - [training.py](SynthSeg/training.py): contains code to train the segmentation network (with explainations for all 
+
+  - [training.py](SynthSeg/training.py): contains code to train the segmentation network (with explainations for all
   training parameters). This function also shows how to integrate the generative model in a training setting.
-  
+
   - [predict.py](SynthSeg/predict.py): prediction and testing.
-   
+
   - [validate.py](SynthSeg/validate.py): includes code for validation (which has to be done offline on real images).
- 
+
 - [models](models): this is where you will find the trained model for SynthSeg.
- 
+
 - [data](data): this folder contains some examples of brain label maps if you wish to train your own SynthSeg model.
- 
+
 - [script](scripts): contains tutorials as well as scripts to launch trainings and testings from a terminal.
 
 - [ext](ext): includes external packages, especially the *lab2im* package, and a modified version of *neuron*.
