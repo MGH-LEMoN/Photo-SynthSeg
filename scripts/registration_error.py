@@ -1,8 +1,10 @@
 import glob
+import json
 import os
 from functools import partial
 from multiprocessing import Pool
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -20,12 +22,10 @@ sns.set(
     },
 )
 
-
 # CUSTOM = 'subject_133'
-PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg"
 
 
-def get_error(skip, jitter, sub_id=None):
+def get_error(results_dir, sub_id=None):
     """_summary_
 
     Args:
@@ -38,11 +38,10 @@ def get_error(skip, jitter, sub_id=None):
     """
     pad = 3  # for reconstruction
 
-    results_dir, subjects = subject_selector(skip, jitter)
+    skip = get_skip(results_dir)
 
-    subject_id = subjects[sub_id]
+    subject_id = utils.list_subfolders(results_dir, False)[sub_id]
     subject_dir = os.path.join(results_dir, subject_id)
-    # print(sub_id)
 
     # rigid transform from T1
     rigid_transform = np.load(os.path.join(subject_dir, f"{subject_id}.rigid.npy"))
@@ -144,14 +143,15 @@ def get_error(skip, jitter, sub_id=None):
 
         errors_norm_slices.append(error_norms_slice)
 
-    return (
+    return sub_id, (
         errors_norm_slices,
         np.nanmean(np.concatenate(errors_norm_slices)),
         np.nanstd(np.concatenate(errors_norm_slices)),
+        np.nanmedian(np.concatenate(errors_norm_slices)),
     )
 
 
-def save_errors(skip_val, jitter_val, corr):
+def save_errors(results_dir, corr):
     """_summary_
 
     Args:
@@ -159,19 +159,45 @@ def save_errors(skip_val, jitter_val, corr):
         jitter (_type_): _description_
         corr (_type_): _description_
     """
-    all_errors = [item[0] for item in corr]
-    all_means = [item[1] for item in corr]
-    all_stds = [item[2] for item in corr]
+    # FIXME: clean this function
+    subject_ids = [int(item[0]) for item in corr]
+    all_errors = [item[1][0] for item in corr]
+    all_means = [item[1][1] for item in corr]
+    all_stds = [item[1][2] for item in corr]
+    all_medians = [item[1][3] for item in corr]
 
-    head_dir = get_results_dir(skip_val, jitter_val)
+    all_errors = dict(zip(subject_ids, all_errors))
+    all_means = dict(zip(subject_ids, all_means))
+    all_stds = dict(zip(subject_ids, all_stds))
+    all_medians = dict(zip(subject_ids, all_medians))
+
+    jitter_val = get_jitter(results_dir)
+    skip_val = get_skip(results_dir)
+
+    file_suffix = f"skip-{skip_val:02d}-r{jitter_val}"
+
+    head_dir = os.path.join(os.path.dirname(results_dir), "hcp-errors")
     os.makedirs(head_dir, exist_ok=True)
 
-    np.save(os.path.join(head_dir, f"hcp-skip-{skip_val:02d}-errors"), all_errors)
-    np.save(os.path.join(head_dir, f"hcp-skip-{skip_val:02d}-means"), all_means)
-    np.save(os.path.join(head_dir, f"hcp-skip-{skip_val:02d}-stds"), all_stds)
+    np.save(os.path.join(head_dir, f"hcp-errors-{file_suffix}"), all_errors)
+    # np.save(os.path.join(head_dir, f"hcp-means-{file_suffix}"), all_means)
+    # np.save(os.path.join(head_dir, f"hcp-stds-{file_suffix}"), all_stds)
+    # np.save(os.path.join(head_dir, f"hcp-medians-{file_suffix}"), all_medians)
+
+    # with open(os.path.join(head_dir, f"hcp-errors-{file_suffix}"), "w") as write_file:
+    #     json.dump(all_errors, write_file, indent=4)
+
+    with open(os.path.join(head_dir, f"hcp-means-{file_suffix}"), "w") as write_file:
+        json.dump(all_means, write_file, indent=4)
+
+    with open(os.path.join(head_dir, f"hcp-stds-{file_suffix}"), "w") as write_file:
+        json.dump(all_stds, write_file, indent=4)
+
+    with open(os.path.join(head_dir, f"hcp-medians-{file_suffix}"), "w") as write_file:
+        json.dump(all_medians, write_file, indent=4)
 
 
-def get_results_dir(skip_val, jitter_val):
+def subject_selector(results_dir, n_size=None):
     """_summary_
 
     Args:
@@ -181,31 +207,22 @@ def get_results_dir(skip_val, jitter_val):
     Returns:
         _type_: _description_
     """
-    return os.path.join(
-        PRJCT_DIR,
-        "results",
-        "hcp-results-20220528",
-        f"4harshaHCP-skip-{skip_val:02d}-jitter-{jitter_val}",
-    )
+    file_count = len(utils.list_subfolders(results_dir))
 
-
-def subject_selector(skip_val, jitter_val):
-    """_summary_
-
-    Args:
-        skip (_type_): _description_
-        jitter (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    results_dir = get_results_dir(skip_val, jitter_val)
-    subjects = sorted(os.listdir(results_dir))
+    if file_count != 897:  # This is the total number of subjects for HCP
+        print("Not all subjects are present in here")
+        file_count = 897
     # subjects = [item for item in subjects if CUSTOM in item]
-    return results_dir, subjects
+
+    if n_size is not None:
+        subject_ids = np.random.choice(range(file_count), n_size, replace=False)
+    else:
+        subject_ids = range(file_count)
+
+    return subject_ids
 
 
-def get_error_wrapper(sub_id, skip_val, jitter_val):
+def get_error_wrapper(sub_id, results_dir):
     """_summary_
 
     Args:
@@ -216,33 +233,57 @@ def get_error_wrapper(sub_id, skip_val, jitter_val):
     Returns:
         _type_: _description_
     """
-    _, subjects = subject_selector(skip_val, jitter_val)
+    subjects = sorted(os.listdir(results_dir))
+
     try:
-        return get_error(skip_val, jitter_val, sub_id)
-    except Exception:
+        return get_error(results_dir, sub_id)
+    except:
         print(f"Failed: {subjects[sub_id]}")
-        return None, None, None
+        return sub_id, (None, None, None, None)
 
 
-def main_mp(skip_val, jitter_val):
+def main_mp(results_dir, sample_size=None):
     """_summary_
 
     Args:
         skip (_type_): _description_
         jitter (_type_): _description_
     """
-    _, subjects = subject_selector(skip_val, jitter_val)
+    subjects = subject_selector(results_dir, sample_size)
 
     with Pool() as pool:
-        corr = pool.map(
-            partial(get_error_wrapper, skip=skip_val, jitter=jitter_val),
-            range(len(subjects)),
-        )
+        corr = pool.map(partial(get_error_wrapper, results_dir=results_dir), subjects)
 
-    save_errors(skip, jitter, corr)
+    save_errors(results_dir, corr)
 
 
-def get_means_and_stds(jitter_val):
+def get_jitter(dir_name):
+    """_summary_
+
+    Args:
+        dir_name (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    return int(dir_name[-1])
+
+
+def get_skip(file_path):
+    """_summary_
+
+    Args:
+        file_list (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    if isinstance(file_path, str):
+        return int(file_path.split("-")[-2])
+    else:
+        return sorted(list({int(item.split("-")[-2]) for item in file_path}))
+
+    # def get_means_and_stds_old(dir_path):
     """_summary_
 
     Args:
@@ -251,27 +292,10 @@ def get_means_and_stds(jitter_val):
     Returns:
         _type_: _description_
     """
-    r3_means = []
-    r3_stds = []
-    skip_vals = list(range(2, 3, 2))
+    file_list = utils.list_files(dir_path, True, "means.npy")
 
-    for skip_val in skip_vals:
-        means_file = os.path.join(
-            get_results_dir(skip_val, jitter_val), f"hcp-skip-{skip_val:02d}-means.npy"
-        )
-        stds_file = os.path.join(
-            get_results_dir(skip_val, jitter_val), f"hcp-skip-{skip_val:02d}-stds.npy"
-        )
-
-        if not os.path.exists(means_file):
-            skip_vals.remove(skip_val)
-            continue
-
-        means = np.load(means_file, allow_pickle=True)
-        stds = np.load(stds_file, allow_pickle=True)
-
-        r3_means.append(means)
-        r3_stds.append(stds)
+    r3_means = [np.load(file, allow_pickle=True) for file in file_list]
+    skip_vals = get_skip(file_list)
 
     r3_mean_df = pd.DataFrame(r3_means).T
     r3_mean_df.columns = np.round(np.array(skip_vals) * 0.7, 1)
@@ -279,31 +303,130 @@ def get_means_and_stds(jitter_val):
     r3_mean_df = r3_mean_df.stack().reset_index().drop(labels=["level_0"], axis=1)
     r3_mean_df.columns = ["Skip", "Mean Error"]
 
-    r3_mean_df["Jitter"] = jitter_val
+    r3_mean_df["Jitter"] = get_jitter(dir_path)
+
     return r3_mean_df
 
 
-def boxplot_jitter():
-    """_summary_"""
-    df_list = []
-    jitter_vals = range(0, 4)
-    for j_val in jitter_vals:
-        df_list.append(get_means_and_stds(j_val))
+def get_means_and_stds(dir_path, error_type="mean"):
+    """_summary_
 
-    final_df = pd.concat(df_list, axis=0)
+    Args:
+        jitter (_type_): _description_
 
+    Returns:
+        _type_: _description_
+    """
+    file_list = utils.list_files(dir_path, True, error_type)
+
+    r3_means = [pd.read_json(file, orient="index") for file in file_list]
+
+    col_item1 = lambda x: np.round(np.array(get_skip(x)) * 0.7, 1)
+    columns = [(col_item1(file), get_jitter(file)) for file in file_list]
+
+    r3_mean_df = pd.concat(r3_means, axis=1)
+    print(f"Before removing NaN rows: {r3_mean_df.shape[0]}")
+
+    r3_mean_df = r3_mean_df.dropna(axis=0, how="any")
+    print(f"After removing NaN rows: {r3_mean_df.shape[0]}")
+
+    if r3_mean_df.empty:
+        return None
+
+    r3_mean_df.columns = columns
+
+    r3_mean_df = r3_mean_df.stack().reset_index().drop(labels=["level_0"], axis=1)
+    r3_mean_df.columns = ["Skip", f"{error_type.capitalize()} Error"]
+
+    r3_mean_df[["Spacing", "Jitter"]] = pd.DataFrame(r3_mean_df["Skip"].tolist())
+    r3_mean_df = r3_mean_df.drop(labels=["Skip"], axis=1)
+
+    return r3_mean_df
+
+
+def make_error_boxplot(data_frame, out_file, x_col, hue_col, type_str):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        out_file (_type_): _description_
+        x_col (_type_): _description_
+        hue_col (_type_): _description_
+    """
     bp_ax = sns.boxplot(
-        x="Jitter", y="Mean Error", hue="Skip", data=final_df, palette="Greys_r"
+        x=x_col,
+        y=f"{type_str.capitalize()} Error",
+        hue=hue_col,
+        data=data_frame,
+        palette="Greys_r",
+        linewidth=0.5,
     )
     fig = bp_ax.get_figure()
-    bp_ax.legend(ncol=5, edgecolor="white", framealpha=0.25)
-    fig.savefig("output_all_jitters.png")
+    # bp_ax.legend(ncol=10, edgecolor="white", framealpha=0.25)
+    fig.savefig(out_file, dpi=1200, bbox_inches="tight")
+    plt.clf()
+
+
+def plot_file_name(results_dir, plot_idx, type):
+    """_summary_
+
+    Args:
+        results_dir (_type_): _description_
+        plot_idx (_type_): _description_
+    """
+    out_file = f"{type}_{plot_idx:02d}.png"
+    out_file = os.path.join(results_dir, out_file)
+    return out_file
+
+
+def plot_registration_error(results_dir, error_str="mean"):
+    """_summary_
+
+    Args:
+        jitters (_type_): _description_
+    """
+    print(error_str)
+
+    errors_dir = os.path.join(results_dir, "hcp-errors")
+    final_df = get_means_and_stds(errors_dir, error_str)
+
+    if final_df is not None:
+        out_file = plot_file_name(results_dir, 1, error_str)
+        make_error_boxplot(final_df, out_file, "Spacing", "Jitter", error_str)
+
+        out_file = plot_file_name(results_dir, 2, error_str)
+        make_error_boxplot(final_df, out_file, "Jitter", "Spacing", error_str)
+    else:
+        print(f"Empty DataFrame for {error_str}")
+
+
+def calculate_registration_error(results_dir, n_subjects=None):
+    """_summary_"""
+    recon_folders = utils.list_subfolders(results_dir, True, "4harshaHCP-skip-")
+
+    for recon_folder in recon_folders[:4]:
+        if "ex" in os.path.basename(recon_folder):
+            continue
+        np.random.seed(0)
+        print(os.path.basename(recon_folder))
+        main_mp(recon_folder, n_subjects)
 
 
 if __name__ == "__main__":
-    for skip in range(2, 3, 2):
-        for jitter in range(0, 4):
-            print(f"SKIP: {skip:02d}-r{jitter}")
-            main_mp(skip, jitter)
+    PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg/results"
 
-    # boxplot_jitter()
+    FOLDER = "hcp-results-20220528"
+    # {options: hcp-results | hcp-results-2020527 | hcp-results-2020528}
+
+    # set this to a high value if you want to run all subjects
+    # there are nearly 897 subjects in the dataset
+    M = 100
+
+    full_results_path = os.path.join(PRJCT_DIR, FOLDER)
+
+    if not os.path.exists(full_results_path):
+        raise Exception("Folder does not exist")
+
+    calculate_registration_error(full_results_path, M)
+    plot_registration_error(full_results_path, "mean")
+    plot_registration_error(full_results_path, "median")
