@@ -1,5 +1,6 @@
 """Contains code to replicate photos from HCP dataset"""
 import glob
+import logging
 import os
 import random
 from functools import partial
@@ -8,9 +9,12 @@ from multiprocessing import Pool
 import numpy as np
 from PIL import Image
 from scipy.ndimage import affine_transform
+from scipy.ndimage.morphology import distance_transform_edt
+from skimage.transform import resize
 from tqdm import tqdm
 
 from ext.hg_utils import zoom
+from ext.hg_utils.zoom import get_git_revision_branch, get_git_revision_short_hash
 from ext.lab2im import utils
 
 np.random.seed(0)
@@ -104,8 +108,18 @@ def process_t1(args, t1_file, t1_name):
 
     # 5. Binarize the T1 volume by thresholding at 0 and save it with the
     # new header, and call it “mri.mask.mgz”
+    mask = volume > 0
+
+    M = mask.astype("bool")
+    D = distance_transform_edt(~M) - distance_transform_edt(
+        M
+    )  # where positive is outside, negative is inside
+    Rsmall = np.random.uniform(low=-1.5, high=1.5, size=(5, 5, 5))
+    R = resize(Rsmall, M.shape, order=3)
+    mask = D < R
+
     t1_out_path = os.path.join(args["out_dir"], t1_name, f"{t1_name}.mri.mask.mgz")
-    utils.save_volume(volume > 0, new_aff, hdr, t1_out_path)
+    utils.save_volume(mask, new_aff, hdr, t1_out_path)
 
 
 def create_slice_affine(affine_dir, t2_name, idx, curr_slice):
@@ -146,6 +160,7 @@ def create_slice_affine(affine_dir, t2_name, idx, curr_slice):
         shearing=shearing,
         translation=translation,
     )
+    # to rotate around the center of the slice instead of the corner
     slice_aff_mat = np.matmul(translation_mat_2, np.matmul(aff_mat, translation_mat_1))
 
     # Save this matrix somewhere for evaluation later on eg as a numpy array
@@ -169,6 +184,15 @@ def make_mask_from_deformed(photo_dir, t2_name, idx, deformed_slice):
     """
     # Threshold the deformed slice at zero to get a mask (1 inside, 0 outside)
     mask = deformed_slice > 0
+
+    M = mask.astype("bool")
+    D = distance_transform_edt(~M) - distance_transform_edt(
+        M
+    )  # where positive is outside, negative is inside
+    Rsmall = np.random.uniform(low=-1.5, high=1.5, size=(5, 5))
+    R = resize(Rsmall, M.shape, order=3)
+    mask = D < R
+
     # write it as photo_dir/image.[c].npy
     # (format the number c with 2 digits so they are in order when listed)
     out_file_name = os.path.join(photo_dir, f"{t2_name}.image.{idx:03d}.npy")
@@ -261,7 +285,7 @@ def process_t2(args, t2_file, t2_name, jitter=0):
     t2_vol = utils.load_volume(t2_file)
     t2_vol = 255 * t2_vol / np.max(t2_vol)
 
-    slice_ids = slice_ids_method2(args, t2_vol)  # see method 2
+    slice_ids = slice_ids_method1(args, t2_vol)  # see method 2
 
     for idx, slice_id in enumerate(slice_ids, 1):
         curr_slice = t2_vol[..., slice_id]
@@ -338,28 +362,6 @@ def pipeline(args, jitter=0):
         sub_pipeline(args, t1_file, t2_file, jitter=jitter)
 
 
-def make_args(skip, jitter):
-    """_summary_
-
-    Args:
-        skip (_type_): _description_
-        jitter (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    prjct_id = "4harshaHCP"  # '4harshaHCP'
-    prjct_dir = "/space/calico/1/users/Harsha/SynthSeg"
-    data_dir = os.path.join(prjct_dir, "data")
-    results_dir = os.path.join(prjct_dir, "results/hcp-results-20220528")
-    in_dir = os.path.join(data_dir, prjct_id)
-    out_dir = os.path.join(
-        results_dir, prjct_id + f"-skip-{skip:02d}-r{jitter}"
-    )  # '4harshaHCP_extracts'
-
-    return dict(in_dir=in_dir, out_dir=out_dir, SKIP=skip)
-
-
 def pipeline_wrapper(idx, args, jitter):
     """_summary_
 
@@ -401,13 +403,10 @@ def pipeline_mp(args, jitter=0):
     file_count = len(get_t1_t2_pairs(args))
 
     # input_ids = range(file_count)
-    input_ids = np.random.choice(range(file_count), file_count, replace=False)
-    input_ids = input_ids[100:]
+    input_ids = np.random.choice(range(file_count), 100, replace=False)
+    # input_ids = input_ids[100:]
 
-    save_ids = (
-        "/space/calico/1/users/Harsha/SynthSeg/results/hcp-results-20220528/ids_02.npy"
-    )
-    os.makedirs(os.path.dirname(save_ids), exist_ok=True)
+    save_ids = os.path.join(args["results_dir"], "ids_01.npy")
 
     if not os.path.exists(save_ids):
         np.save(save_ids, input_ids)
@@ -423,14 +422,59 @@ def pipeline_mp(args, jitter=0):
         )
 
 
+def make_main_args():
+    prjct_dir = "/space/calico/1/users/Harsha/SynthSeg"
+    in_dir = os.path.join(prjct_dir, "data/4harshaHCP")
+    results_dir = os.path.join(prjct_dir, "results/hcp-results-20220601")
+
+    os.makedirs(results_dir, exist_ok=True)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        filename=os.path.join(results_dir, "log.txt"),
+        filemode="a",
+        format="%(asctime)s - %(message)s",
+    )
+
+    logging.info(os.path.basename(__file__))
+    logging.info(f"The Git Branch is: {get_git_revision_branch()}")
+    logging.info(f"The Git Commit is: {get_git_revision_short_hash()}")
+
+    return dict(in_dir=in_dir, results_dir=results_dir)
+
+
+def make_args(args, skip, jitter):
+    """_summary_
+
+    Args:
+        skip (_type_): _description_
+        jitter (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    results_dir = args["results_dir"]
+    out_dir = os.path.join(results_dir, f"4harshaHCP-skip-{skip:02d}-r{jitter}")
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    args["out_dir"] = out_dir
+    args["SKIP"] = skip
+
+    return args
+
+
 def main():
     """_summary_"""
+    args = make_main_args()
     for skip in range(2, 17, 2):
         for jitter in range(0, 4):
             np.random.seed(0)  # reset seed for reproducibility
 
-            print(f"Running Skip {skip:02d}, Jitter {jitter}")
-            args = make_args(skip, jitter)
+            logging.info(f"Running Skip {skip:02d}, Jitter {jitter}")
+
+            args = make_args(args, skip, jitter)
             # pipeline(args)
             pipeline_mp(args, jitter)
 

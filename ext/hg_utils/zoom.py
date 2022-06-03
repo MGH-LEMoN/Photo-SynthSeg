@@ -1,4 +1,5 @@
 import os
+import subprocess
 from time import time
 
 import nibabel as nib
@@ -7,6 +8,32 @@ from scipy.ndimage import zoom
 from tabulate import tabulate
 
 LABELS_SHAPE = [256, 256, 256]
+
+# https://stackoverflow.com/questions/14989858/get-the-current-git-hash-in-a-python-script
+def get_git_revision_hash() -> str:
+    return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
+
+
+def get_git_revision_branch() -> str:
+    return (
+        subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+        .decode("ascii")
+        .strip()
+    )
+
+    # return (
+    #     subprocess.check_output(["git", "branch", "--show-current"])
+    #     .decode("ascii")
+    #     .strip()
+    # )
+
+
+def get_git_revision_short_hash() -> str:
+    return (
+        subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+        .decode("ascii")
+        .strip()
+    )
 
 
 def print_shapes(input, factors):
