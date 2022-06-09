@@ -1,8 +1,10 @@
 """Contains code to replicate photos from HCP dataset"""
 import glob
 import logging
+import multiprocessing
 import os
 import random
+import sys
 from functools import partial
 from multiprocessing import Pool
 
@@ -265,7 +267,7 @@ def slice_jitter(t2_name, jitter, t2_vol, slice_id):
             return curr_slice
 
 
-def process_t2(args, t2_file, t2_name, jitter=0):
+def process_t2(args, t2_file, t2_name):
     """_summary_
 
     Args:
@@ -274,6 +276,7 @@ def process_t2(args, t2_file, t2_name, jitter=0):
         t2_name (_type_): _description_
         jitter (int, optional): _description_. Defaults to 0.
     """
+    jitter = args["jitter"]
     affine_dir = os.path.join(args["out_dir"], t2_name, "slice_affines")
     photo_dir = os.path.join(args["out_dir"], t2_name, "photo_dir")
 
@@ -306,7 +309,7 @@ def process_t2(args, t2_file, t2_name, jitter=0):
         create_corrupted_image(photo_dir, t2_name, idx, deformed_slice)
 
 
-def sub_pipeline(args, t1_file, t2_file, jitter=0):
+def pipeline(args, t1_file, t2_file):
     """_summary_
 
     Args:
@@ -345,32 +348,7 @@ def sub_pipeline(args, t1_file, t2_file, jitter=0):
 
     # work on T1 and T2 volumes
     process_t1(args, t1_file, t1_subject_name)
-    process_t2(args, t2_file, t2_subject_name, jitter=jitter)
-
-
-def pipeline(args, jitter=0):
-    """_summary_
-
-    Args:
-        args (_type_): _description_
-        jitter (int, optional): _description_. Defaults to 0.
-    """
-    vol_pairs = get_t1_t2_pairs(args)
-
-    for i in tqdm(range(len(vol_pairs)), position=0, leave=True):
-        t1_file, t2_file = vol_pairs[i]
-        sub_pipeline(args, t1_file, t2_file, jitter=jitter)
-
-
-def pipeline_wrapper(idx, args, jitter):
-    """_summary_
-
-    Args:
-        idx (_type_): _description_
-        args (_type_): _description_
-        jitter (_type_): _description_
-    """
-    sub_pipeline(args, *get_t1_t2_pairs(args)[idx], jitter=jitter)
+    process_t2(args, t2_file, t2_subject_name)
 
 
 def get_t1_t2_pairs(args):
@@ -382,15 +360,15 @@ def get_t1_t2_pairs(args):
     Returns:
         _type_: _description_
     """
-    t1_files = sorted(glob.glob(os.path.join(args["in_dir"], "*T1.nii.gz")))
-    t2_files = sorted(glob.glob(os.path.join(args["in_dir"], "*T2.nii.gz")))
+    t1_files = utils.list_files(args["in_dir"], True, "T1.nii.gz")
+    t2_files = utils.list_files(args["in_dir"], True, "T2.nii.gz")
 
     assert len(t1_files) == len(t2_files), "Subject Mismatch"
 
     return list(zip(t1_files, t2_files))
 
 
-def pipeline_mp(args, jitter=0):
+def submit_pipeline(args):
     """_summary_
 
     Args:
@@ -400,10 +378,11 @@ def pipeline_mp(args, jitter=0):
     Raises:
         Exception: _description_
     """
-    file_count = len(get_t1_t2_pairs(args))
+    t1_t2_pairs = get_t1_t2_pairs(args)
+    file_count = len(t1_t2_pairs)
 
     # input_ids = range(file_count)
-    input_ids = np.random.choice(range(file_count), 100, replace=False)
+    input_ids = np.random.choice(range(file_count), 10, replace=False)
     # input_ids = input_ids[100:]
 
     save_ids = os.path.join(args["results_dir"], "ids_01.npy")
@@ -415,35 +394,16 @@ def pipeline_mp(args, jitter=0):
         if not np.array_equal(input_ids, old_ids):
             raise Exception()
 
-    with Pool() as pool:
-        pool.map(
-            partial(pipeline_wrapper, args=args, jitter=jitter),
-            input_ids,
+    n_procs = 1 if args["DEBUG"] else multiprocessing.cpu_count()
+
+    with Pool(processes=n_procs) as pool:
+        pool.starmap(
+            pipeline,
+            [(args, *t1_t2_pairs[idx]) for idx in input_ids],
         )
 
 
-def make_main_args():
-    prjct_dir = "/space/calico/1/users/Harsha/SynthSeg"
-    in_dir = os.path.join(prjct_dir, "data/4harshaHCP")
-    results_dir = os.path.join(prjct_dir, "results/hcp-results-20220601")
-
-    os.makedirs(results_dir, exist_ok=True)
-
-    logging.basicConfig(
-        level=logging.INFO,
-        filename=os.path.join(results_dir, "log.txt"),
-        filemode="a",
-        format="%(asctime)s - %(message)s",
-    )
-
-    logging.info(os.path.basename(__file__))
-    logging.info(f"The Git Branch is: {get_git_revision_branch()}")
-    logging.info(f"The Git Commit is: {get_git_revision_short_hash()}")
-
-    return dict(in_dir=in_dir, results_dir=results_dir)
-
-
-def make_args(args, skip, jitter):
+def make_specific_args(args, skip, jitter):
     """_summary_
 
     Args:
@@ -461,22 +421,57 @@ def make_args(args, skip, jitter):
 
     args["out_dir"] = out_dir
     args["SKIP"] = skip
+    args["jitter"] = jitter
 
     return args
 
 
-def main():
-    """_summary_"""
-    args = make_main_args()
-    for skip in range(2, 17, 2):
-        for jitter in range(0, 4):
-            np.random.seed(0)  # reset seed for reproducibility
+def info_logger(args):
+    logging.basicConfig(
+        level=logging.INFO,
+        filename=os.path.join(args["results_dir"], "log.txt"),
+        filemode="a",
+        format="%(asctime)s - %(message)s",
+    )
 
+    logging.info(os.path.basename(__file__))
+    logging.info(f"The Git Branch is: {get_git_revision_branch()}")
+    logging.info(f"The Git Commit is: {get_git_revision_short_hash()}")
+
+
+def make_main_args():
+    """Specify project specific directory paths and other parameters
+
+    Returns:
+        dict: dictionary of project specific parameters
+    """
+    PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg"
+    in_dir = os.path.join(PRJCT_DIR, "data/4harshaHCP")
+    results_dir = os.path.join(PRJCT_DIR, "results/test")
+
+    os.makedirs(results_dir, exist_ok=True)
+
+    gettrace = getattr(sys, "gettrace", None)
+    DEBUG = True if gettrace() else False
+
+    return dict(in_dir=in_dir, results_dir=results_dir, DEBUG=DEBUG)
+
+
+def main():
+    """Simulate photos (from T2) and mask from (T1) of th HCP dataset"""
+    args = make_main_args()
+    info_logger(args)
+
+    MIN_SKIP, MAX_SKIP = 2, 2
+    MIN_JITTER, MAX_JITTER = 0, 0
+
+    for skip in range(MIN_SKIP, MAX_SKIP + 1, 2):
+        for jitter in range(MIN_JITTER, MAX_JITTER + 1):
+            np.random.seed(0)  # reset seed for reproducibility
             logging.info(f"Running Skip {skip:02d}, Jitter {jitter}")
 
-            args = make_args(args, skip, jitter)
-            # pipeline(args)
-            pipeline_mp(args, jitter)
+            args = make_specific_args(args, skip, jitter)
+            submit_pipeline(args)
 
 
 if __name__ == "__main__":
