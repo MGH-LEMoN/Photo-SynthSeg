@@ -127,15 +127,11 @@ def get_error_optimized(results_dir):
         )
         keep_slice_list = get_middle_elements(slice_ids_of_interest, num_slices)
 
-    errors_vol = np.zeros(
-        (*t2_vol.shape[:-1], len(slice_ids_of_interest)), dtype=np.float32
-    )
-    errors_vol_xy = np.zeros(
-        (*t2_vol.shape[:-1], len(slice_ids_of_interest)), dtype=np.float32
-    )
-    errors_vol_z = np.zeros(
-        (*t2_vol.shape[:-1], len(slice_ids_of_interest)), dtype=np.float32
-    )
+    # creating empty arrays for error norms (volumes)
+    errors_vol = np.zeros_like(t2_vol)
+    errors_vol_xy = np.zeros_like(t2_vol)
+    errors_vol_z = np.zeros_like(t2_vol)
+
     for z, slice_id in enumerate(slice_ids_of_interest):
         if SOME_SUFFIX == "curtailed":
             if slice_id not in keep_slice_list:
@@ -184,9 +180,9 @@ def get_error_optimized(results_dir):
         error_norms_slices_z.append(error_norms_slice_z)
 
         # putting errors in a volume
-        errors_vol[ii, jj, z] = error_norms_slice
-        errors_vol_xy[ii, jj, z] = error_norms_slice_xy
-        errors_vol_z[ii, jj, z] = error_norms_slice_z
+        errors_vol[ii, jj, slice_id] = error_norms_slice
+        errors_vol_xy[ii, jj, slice_id] = error_norms_slice_xy
+        errors_vol_z[ii, jj, slice_id] = error_norms_slice_z
 
     os.makedirs(
         os.path.join(results_dir, "-".join(["error_vols", SOME_SUFFIX]).strip("-")),
