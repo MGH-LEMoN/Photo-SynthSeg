@@ -5,7 +5,6 @@ import multiprocessing
 import os
 import random
 import sys
-from functools import partial
 from multiprocessing import Pool
 
 import numpy as np
@@ -13,13 +12,10 @@ from PIL import Image
 from scipy.ndimage import affine_transform
 from scipy.ndimage.morphology import distance_transform_edt
 from skimage.transform import resize
-from tqdm import tqdm
 
 from ext.hg_utils import zoom
 from ext.hg_utils.zoom import get_git_revision_branch, get_git_revision_short_hash
 from ext.lab2im import utils
-
-np.random.seed(0)
 
 # TODO: fix this function
 # def get_min_max_idx(t2_file):
@@ -113,9 +109,8 @@ def process_t1(args, t1_file, t1_name):
     mask = volume > 0
 
     M = mask.astype("bool")
-    D = distance_transform_edt(~M) - distance_transform_edt(
-        M
-    )  # where positive is outside, negative is inside
+    # positive is outside, negative is inside
+    D = distance_transform_edt(~M) - distance_transform_edt(M)
     Rsmall = np.random.uniform(low=-1.5, high=1.5, size=(5, 5, 5))
     R = resize(Rsmall, M.shape, order=3)
     mask = D < R
@@ -237,7 +232,7 @@ def create_corrupted_image(photo_dir, t2_name, idx, deformed_slice):
     corrupted_image.save(img_out, "PNG")
 
 
-def slice_jitter(t2_name, jitter, t2_vol, slice_id):
+def slice_jitter(t2_vol, slice_id, jitter):
     """_summary_
 
     Args:
@@ -246,22 +241,9 @@ def slice_jitter(t2_name, jitter, t2_vol, slice_id):
         t2_vol (_type_): _description_
         slice_id (_type_): _description_
     """
-    i = 0
-    all_idx = []
     while True:
-        if i == 15:
-            print(f"Possiby Bad Case: {t2_name}")
-            break
-
-        # rand_idx = np.random.choice(np.arange(1, jitter + 1))
-        # rand_idx = rand_idx if np.random.random(
-        # ) < 0.5 else -rand_idx
         rand_idx = random.randrange(-jitter, jitter)
-
         curr_slice = t2_vol[..., slice_id + rand_idx]
-
-        i += 1
-        all_idx.append(rand_idx)
 
         if np.sum(curr_slice):
             return curr_slice
@@ -293,10 +275,10 @@ def process_t2(args, t2_file, t2_name):
     for idx, slice_id in enumerate(slice_ids, 1):
         curr_slice = t2_vol[..., slice_id]
 
-        # FIXME: cleanup this function
         if jitter:
-            curr_slice = slice_jitter(t2_name, jitter, t2_vol, slice_id)
+            curr_slice = slice_jitter(t2_vol, slice_id, jitter)
 
+        # NOTE: (in hindsight) this rotation was a bad idea
         curr_slice = np.pad(np.rot90(curr_slice), 25)
 
         slice_aff_mat = create_slice_affine(affine_dir, t2_name, idx, curr_slice)
@@ -331,9 +313,7 @@ def pipeline(args, t1_file, t2_file):
     # make output directory for subject
     out_subject_dir = os.path.join(args["out_dir"], t1_subject_name)
 
-    if os.path.isdir(out_subject_dir):
-        pass
-    else:
+    if not os.path.isdir(out_subject_dir):
         os.makedirs(out_subject_dir, exist_ok=True)
 
     # create symlinks to source files (T1, T2)
@@ -381,18 +361,8 @@ def submit_pipeline(args):
     t1_t2_pairs = get_t1_t2_pairs(args)
     file_count = len(t1_t2_pairs)
 
-    # input_ids = range(file_count)
-    input_ids = np.random.choice(range(file_count), 10, replace=False)
-    # input_ids = input_ids[100:]
-
-    save_ids = os.path.join(args["results_dir"], "ids_01.npy")
-
-    if not os.path.exists(save_ids):
-        np.save(save_ids, input_ids)
-    else:
-        old_ids = np.load(save_ids)
-        if not np.array_equal(input_ids, old_ids):
-            raise Exception()
+    input_ids = np.random.choice(range(file_count), file_count, replace=False)
+    input_ids = input_ids[:100]
 
     n_procs = 1 if args["DEBUG"] else multiprocessing.cpu_count()
 
@@ -447,7 +417,7 @@ def make_main_args():
     """
     PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg"
     in_dir = os.path.join(PRJCT_DIR, "data/4harshaHCP")
-    results_dir = os.path.join(PRJCT_DIR, "results/test")
+    results_dir = os.path.join(PRJCT_DIR, "results/hcp-recon-20220615")
 
     os.makedirs(results_dir, exist_ok=True)
 
@@ -462,8 +432,8 @@ def main():
     args = make_main_args()
     info_logger(args)
 
-    MIN_SKIP, MAX_SKIP = 2, 2
-    MIN_JITTER, MAX_JITTER = 0, 0
+    MIN_SKIP, MAX_SKIP = 2, 16
+    MIN_JITTER, MAX_JITTER = 0, 3
 
     for skip in range(MIN_SKIP, MAX_SKIP + 1, 2):
         for jitter in range(MIN_JITTER, MAX_JITTER + 1):
