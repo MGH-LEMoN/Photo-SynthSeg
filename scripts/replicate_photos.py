@@ -417,7 +417,7 @@ def make_main_args():
     """
     PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg"
     in_dir = os.path.join(PRJCT_DIR, "data/4harshaHCP")
-    results_dir = os.path.join(PRJCT_DIR, "results/hcp-recon-20220615")
+    results_dir = os.path.join(PRJCT_DIR, "results/hcp-results-20220615")
 
     os.makedirs(results_dir, exist_ok=True)
 
@@ -433,7 +433,7 @@ def main():
     info_logger(args)
 
     MIN_SKIP, MAX_SKIP = 2, 16
-    MIN_JITTER, MAX_JITTER = 0, 3
+    MIN_JITTER, MAX_JITTER = 1, 3
 
     for skip in range(MIN_SKIP, MAX_SKIP + 1, 2):
         for jitter in range(MIN_JITTER, MAX_JITTER + 1):

@@ -1,3 +1,4 @@
+import glob
 import json
 import multiprocessing
 import os
@@ -9,10 +10,12 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import rcParams
+from PIL import Image
 
 from ext.lab2im import utils
 
 rcParams.update({"figure.autolayout": True})
+
 
 sns.set(
     style="whitegrid",
@@ -24,7 +27,7 @@ sns.set(
 
 # CUSTOM = 'subject_133'
 
-SOME_SUFFIX = "identity"
+SOME_SUFFIX = "curtailed"
 # {curtailed | identity | test}
 
 
@@ -526,10 +529,36 @@ def calculate_registration_error(results_dir, n_subjects=None):
         main_mp(recon_folder, n_subjects)
 
 
+def collect_images_into_pdf(results_dir):
+    """[summary]
+    Args:
+        target_dir_str ([str]): string relative to RESULTS_DIR
+    """
+    errors_dir = os.path.join(
+        results_dir, "-".join(["hcp-errors", SOME_SUFFIX]).strip("-")
+    )
+
+    model_dirs = sorted(os.listdir(errors_dir))
+
+    for model_dir in model_dirs:
+        out_file = os.path.join(errors_dir, f"{model_dir}_plots.pdf")
+        model_dir = os.path.join(errors_dir, model_dir)
+
+        pdf_img_list = []
+        images = sorted(glob.glob(os.path.join(model_dir, "*.png")))
+
+        for image in images:
+            img = Image.open(image)
+            img = img.convert("RGB")
+            pdf_img_list.append(img)
+
+        pdf_img_list[0].save(out_file, save_all=True, append_images=pdf_img_list[1:])
+
+
 if __name__ == "__main__":
     PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg/results"
 
-    FOLDER = "hcp-results-20220613"
+    FOLDER = "hcp-results-20220615"
     # {options: hcp-results | hcp-results-2020527 | hcp-results-2020528}
 
     # set this to a high value if you want to run all subjects
@@ -544,3 +573,5 @@ if __name__ == "__main__":
     calculate_registration_error(full_results_path, M)
     for stat_key in ["means", "stds", "medians", "mean-of-means"]:
         plot_registration_error(full_results_path, stat_key)
+
+    collect_images_into_pdf(full_results_path)
