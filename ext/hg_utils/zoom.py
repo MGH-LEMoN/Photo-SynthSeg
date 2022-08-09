@@ -36,6 +36,12 @@ def get_git_revision_short_hash() -> str:
     )
 
 
+def get_git_revision_url():
+    return (
+        f"https://www.github.com/hvgazula/SynthSeg/tree/{get_git_revision_short_hash()}"
+    )
+
+
 def print_shapes(input, factors):
     in_shape = input.shape
     out_shape = np.multiply(input.shape, factors)
@@ -416,7 +422,10 @@ if __name__ == "__main__":
                 prod_zoom,
             ]:
                 result = func(
-                    small_def, bias_factors, target_shape=LABELS_SHAPE, flag="def"
+                    small_def,
+                    bias_factors,
+                    target_shape=LABELS_SHAPE,
+                    flag="def",
                 )
                 def_result_list.append(result)
 

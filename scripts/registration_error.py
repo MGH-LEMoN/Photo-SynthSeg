@@ -255,25 +255,7 @@ def save_errors(results_dir, corr, idx):
         corr (_type_): _description_
     """
     idx_flag = [None, "all", "xy", "z"]
-
-    # FIXME: clean this function
-    subject_ids = [int(item[0]) for item in corr]
-    all_errors = [item[idx][0] for item in corr]
-    all_means = [item[idx][1] for item in corr]
-    all_stds = [item[idx][2] for item in corr]
-    all_medians = [item[idx][3] for item in corr]
-
-    all_errors = dict(zip(subject_ids, all_errors))
-    all_means = dict(zip(subject_ids, all_means))
-    all_stds = dict(zip(subject_ids, all_stds))
-    all_medians = dict(zip(subject_ids, all_medians))
-
-    all_mean_of_means = dict()
-    for k, v in all_errors.items():
-        try:
-            all_mean_of_means[k] = np.mean([np.mean(slice) for slice in v])
-        except:
-            all_mean_of_means[k] = None
+    out_strings = ["errors", "means", "stds", "medians"]
 
     jitter_val = get_jitter(results_dir)
     skip_val = get_skip(results_dir)
@@ -287,27 +269,34 @@ def save_errors(results_dir, corr, idx):
     )
     os.makedirs(head_dir, exist_ok=True)
 
-    np.save(os.path.join(head_dir, f"hcp-errors-{file_suffix}"), all_errors)
-    # np.save(os.path.join(head_dir, f"hcp-means-{file_suffix}"), all_means)
-    # np.save(os.path.join(head_dir, f"hcp-stds-{file_suffix}"), all_stds)
-    # np.save(os.path.join(head_dir, f"hcp-medians-{file_suffix}"), all_medians)
+    # FIXME: clean this function
+    subject_ids = [int(item[0]) for item in corr]
 
-    # with open(os.path.join(head_dir, f"hcp-errors-{file_suffix}"), "w") as write_file:
-    #     json.dump(all_errors, write_file, indent=4)
+    for str_idx, out_string in enumerate(out_strings):
+        all_vals = [item[idx][str_idx] for item in corr]
+        all_vals = dict(zip(subject_ids, all_vals))
 
-    with open(os.path.join(head_dir, f"hcp-means-{file_suffix}"), "w") as write_file:
-        json.dump(all_means, write_file, indent=4)
+        if str_idx == 0:
+            np.save(os.path.join(head_dir, f"hcp-errors-{file_suffix}"), all_vals)
 
-    with open(os.path.join(head_dir, f"hcp-stds-{file_suffix}"), "w") as write_file:
-        json.dump(all_stds, write_file, indent=4)
+            all_mean_of_means = dict()
+            for k, v in all_vals.items():
+                try:
+                    all_mean_of_means[k] = np.mean([np.mean(slice) for slice in v])
+                except:
+                    all_mean_of_means[k] = None
 
-    with open(os.path.join(head_dir, f"hcp-medians-{file_suffix}"), "w") as write_file:
-        json.dump(all_medians, write_file, indent=4)
+            with open(
+                os.path.join(head_dir, f"hcp-mean-of-means-{file_suffix}"), "w"
+            ) as write_file:
+                json.dump(all_mean_of_means, write_file, indent=4)
 
-    with open(
-        os.path.join(head_dir, f"hcp-mean-of-means-{file_suffix}"), "w"
-    ) as write_file:
-        json.dump(all_mean_of_means, write_file, indent=4)
+        else:
+            with open(
+                os.path.join(head_dir, f"hcp-{out_string}-{file_suffix}"),
+                "w",
+            ) as write_file:
+                json.dump(all_vals, write_file, indent=4)
 
 
 def subject_selector(results_dir, n_size=None):
@@ -500,7 +489,9 @@ def plot_registration_error(results_dir, error_str="mean"):
     """
     for sub_folder in ["all", "xy", "z"]:
         errors_dir = os.path.join(
-            results_dir, "-".join(["hcp-errors", SOME_SUFFIX]).strip("-"), sub_folder
+            results_dir,
+            "-".join(["hcp-errors", SOME_SUFFIX]).strip("-"),
+            sub_folder,
         )
 
         final_df = get_means_and_stds(errors_dir, error_str)
