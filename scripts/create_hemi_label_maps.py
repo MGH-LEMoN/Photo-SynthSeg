@@ -1,6 +1,9 @@
 import copy
 import glob
+import multiprocessing
 import os
+import sys
+from multiprocessing import Pool
 
 import numpy as np
 from scipy import ndimage
@@ -96,7 +99,7 @@ def make_right_hemis(im, PreferLeft, labels):
     for n_label in labels["neutral"]:
         Lright_mapped[Lright == n_label] = n_label
 
-    Lright = np.fliplr(Lright_mapped)
+    Lright = np.flip(Lright_mapped, 0)
 
     return Lright
 
@@ -108,10 +111,10 @@ def create_hemi_dirs(dir_path):
         dir_path ([type]): [description]
     """
     lh_dir = dir_path + "_lh"
-    r2l_dir = dir_path + "_rh2lh"
+    # r2l_dir = dir_path + "_rh2lh"
 
     os.makedirs(lh_dir, exist_ok=True)
-    os.makedirs(r2l_dir, exist_ok=True)
+    # os.makedirs(r2l_dir, exist_ok=True)
 
     return
 
@@ -130,7 +133,8 @@ def get_hemi_dir_name(dir_path, side=None):
     if not os.path.isdir(dir_path):
         dir_path = os.path.dirname(dir_path)
 
-    suffix = {"right": "_rh2lh", "left": "_lh"}
+        # suffix = {"right": "_rh2lh", "left": "_lh"}
+    suffix = {"right": "_lh", "left": "_lh"}
     dir_path = dir_path + suffix.get(side, None)
 
     return dir_path
@@ -203,7 +207,9 @@ def get_list_labels(
             # loop_info.update(lab_idx)
             y = utils.load_volume(path, dtype="int32")
             y_unique = np.unique(y)
-            label_list = np.unique(np.concatenate((label_list, y_unique))).astype("int")
+            label_list = np.unique(
+                np.concatenate((label_list, y_unique))
+            ).astype("int")
 
     else:
         raise Exception(
@@ -304,14 +310,20 @@ def get_list_labels(
             ]
         )
 
-        missing_labels = set.difference(set(label_list), set(neutral + left + right))
+        missing_labels = set.difference(
+            set(label_list), set(neutral + left + right)
+        )
 
         if missing_labels:
             raise Exception(
                 "labels {} not in our current FS classification, "
-                "please update get_list_labels in utils.py".format(missing_labels)
+                "please update get_list_labels in utils.py".format(
+                    missing_labels
+                )
             )
-        label_list = np.concatenate([sorted(neutral), sorted(left), sorted(right)])
+        label_list = np.concatenate(
+            [sorted(neutral), sorted(left), sorted(right)]
+        )
         if ((len(left) > 0) & (len(right) > 0)) | (
             (len(left) == 0) & (len(right) == 0)
         ):
@@ -338,7 +350,9 @@ def return_labels_from_map(label_map):
     Returns:
         [type]: [description]
     """
-    label_list, n_neutral_labels = get_list_labels(None, label_map, FS_sort=True)
+    label_list, n_neutral_labels = get_list_labels(
+        None, label_map, FS_sort=True
+    )
 
     # label_list is of the form [neutral, left, right]
     neutral = label_list[:n_neutral_labels]
@@ -387,34 +401,59 @@ def compute_decision_mask(left_mask, right_mask):
     return PreferLeft
 
 
+def main_mp():
+    """_summary_
+    Args:
+            skip (_type_): _description_
+            jitter (_type_): _description_
+    """
+    create_hemi_dirs(LABEL_MAPS_DIR)
+    label_maps = get_label_maps(LABEL_MAPS_DIR)
+
+    print(f"Total Label Maps: {len(label_maps)}")
+
+    gettrace = getattr(sys, "gettrace", None)
+    n_procs = 1 if gettrace() else multiprocessing.cpu_count()
+
+    with Pool(processes=n_procs) as pool:
+        pool.starmap(
+            generate_hemisphere_masks,
+            [*enumerate(label_maps, 1)],
+        )
+
+
+def generate_hemisphere_masks(idx, label_map):
+    print(f"{idx:04d} - {get_file_name(label_map)[0]}")
+
+    # Return Neutral, Left and Right Labels
+    labels = return_labels_from_map(label_map)
+
+    # Load Label Map
+    im, aff, hdr = utils.load_volume(label_map, im_only=False)
+
+    # Compute binary masks for each side
+    left_mask = compute_binary_mask(im, labels, "left")
+    right_mask = compute_binary_mask(im, labels, "right")
+
+    # Compute Distance maps and decision mask
+    PreferLeft = compute_decision_mask(left_mask, right_mask)
+
+    # Create Segmentation for left side, crop, write to disk
+    im_left = make_left_hemis(im, PreferLeft)
+    im_right = make_right_hemis(im, PreferLeft, labels)
+
+    save_hemi_at_location(im_left, aff, hdr, label_map, "left")
+    save_hemi_at_location(im_right, aff, hdr, label_map, "right")
+
+
 def main():
     create_hemi_dirs(LABEL_MAPS_DIR)
     label_maps = get_label_maps(LABEL_MAPS_DIR)
 
-    total_label_maps = len(label_maps)
+    print(f"Total Label Maps: {len(label_maps)}")
 
     for idx, label_map in enumerate(label_maps, 1):
-        print(f"{idx:04d} of {total_label_maps} - {get_file_name(label_map)[0]}")
-
-        # Return Neutral, Left and Right Labels
-        labels = return_labels_from_map(label_map)
-
-        # Load Label Map
-        im, aff, hdr = utils.load_volume(label_map, im_only=False)
-
-        # Compute binary masks for each side
-        left_mask = compute_binary_mask(im, labels, "left")
-        right_mask = compute_binary_mask(im, labels, "right")
-
-        # Compute Distance maps and decision mask
-        PreferLeft = compute_decision_mask(left_mask, right_mask)
-
-        # Create Segmentation for left side, crop, write to disk
-        im_left = make_left_hemis(im, PreferLeft)
-        im_right = make_right_hemis(im, PreferLeft, labels)
-
-        save_hemi_at_location(im_left, aff, hdr, label_map, "left")
-        save_hemi_at_location(im_right, aff, hdr, label_map, "right")
+        generate_hemisphere_masks(idx, label_map)
 
 
 def main1():
@@ -436,24 +475,7 @@ def main1():
         np.save(new_file_name, np_array)
 
 
-def pad_hemispheres():
-    labels_dir = os.path.join(LABEL_MAPS_DIR + "_*")
-    file_list = sorted(glob.glob(os.path.join(LABEL_MAPS_DIR + "_*", "*.nii.gz")))
-
-    im_shapes = []
-    for file in file_list[:15]:
-        im_shapes.append(utils.load_volume(file).shape)
-
-    im_shapes = np.vstack(im_shapes)
-    max_shape = np.max(im_shapes, axis=0)
-
-    # compute the closest number (higher) to max_shape that is divisible by 32
-    max_shape = max_shape + (32 - max_shape % 32)
-
-    edit_volumes.pad_images_in_dir()
-
-
 if __name__ == "__main__":
-    # main()
+    main_mp()
     # main1()
-    pad_hemispheres()
+    # pad_hemispheres()

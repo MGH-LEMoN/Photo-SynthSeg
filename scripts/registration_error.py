@@ -27,14 +27,29 @@ sns.set(
 
 # CUSTOM = 'subject_133'
 
-SOME_SUFFIX = "curtailed"
-# {curtailed | identity | test}
+SOME_SUFFIX = "divisible"
+# {curtailed | identity | test | | divisible} }
+
+# SOME_SUFFIX_LIST = ["divisible"]
+SOME_SUFFIX_LIST = ["curtailed", "identity"]
 
 
 def get_nonzero_slice_ids(t2_vol):
     """find all non-zero slices"""
     slice_sum = np.sum(t2_vol, axis=(0, 1))
     return np.where(slice_sum > 0)[0]
+
+
+# write function to filter a list of numbers to only those that are divisible by
+# all numbers in the list simultaneously
+def filter_divisible_by_all(numbers, divisors):
+    """_summary_
+
+    Args:
+        numbers (_type_): _description_
+        divisors (_type_): _description_
+    """
+    return [n for n in numbers if all(n % d == 0 for d in divisors)]
 
 
 def slice_ids_method1(skip, t2_vol):
@@ -54,10 +69,31 @@ def slice_ids_method1(skip, t2_vol):
     return slice_ids_of_interest
 
 
+def slice_ids_method2(skip, t2_vol):
+    """method: skipping from start
+    Example:
+    slice_idx: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    slices:    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1,  1,  0,  0,  0]
+    selected:  [0, 0, 0, 1, 0, 1, 0, 1, 0, 1,  0,  0,  0,  0] (skip = 2)
+    selected:  [0, 0, 0, 1, 0, 0, 1, 0, 0, 1,  0,  0,  0,  0] (skip = 3)
+    """
+    # another method: skip 5 non zero slices on either end (good)
+    non_zero_slice_ids = get_nonzero_slice_ids(t2_vol)
+
+    first_nz_slice = non_zero_slice_ids[0] + 6
+    last_nz_slice = non_zero_slice_ids[-1] - 6
+
+    slice_ids_of_interest = np.arange(first_nz_slice, last_nz_slice + 1, skip)
+    return slice_ids_of_interest
+
+
 def get_middle_elements(test_list, K):
     # using list slicing
     return test_list[
-        int(len(test_list) / 2) - int(K / 2) : int(len(test_list) / 2) + int(K / 2) + 1
+        int(len(test_list) / 2)
+        - int(K / 2) : int(len(test_list) / 2)
+        + int(K / 2)
+        + 1
     ]
 
 
@@ -77,15 +113,21 @@ def get_error_optimized(results_dir):
     skip = get_skip(results_dir)
     sub_id = os.path.basename(results_dir).split("_")[-1]
 
-    rigid_transform = np.load(utils.list_files(results_dir, True, "rigid.npy")[0])
+    rigid_transform = np.load(
+        utils.list_files(results_dir, True, "rigid.npy")[0]
+    )
 
     photo_affines = utils.list_files(
         os.path.join(results_dir, "slice_affines"), True, "npy"
     )
-    photo_affine_matrix = np.stack([np.load(item) for item in photo_affines], axis=2)
+    photo_affine_matrix = np.stack(
+        [np.load(item) for item in photo_affines], axis=2
+    )
 
     recon_matrix = np.load(
-        os.path.join(results_dir, f"ref_mask_skip_{skip:02d}", "slice_matrix_M.npy")
+        os.path.join(
+            results_dir, f"ref_mask_skip_{skip:02d}", "slice_matrix_M.npy"
+        )
     )
     recon_matrix = recon_matrix[
         :, :, PAD:-PAD
@@ -95,10 +137,14 @@ def get_error_optimized(results_dir):
 
     if SOME_SUFFIX == "identity":
         num_repeats = recon_matrix.shape[-1]
-        recon_matrix = np.concatenate([np.eye(3)[..., None]] * num_repeats, axis=-1)
+        recon_matrix = np.concatenate(
+            [np.eye(3)[..., None]] * num_repeats, axis=-1
+        )
 
     all_paddings = np.load(
-        os.path.join(results_dir, f"ref_mask_skip_{skip:02d}", "all_paddings.npy")
+        os.path.join(
+            results_dir, f"ref_mask_skip_{skip:02d}", "all_paddings.npy"
+        )
     )
 
     assert (
@@ -111,13 +157,15 @@ def get_error_optimized(results_dir):
     _, t1_aff, t1_hdr = utils.load_volume(t1_path, im_only=False)
     t2_vol, _, _ = utils.load_volume(t2_path, im_only=False)
 
-    recon = os.path.join(results_dir, f"ref_mask_skip_{skip:02d}", "photo_recon.mgz")
+    recon = os.path.join(
+        results_dir, f"ref_mask_skip_{skip:02d}", "photo_recon.mgz"
+    )
     _, recon_aff, _ = utils.load_volume(recon, im_only=False)
 
     error_norms_slices = []
     error_norms_slices_xy = []
     error_norms_slices_z = []
-    slice_ids_of_interest = slice_ids_method1(skip, t2_vol)
+    slice_ids_of_interest = slice_ids_method2(skip, t2_vol)
 
     # # get the number of slices in it's highest spacing counterpart
     # # (for equal comparison with the reconstruction)
@@ -130,13 +178,19 @@ def get_error_optimized(results_dir):
         )
         keep_slice_list = get_middle_elements(slice_ids_of_interest, num_slices)
 
+    if SOME_SUFFIX == "divisible":
+        divisors = [2, 3, 4, 6, 8]
+        keep_slice_list = filter_divisible_by_all(
+            slice_ids_of_interest, divisors
+        )
+
     # creating empty arrays for error norms (volumes)
     errors_vol = np.zeros_like(t2_vol)
     errors_vol_xy = np.zeros_like(t2_vol)
     errors_vol_z = np.zeros_like(t2_vol)
 
     for z, slice_id in enumerate(slice_ids_of_interest):
-        if SOME_SUFFIX == "curtailed":
+        if SOME_SUFFIX == "curtailed" or SOME_SUFFIX == "divisible":
             if slice_id not in keep_slice_list:
                 continue
 
@@ -156,7 +210,9 @@ def get_error_optimized(results_dir):
         v3 = np.matmul(P, v2)
         v4 = np.matmul(np.linalg.inv(recon_matrix[:, :, zp]), v3)
 
-        v4_3d = np.stack([v4[0, :], v4[1, :], (zp + PAD) * v4[-1, :], v4[-1, :]])
+        v4_3d = np.stack(
+            [v4[0, :], v4[1, :], (zp + PAD) * v4[-1, :], v4[-1, :]]
+        )
 
         ras_new = np.matmul(recon_aff, v4_3d)
 
@@ -164,7 +220,9 @@ def get_error_optimized(results_dir):
         ii = j - 25
         jj = curr_slice.shape[0] - i - 1 - 25
 
-        v_3d = np.stack([ii, jj, slice_id * np.ones(ii.shape), np.ones(ii.shape)])
+        v_3d = np.stack(
+            [ii, jj, slice_id * np.ones(ii.shape), np.ones(ii.shape)]
+        )
         # v_3d = np.array([ii, jj, harshas_z + skip * z, 1])
 
         ras_gt = np.matmul(rigid_transform, np.matmul(t1_aff, v_3d))
@@ -172,7 +230,7 @@ def get_error_optimized(results_dir):
         # errors_slice = np.linalg.norm(ras_new-ras_gt)
         errors_slice = ras_new[:-1] - ras_gt[:-1]
 
-        error_norms_slice = np.sqrt(np.sum(errors_slice**2, axis=0))
+        error_norms_slice = np.sqrt(np.sum(errors_slice ** 2, axis=0))
         error_norms_slice_xy = np.sqrt(np.sum(errors_slice[:2, :] ** 2, axis=0))
         error_norms_slice_z = np.sqrt(
             np.sum(errors_slice[2, :].reshape(1, -1) ** 2, axis=0)
@@ -188,7 +246,9 @@ def get_error_optimized(results_dir):
         errors_vol_z[ii, jj, slice_id] = error_norms_slice_z
 
     os.makedirs(
-        os.path.join(results_dir, "-".join(["error_vols", SOME_SUFFIX]).strip("-")),
+        os.path.join(
+            results_dir, "-".join(["error_vols", SOME_SUFFIX]).strip("-")
+        ),
         exist_ok=True,
     )
 
@@ -277,12 +337,16 @@ def save_errors(results_dir, corr, idx):
         all_vals = dict(zip(subject_ids, all_vals))
 
         if str_idx == 0:
-            np.save(os.path.join(head_dir, f"hcp-errors-{file_suffix}"), all_vals)
+            np.save(
+                os.path.join(head_dir, f"hcp-errors-{file_suffix}"), all_vals
+            )
 
             all_mean_of_means = dict()
             for k, v in all_vals.items():
                 try:
-                    all_mean_of_means[k] = np.mean([np.mean(slice) for slice in v])
+                    all_mean_of_means[k] = np.mean(
+                        [np.mean(slice) for slice in v]
+                    )
                 except:
                     all_mean_of_means[k] = None
 
@@ -398,7 +462,9 @@ def some_function(dir_path, error_type="means"):
     r3_means = [pd.read_json(file, orient="index") for file in file_list]
 
     col_item1 = lambda x: np.round(np.array(get_skip(x)) * 0.7, 1)
-    columns = [str(col_item1(file)) + "_" + str(get_jitter(file)) for file in file_list]
+    columns = [
+        str(col_item1(file)) + "_" + str(get_jitter(file)) for file in file_list
+    ]
 
     r3_mean_df = pd.concat(r3_means, axis=1)
     print(f"Before removing NaN rows: {r3_mean_df.shape[0]}")
@@ -433,7 +499,9 @@ def get_means_and_stds(dir_path, error_type="mean"):
     # filter subjects on the two clusters found in means
     # r3_mean_df = r3_mean_df[get_just_means_for_filtering(dir_path)]
 
-    r3_mean_df = r3_mean_df.stack().reset_index().drop(labels=["level_0"], axis=1)
+    r3_mean_df = (
+        r3_mean_df.stack().reset_index().drop(labels=["level_0"], axis=1)
+    )
     r3_mean_df.columns = ["Skip", f"{error_type.capitalize()} Error"]
 
     r3_mean_df[["Spacing", "Jitter"]] = pd.DataFrame(
@@ -532,7 +600,9 @@ def collect_images_into_pdf(results_dir):
     model_dirs = sorted(os.listdir(errors_dir))
 
     for model_dir in model_dirs:
-        out_file = os.path.join(errors_dir, f"{model_dir}_plots.pdf")
+        out_file = os.path.join(
+            errors_dir, f"{model_dir}_plots-{SOME_SUFFIX}.pdf"
+        )
         model_dir = os.path.join(errors_dir, model_dir)
 
         pdf_img_list = []
@@ -543,13 +613,15 @@ def collect_images_into_pdf(results_dir):
             img = img.convert("RGB")
             pdf_img_list.append(img)
 
-        pdf_img_list[0].save(out_file, save_all=True, append_images=pdf_img_list[1:])
+        pdf_img_list[0].save(
+            out_file, save_all=True, append_images=pdf_img_list[1:]
+        )
 
 
 if __name__ == "__main__":
     PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg/results"
 
-    FOLDER = "hcp-results-20220615"
+    FOLDER = "hcp-results-20220810-2"
     # {options: hcp-results | hcp-results-2020527 | hcp-results-2020528}
 
     # set this to a high value if you want to run all subjects
