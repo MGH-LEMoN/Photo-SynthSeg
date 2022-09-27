@@ -14,29 +14,29 @@ PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
 RESULTS_DIR := $(PROJ_DIR)/results
 MODEL_DIR := $(PROJ_DIR)/models
-SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
+SCRATCH_MODEL_DIR := /space/calico/1/users/Harsha/SynthSeg/models/models-2022
 ENV_DIR := $(HOME)/venvs
 
 # Dynamic
 ENV_NAME := synthseg-venv
 # {synthseg-venv | synthseg-venv1}
 CUDA_V := 10.1
-PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := VS02n-accordion
+PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem_lh
+MODEL_NAME := VS01n-accordion-lh
 CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
-# {echo | python | sbatch submit.sh}
+# {echo | python | sbatch --job-name=$(MODEL_NAME) submit.sh}
 
 ACTIVATE_ENV = source $(ENV_DIR)/$(ENV_NAME)/bin/activate
 ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
 
 # variables for SynthSeg
-labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
+labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem_lh
 MODEL_PATH = $(SCRATCH_MODEL_DIR)/$(MODEL_NAME)
 
 ## label maps parameters
-generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
+generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions_lh.npy
 neutral_labels = '5'
-segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions.npy
+segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions_lh.npy
 noisy_patches = None
 
 ## output-related parameters
@@ -46,7 +46,7 @@ target_res =
 output_shape = 160
 
 # GMM-sampling parameters
-generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm.npy
+generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm_lh.npy
 prior_type = 'uniform'
 prior_means =
 prior_std =
@@ -202,7 +202,7 @@ training:
 		--wl2_epochs 1 \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'Added neutral_labels on 20220401' \
+		--message 'Training for hemis 20220926 with neutral labels' \
 		;
 
 ## Use this target to resume training
