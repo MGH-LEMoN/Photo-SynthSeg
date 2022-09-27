@@ -14,14 +14,14 @@ PROJ_DIR := $(shell pwd)
 DATA_DIR := $(PROJ_DIR)/data
 RESULTS_DIR := $(PROJ_DIR)/results/20220222/new-recons/
 MODEL_DIR := $(PROJ_DIR)/models
-SCRATCH_MODEL_DIR := /cluster/scratch/friday/for_harsha
+SCRATCH_MODEL_DIR := /space/calico/1/users/Harsha/SynthSeg/models/models-2022
 ENV_DIR := $(HOME)/venvs
 
 # Dynamic
 ENV_NAME := synthseg-venv
 CUDA_V := 10.1
-PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem
-MODEL_NAME := S16R02n
+PARAM_FILES_DIR = SynthSeg_param_files_manual_auto_photos_noCerebellumOrBrainstem_lh
+MODEL_NAME := VS01n-lh
 CMD = sbatch --job-name=$(MODEL_NAME) submit.sh
 # {echo | python | sbatch submit.sh}
 
@@ -29,14 +29,14 @@ ACTIVATE_ENV = source $(ENV_DIR)/$(ENV_NAME)/bin/activate
 ACTIVATE_FS = source /usr/local/freesurfer/nmr-dev-env-bash
 
 # variables for SynthSeg
-labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem
+labels_dir = $(DATA_DIR)/SynthSeg_label_maps_manual_auto_photos_noCerebellumOrBrainstem_lh
 MODEL_PATH = $(SCRATCH_MODEL_DIR)/$(MODEL_NAME)
 
 # label maps parameters
-generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions.npy
+generation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_charm_choroid_lesions_lh.npy
 neutral_labels = '5'
-segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions.npy
-noisy_patches =
+segmentation_labels = $(DATA_DIR)/$(PARAM_FILES_DIR)/segmentation_new_charm_choroid_lesions_lh.npy
+noisy_patches = None
 
 # output-related parameters
 batch_size = 1
@@ -45,7 +45,7 @@ target_res =
 output_shape = 160
 
 # GMM-sampling parameters
-generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm.npy
+generation_classes = $(DATA_DIR)/$(PARAM_FILES_DIR)/generation_classes_charm_choroid_lesions_gm_lh.npy
 prior_type = 'uniform'
 prior_means =
 prior_std =
@@ -62,9 +62,9 @@ nonlin_std = (4, 0, 4)
 nonlin_shape_factor = (0.0625, 0.0625, 0.0625)
 
 # blurring/resampling parameters
-# randomise_res = --randomise_res
-data_res = (1, 16, 1)
-thickness = (1, 0.001, 1)
+randomise_res = --randomise_res
+data_res = None
+thickness = None
 downsample = --downsample
 blur_range = 1.03
 
@@ -152,11 +152,12 @@ training:
 
 	$(CMD) $(PROJ_DIR)/scripts/commands/training.py train\
 		$(labels_dir) \
-		$(SCRATCH_MODEL_DIR)/$(MODEL_NAME) \
+		$(MODEL_PATH) \
 		\
 		--generation_labels $(generation_labels) \
 		--neutral_labels $(neutral_labels) \
 		--segmentation_labels $(segmentation_labels) \
+		--noisy_patches '$(noisy_patches)' \
 		\
 		--batch_size $(batch_size) \
 		--channels $(channels) \
@@ -200,7 +201,7 @@ training:
 		--wl2_epochs $(wl2_epochs) \
 		--dice_epochs $(dice_epochs) \
 		--steps_per_epoch $(steps_per_epoch) \
-		--message 'set n_neutral_labels on 20220401' \
+		--message 'Training for hemis 20220926 with neutral labels' \
 		;
 
 ## resume-training: Use this target to resume training
