@@ -5,6 +5,15 @@ import shutil
 
 from ext.lab2im import utils
 
+IGNORE_SUBJECTS = [
+    "2705_left",
+    "2706_whole",
+    "2707_whole",
+    "2708_left",
+    "2710_whole",
+    "2711_left",
+]
+
 lh_to_rh_mapping = {
     2: 41,
     3: 42,
@@ -53,19 +62,56 @@ def convert_to_single_channel(file):
     utils.save_volume(im, aff, hdr, file)
 
 
+def print_disp_commands(synth_dir, side=None):
+    # print command for freeview
+    if side == "right":
+        for file in sorted(glob.glob(os.path.join(synth_dir, "*rh2lh*.mgz"))):
+            subject_id = os.path.basename(file).split("_")[0]
+            command = f"freeview /cluster/vive/MGH_photo_recon/{subject_id}_right/recon/photo_recon.mgz:rgb=1 \
+                                {file.replace('rh2lh', 'lh2rh')}:colormap=lut:opacity=0.5:visible=1 \
+                                {file.replace('_synthseg', '').replace('synthseg', 'recon')}:rgb=1 \
+                                {file}:colormap=lut:opacity=0.5:visible=1"
+            command = " ".join(command.split())
+            print(command, "\n")
+    elif side == "left" or side == "whole":
+        for file in sorted(glob.glob(os.path.join(synth_dir, "*.mgz"))):
+            subject_id = os.path.basename(file).split("_")[0]
+            command = f"freeview /cluster/vive/MGH_photo_recon/{subject_id}_{side}/recon/photo_recon.mgz:rgb=1 \
+                                {file}:colormap=lut:opacity=0.5:visible=1"
+            command = " ".join(command.split())
+            print(command, "\n")
+    else:
+        pass
+
+    return
+
+
+def flip_hemi(synth_dir):
+    for file in sorted(glob.glob(os.path.join(synth_dir, "*rh2lh*.mgz"))):
+        im, aff, hdr = utils.load_volume(file, im_only=False)
+        im_flip = np.flip(im, 1)
+        im_flip = relabel_volume(im_flip, lh_to_rh_mapping)
+        utils.save_volume(im_flip, aff, hdr, file.replace("rh2lh", "lh2rh"))
+
+
 if __name__ == "__main__":
-    SIDE = "right"  # "left" | "right" | "whole"
+    SIDE = "left"
+    # "left" | "right" | "whole"
     PRJCT_DIR = "/cluster/vive/MGH_photo_recon"
     subjects = sorted(glob.glob(os.path.join(PRJCT_DIR, f"*{SIDE}*")))
     subjects_ids = [os.path.basename(s) for s in subjects]
 
-    MODEL = "VS01n-accordion-lh"
-    DICE_IDX = 30
+    print(subjects_ids)
+
+    MODEL = "VS01n-lh"
+    DICE_IDX = 100
     H5_FILE = f"/space/calico/1/users/Harsha/SynthSeg/models/models-2022/{MODEL}/dice_{DICE_IDX:03d}.h5"
     LABEL_LIST = "/space/calico/1/users/Harsha/SynthSeg/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list_lh.npy"
 
     MISC_DIR = os.path.join(
-        "/space/calico/1/users/Harsha/SynthSeg", "results", "mgh_20220928"
+        "/space/calico/1/users/Harsha/SynthSeg",
+        "results",
+        "mgh_inference_20221003",
     )
     RECON_DIR = os.path.join(
         MISC_DIR, f"mgh.surf.recon.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d}"
@@ -79,21 +125,27 @@ if __name__ == "__main__":
     os.makedirs(SYNTH_DIR, exist_ok=True)
 
     for subject in subjects:
-        if not os.path.exists(os.path.join(subject, "recon_new")):
-            print(f"{os.path.basename(subject)} - Skipping")
+        if os.path.basename(subject) in IGNORE_SUBJECTS:
+            print(f"{os.path.basename(subject)} - Ignored")
             continue
 
-        src = os.path.join(subject, "recon_new", "photo_recon.mgz")
+        # Cases: yet to be processed
+        if not os.path.exists(os.path.join(subject, "recon")):
+            print(f"{os.path.basename(subject)} - TBD")
+            continue
 
+        src = os.path.join(subject, "recon", "photo_recon.mgz")
+
+        # Cases: already processed but missing recon
         if not os.path.isfile(src):
-            print(f"{os.path.basename(subject)} - Skipping")
+            print(f"{os.path.basename(subject)} - Missing recon")
             continue
 
         print(os.path.basename(subject))
         if SIDE == "right":
             # Load Label Map
             im, aff, hdr = utils.load_volume(src, im_only=False)
-            im_flip = np.flip(im, 0)
+            im_flip = np.flip(im, 1)
             dst = os.path.join(
                 RECON_DIR,
                 f"{os.path.basename(subject)}.mgz".replace("right", "rh2lh"),
@@ -125,8 +177,6 @@ if __name__ == "__main__":
 
     # map/convert left hemisphere to right hemisphere
     if SIDE == "right":
-        for file in glob.glob(os.path.join(SYNTH_DIR, "*.mgz")):
-            im, aff, hdr = utils.load_volume(file, im_only=False)
-            im_flip = np.flip(im, 0)
-            im = relabel_volume(im, lh_to_rh_mapping)
-            utils.save_volume(im, aff, hdr, file.replace("rh2lh", "lh2rh"))
+        flip_hemi(SYNTH_DIR)
+
+    print_disp_commands(SYNTH_DIR, SIDE)
