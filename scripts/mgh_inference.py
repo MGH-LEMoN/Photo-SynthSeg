@@ -398,14 +398,3 @@ if __name__ == "__main__":
     # perform_segmentation()
     calculate_correlation()
     plot_correlation_new()
-
-# demo_df = demo_df.merge(
-#     vol_df, how="left", left_on="Subject", right_on="subjects"
-# )
-
-# for column in lh_to_rh_mapping.keys():
-#     column = str(column)
-#     try:
-#         demo_df.loc[demo_df.Gender == "M", column] = demo_df[column] / 1.12
-#     except:
-#         pass
