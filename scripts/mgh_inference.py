@@ -33,20 +33,20 @@ labels_mapping = {
 }
 
 IGNORE_SUBJECTS = [
-    "2604_whole",
-    "2705_left",
-    "2706_whole",
+    # "2604_whole",
+    # "2705_left",
+    # "2706_whole",
     "2707_whole",
-    "2708_left",
-    "2710_whole",
-    "2711_left",
+    # "2708_left",
+    # "2710_whole",
+    # "2711_left",
     "2712_left",
-    "2687_left",
-    "2689_left",
-    "2691_right",
-    "2715_right",
-    "2723_left",
-    "2724_whole",
+    # "2687_left",
+    # "2689_left",
+    # "2691_right",
+    # "2715_right",
+    # "2723_left",
+    # "2724_whole",
     "2729_whole",
 ]
 
@@ -64,8 +64,6 @@ lh_to_rh_mapping = {
     26: 58,
     28: 60,
 }
-
-IGNORE_SUBJECTS = [2708, 2719, 2722, 2630, 2629, 2668, 2605, 2711]
 
 
 def combine_pairs(df, mapping):
@@ -142,7 +140,7 @@ def flip_hemi(synth_dir):
 
 
 def perform_segmentation():
-    SIDE = "whole"
+    SIDE = "right"
     # "left" | "right" | "whole"
     PRJCT_DIR = "/cluster/vive/MGH_photo_recon"
     subjects = sorted(glob.glob(os.path.join(PRJCT_DIR, f"*{SIDE}*")))
@@ -150,15 +148,15 @@ def perform_segmentation():
 
     # print(subjects_ids)
 
-    MODEL = "VS01n-accordion"
+    MODEL = "VS01n-accordion-lh-finetune"
     DICE_IDX = 100
     H5_FILE = f"/space/calico/1/users/Harsha/SynthSeg/models/models-2022/{MODEL}/dice_{DICE_IDX:03d}.h5"
-    LABEL_LIST = "/space/calico/1/users/Harsha/SynthSeg/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list.npy"
+    LABEL_LIST = "/space/calico/1/users/Harsha/SynthSeg/models/jei-model/SynthSegPhotos_no_brainstem_or_cerebellum_4mm.label_list_lh.npy"
 
     MISC_DIR = os.path.join(
         "/space/calico/1/users/Harsha/SynthSeg",
         "results",
-        "mgh_inference_20221011",
+        "mgh_inference_20221122",
     )
     RECON_DIR = os.path.join(
         MISC_DIR, f"mgh.surf.recon.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d}"
@@ -181,7 +179,7 @@ def perform_segmentation():
             print(f"{os.path.basename(subject)} - TBD")
             continue
 
-        src = os.path.join(subject, "recon", "photo_recon.mgz")
+        src = os.path.join(subject, "recon_202212", "photo_recon.mgz")
 
         # Cases: already processed but missing recon
         if not os.path.isfile(src):
@@ -204,6 +202,7 @@ def perform_segmentation():
 
         convert_to_single_channel(dst)
 
+    # --flip \
     command = f"python {os.getcwd()}/scripts/commands/predict.py \
     --smoothing 0.5 \
     --biggest_component \
@@ -211,7 +210,6 @@ def perform_segmentation():
     --vol {MISC_DIR}/mgh.surf.volumes.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d} \
     --neutral_labels 5 \
     --post {MISC_DIR}/mgh.surf.posterior.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d} \
-    --flip \
     {RECON_DIR} \
     {SYNTH_DIR} \
     {H5_FILE} \
@@ -230,7 +228,7 @@ def perform_segmentation():
 
 
 def calculate_correlation():
-    NORMALIZE = True
+    NORMALIZE = False
     sides = ["whole", "left", "right"]
     models = [
         "VS01n-accordion",
@@ -239,7 +237,7 @@ def calculate_correlation():
     ]
     dice_idx = 100
     results_dir = (
-        "/space/calico/1/users/Harsha/SynthSeg/results/mgh_inference_20221011"
+        "/space/calico/1/users/Harsha/SynthSeg/results/mgh_inference_20221122"
     )
 
     # load demographic data
@@ -284,7 +282,7 @@ def calculate_correlation():
             comb_df = combine_pairs(vol_df, lh_to_rh_mapping)
             comb_df["type"] = "whole"
         else:
-            vol_df.loc[:, vol_columns] = vol_df.loc[:, vol_columns] * 1
+            vol_df.loc[:, vol_columns] = vol_df.loc[:, vol_columns] * 2
             comb_df = vol_df.copy()
             comb_df["type"] = "hemi"
 
@@ -301,7 +299,7 @@ def calculate_correlation():
     all_df = all_df[~all_df.index.isin(list(map(str, IGNORE_SUBJECTS)))]
     print(all_df.shape)
 
-    all_df.to_csv("mgh_corr.csv")
+    all_df.to_csv("mgh_corr_whole.csv")
 
     return
 
@@ -334,8 +332,8 @@ def hue_regplot(data, x, y, hue, palette=None, **kwargs):
 
 
 def plot_correlation_new():
-    corr_in_file = os.path.join(os.getcwd(), "mgh_corr.csv")
-    corr_out_file = os.path.join(os.getcwd(), "mgh_corr.pdf")
+    corr_in_file = os.path.join(os.getcwd(), "mgh_corr_whole.csv")
+    corr_out_file = os.path.join(os.getcwd(), "mgh_corr_whole.pdf")
 
     df = pd.read_csv(corr_in_file)
     pp = PdfPages(corr_out_file)
@@ -352,7 +350,7 @@ def plot_correlation_new():
             ax1.set_xlabel("")
             ax3.set_xlabel("")
 
-            ax1.set_ylabel("Volume (Proportion)")
+            ax1.set_ylabel("Volume")
             ax2.set_ylabel("")
             ax3.set_ylabel("")
 
@@ -369,8 +367,8 @@ def plot_correlation_new():
 
 
 def plot_correlation_old():
-    corr_in_file = os.path.join(os.getcwd(), "mgh_corr.csv")
-    corr_out_file = os.path.join(os.getcwd(), "mgh_corr.pdf")
+    corr_in_file = os.path.join(os.getcwd(), "mgh_corr_whole.csv")
+    corr_out_file = os.path.join(os.getcwd(), "mgh_corr_whole.pdf")
 
     df = pd.read_csv(corr_in_file)
     pp = PdfPages(corr_out_file)
