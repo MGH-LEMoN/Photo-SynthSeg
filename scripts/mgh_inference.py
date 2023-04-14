@@ -8,9 +8,13 @@ import pandas as pd
 import seaborn as sns
 from ext.lab2im import utils
 from matplotlib.backends.backend_pdf import PdfPages
+from scipy.stats.stats import pearsonr
 
 sns.set_theme(style="ticks")
-plt.rcParams.update({"text.usetex": True})
+plt.rcParams.update({"text.usetex": True,  'axes.linewidth':2, 'font.weight': 'bold'})
+
+from matplotlib_inline.backend_inline import set_matplotlib_formats
+set_matplotlib_formats('svg')
 
 labels_mapping = {
     2: "left cerebral white matter",
@@ -33,21 +37,41 @@ labels_mapping = {
 }
 
 IGNORE_SUBJECTS = [
-    # "2604_whole",
-    # "2705_left",
-    # "2706_whole",
+    "2605_left",
+    "2615_left",
+    "2619_left",
+    "2629_left",
+    "2638_right",
+    "2639_right",
+    "2642_right",
+    "2644_whole",
+    "2657_left",
+    "2663_left",
+    "2668_left",
+    "2683_right",
+    "2687_left",
+    "2706_whole",
     "2707_whole",
-    # "2708_left",
-    # "2710_whole",
-    # "2711_left",
-    "2712_left",
-    # "2687_left",
-    # "2689_left",
-    # "2691_right",
-    # "2715_right",
-    # "2723_left",
-    # "2724_whole",
+    "2708_left",
+    "2710_whole",
+    "2711_left",
+    "2713_left",
+    "2723_left",
+    "2725_left",
     "2729_whole",
+    "2735_right",
+    "2739_whole",
+    "2740_left",
+    "2742_right",
+    "2743_right",
+    "2746_left",
+    "2752_left",
+    "2753_whole",
+    "2757_right",
+    "2759_right",
+    "2762_right",
+    "2763_whole",
+    "2764_right",
 ]
 
 lh_to_rh_mapping = {
@@ -70,7 +94,7 @@ def combine_pairs(df, mapping):
     """Combine pairs of volumes according to a given mapping."""
     for label_pair in mapping.items():
         try:
-            df[label_pair[0]] = (df[label_pair[0]] + df[label_pair[1]]) / 1.0
+            df[label_pair[0]] = (df[label_pair[0]] + df[label_pair[1]]) / 2.0
             df = df.drop(columns=[label_pair[1]])
         except KeyError:
             continue
@@ -156,7 +180,7 @@ def perform_segmentation():
     MISC_DIR = os.path.join(
         "/space/calico/1/users/Harsha/SynthSeg",
         "results",
-        "mgh_inference_20221122",
+        "mgh_inference_20230411",
     )
     RECON_DIR = os.path.join(
         MISC_DIR, f"mgh.surf.recon.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d}"
@@ -170,16 +194,16 @@ def perform_segmentation():
     os.makedirs(SYNTH_DIR, exist_ok=True)
 
     for subject in subjects:
-        if os.path.basename(subject) in IGNORE_SUBJECTS:
-            print(f"{os.path.basename(subject)} - Ignored")
-            continue
+        # if os.path.basename(subject) in IGNORE_SUBJECTS:
+        #     print(f"{os.path.basename(subject)} - Ignored")
+        #     continue
 
         # Cases: yet to be processed
         if not os.path.exists(os.path.join(subject, "recon")):
             print(f"{os.path.basename(subject)} - TBD")
             continue
 
-        src = os.path.join(subject, "recon_202212", "photo_recon.mgz")
+        src = os.path.join(subject, "recon", "photo_recon.mgz")
 
         # Cases: already processed but missing recon
         if not os.path.isfile(src):
@@ -203,13 +227,13 @@ def perform_segmentation():
         convert_to_single_channel(dst)
 
     # --flip \
+    # --post {MISC_DIR}/mgh.surf.posterior.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d} \
     command = f"python {os.getcwd()}/scripts/commands/predict.py \
     --smoothing 0.5 \
     --biggest_component \
     --padding 256 \
     --vol {MISC_DIR}/mgh.surf.volumes.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d} \
     --neutral_labels 5 \
-    --post {MISC_DIR}/mgh.surf.posterior.{SIDE}.{MODEL.lower()}.epoch_{DICE_IDX:03d} \
     {RECON_DIR} \
     {SYNTH_DIR} \
     {H5_FILE} \
@@ -237,7 +261,7 @@ def calculate_correlation():
     ]
     dice_idx = 100
     results_dir = (
-        "/space/calico/1/users/Harsha/SynthSeg/results/mgh_inference_20221122"
+        "/space/calico/1/users/Harsha/SynthSeg/results/mgh_inference_20230411"
     )
 
     # load demographic data
@@ -282,7 +306,7 @@ def calculate_correlation():
             comb_df = combine_pairs(vol_df, lh_to_rh_mapping)
             comb_df["type"] = "whole"
         else:
-            vol_df.loc[:, vol_columns] = vol_df.loc[:, vol_columns] * 2
+            vol_df.loc[:, vol_columns] = vol_df.loc[:, vol_columns]
             comb_df = vol_df.copy()
             comb_df["type"] = "hemi"
 
@@ -299,7 +323,7 @@ def calculate_correlation():
     all_df = all_df[~all_df.index.isin(list(map(str, IGNORE_SUBJECTS)))]
     print(all_df.shape)
 
-    all_df.to_csv("mgh_corr_whole.csv")
+    all_df.to_csv("mgh_corr_hemi_20230411.csv")
 
     return
 
@@ -367,7 +391,7 @@ def plot_correlation_new():
 
 
 def plot_correlation_old():
-    corr_in_file = os.path.join(os.getcwd(), "mgh_corr_whole.csv")
+    corr_in_file = os.path.join(os.getcwd(), "mgh_corr_hemi_20230411.csv")
     corr_out_file = os.path.join(os.getcwd(), "mgh_corr_whole.pdf")
 
     df = pd.read_csv(corr_in_file)
@@ -391,8 +415,63 @@ def plot_correlation_old():
 
     # pp.close()
 
+def plot_correlation_paper():
+    corr_in_file = os.path.join(os.getcwd(), "mgh_corr_hemi_20230411.csv")
+    corr_out_file = os.path.join(os.getcwd(), "mgh_corr_hemi_20230411.pdf")
+
+    df = pd.read_csv(corr_in_file)
+    # pp = PdfPages(corr_out_file)
+
+    df["All"] = "All"
+
+    # %config InlineBackend.figure_format = 'svg'
+
+    # If you want to plot only the top subjects (uncomment the following lines)
+    # IGNORE_SUBJECTS = [item[:4] for item in IGNORE_SUBJECTS]
+    # df = df[~df['Subject'].isin(IGNORE_SUBJECTS)]
+
+    nrows, ncols= 4, 3
+    fig, axes = plt.subplots(figsize=(15, 15), nrows=nrows, ncols=ncols, layout='constrained', sharex=True)
+    fig.supxlabel('Age (in years)', weight='bold', size=25)
+    fig.supylabel('Volume', weight='bold', size=25)
+    map_keys = list(lh_to_rh_mapping.keys())
+
+    k = 0
+    for row in range(nrows):
+        for col in range(ncols):
+            column = labels_mapping[map_keys[k]]
+            if column in df.columns:
+                ax = axes[row, col]
+
+                x, y = df['Age'], df[column]
+
+                r, p = pearsonr(x, y)
+                g = sns.regplot(x=x, y=y, ax=ax, robust=True, scatter_kws={"color": "black", "s": 5}, line_kws={"color": "black", "lw":0.5})
+
+                ax.text(.05, .8, 'r={:.3f}, p={:.2g}'.format(r, p), color='red', fontweight='bold', fontsize=20,
+                        transform=ax.transAxes)
+
+                # Hide X and Y axes tick marks
+                # ax.set_xticks([])
+                # ax.set_yticks([])
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+
+                # We change the fontsize of minor ticks label 
+                ax.tick_params(axis='both', which='major', labelsize=15)
+
+                ax.ticklabel_format(style='sci', scilimits=(0, 0))
+
+                ax.text(.25, 0.05, column.replace('left', '').strip(), color='red', fontweight='bold', fontsize=20,
+                        transform=ax.transAxes, wrap=True)
+
+                ax.spines['right'].set_visible(False)
+                ax.spines['top'].set_visible(False)
+
+            k += 1
+
 
 if __name__ == "__main__":
     # perform_segmentation()
     calculate_correlation()
-    plot_correlation_new()
+    # plot_correlation_new()

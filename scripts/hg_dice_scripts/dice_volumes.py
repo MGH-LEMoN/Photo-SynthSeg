@@ -95,6 +95,86 @@ def print_correlation_pairs(config, *args, flag=None, suffix=""):
     return
 
 
+def plot_correlation_pairs(config, *args, flag=None, suffix=""):
+    x, y, z = args
+    common_labels = x.index.intersection(y.index).intersection(z.index)
+    common_labels = sorted(set(common_labels) - set(config.IGNORE_SUBJECTS))
+
+    x = x.loc[common_labels]
+    y = y.loc[common_labels]
+    z = z.loc[common_labels]
+
+    col_names = x.columns
+
+    # original_stdout = sys.stdout  # Save a reference to the original standard output
+    # with open(
+    #     os.path.join(
+    #         config.SYNTHSEG_RESULTS, "volumes", "volume_correlations" + "_" + suffix
+    #     ),
+    #     "a+",
+    # ) as f:
+    #     sys.stdout = f  # Change the standard output to the file we created.
+
+    #     print(f"{flag} RECONSTRUCTIONS (n = {len(x)})")
+    #     print(
+    #         "{:^15}{:^15}{:^15}{:^15}".format("label", "SAMSEG", "SYNTHSEG", "p-value")
+    #     )
+    #     print("=" * 65)
+    #     print("CORRELATIONS")
+    #     print("=" * 65)
+    for col_name, name in zip(col_names, config.LABEL_PAIR_NAMES):
+        try:
+            a = pearsonr(x[col_name], y[col_name])[0]
+            r, p = pearsonr(x[col_name], y[col_name])
+            b = pearsonr(x[col_name], z[col_name])[0]
+            k = pearsonr(y[col_name], z[col_name])[0]
+            _, alpha = calculate_pval(b, a, k, len(x[col_name]))
+            print(f"{name:^15}{a:^15.3f}{b:^15.3f}{alpha:^15.6f}")
+
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+            import scipy as sp
+            
+            fig, ax = plt.subplots()
+            # sns.scatter(x[col_name], y[col_name])
+            g = sns.regplot(x=x[col_name], y=y[col_name], ax=ax)
+
+            ax = plt.gca()
+            ax.text(.05, .8, 'r={:.3f}, p={:.2g}'.format(r, p),
+                    transform=ax.transAxes)
+    
+            print('hello')
+
+        except ValueError as e:
+            a, b, alpha = 0, 0, 0
+            print(f"{name:^15}{a:^15.3f}{b:^15.3f}{alpha:^15.6f}")
+
+
+    # print("=" * 65)
+
+    # # print("MEAN ABSOLUTE RESIDUALS")
+    # # print("=" * 45)
+    # for col_name, name in zip(col_names, config.LABEL_PAIR_NAMES):
+    #     a = np.mean(np.abs(x[col_name] - y[col_name]) / x[col_name]) * 100
+    #     b = np.mean(np.abs(x[col_name] - z[col_name]) / x[col_name]) * 100
+
+    #     print(f"{name:^15}{a:^15.3f}{b:^15.3f}")
+    # print("=" * 45)
+
+    # print("MEAN RESIDUALS")
+    # print("=" * 45)
+    # for col_name, name in zip(col_names, config.LABEL_PAIR_NAMES):
+    #     a = np.mean((x[col_name] - y[col_name]) / x[col_name]) * 100
+    #     b = np.mean((x[col_name] - z[col_name]) / x[col_name]) * 100
+
+    #     print(f"{name:^15}{a:^15.3f}{b:^15.3f}")
+    # print("=" * 45)
+    # print()
+    # sys.stdout = original_stdout  # Reset the standard output to its original value
+
+    return
+
+
 def combine_pairs(df, pair_list):
     for label_pair in pair_list:
         label_pair = tuple(str(item) for item in label_pair)
@@ -247,7 +327,30 @@ def write_volumes_to_file(config, item_list):
     return
 
 
-def write_correlations_to_file(config, item_list, tags, flag=None, suffix=""):
+# def write_correlations_to_file(config, item_list, tags, flag=None, suffix=""):
+
+#     # TODO: tags must be unique in the list and also in the item list
+#     if not flag:
+#         raise Exception()
+
+#     # for loop tp preserve order
+#     filtered_item_list = []
+#     for tag in tags:
+#         filtered_item_list.append(*[item for item in item_list if item["tag"] == tag])
+
+#     vols_list = [get_volumes(config, item) for item in filtered_item_list]
+
+#     if len(list(filter(lambda x: x is not None, vols_list))) == 3:
+#         print_correlation_pairs(
+#             config,
+#             *vols_list,
+#             flag=flag.upper(),
+#             suffix=suffix,
+#         )
+
+#     return
+
+def write_correlations_to_file_plot(config, item_list, tags, flag=None, suffix=""):
 
     # TODO: tags must be unique in the list and also in the item list
     if not flag:
@@ -261,7 +364,7 @@ def write_correlations_to_file(config, item_list, tags, flag=None, suffix=""):
     vols_list = [get_volumes(config, item) for item in filtered_item_list]
 
     if len(list(filter(lambda x: x is not None, vols_list))) == 3:
-        print_correlation_pairs(
+        plot_correlation_pairs(
             config,
             *vols_list,
             flag=flag.upper(),

@@ -27,7 +27,7 @@ sns.set(
 
 # CUSTOM = 'subject_133'
 
-SOME_SUFFIX = "divisible"
+SOME_SUFFIX = ""
 # {curtailed | identity | test | | divisible} }
 
 # SOME_SUFFIX_LIST = ["divisible"]
@@ -132,7 +132,7 @@ def get_error_optimized(results_dir):
     recon_matrix = recon_matrix[
         :, :, PAD:-PAD
     ]  # removing matrices corresponding to padding
-    recon_matrix = recon_matrix[:, [0, 1, 3], :]
+    recon_matrix = recon_matrix[:, [0, 1, 3], :]  # excluding rotation/translation in z-axis
     recon_matrix = recon_matrix[[0, 1, 3], :, :]
 
     if SOME_SUFFIX == "identity":
@@ -522,16 +522,23 @@ def make_error_boxplot(data_frame, out_file, x_col, y_col, hue_col):
         x_col (_type_): _description_
         hue_col (_type_): _description_
     """
-    bp_ax = sns.violinplot(
+    fig, ax = plt.subplots(figsize=(3.5, 3.5))
+    bp_ax = sns.boxplot(
         x=x_col,
         y=y_col,
         hue=hue_col,
         data=data_frame,
-        palette="Greys_r",
+        palette="viridis",
         linewidth=0.5,
     )
-    fig = bp_ax.get_figure()
-    # bp_ax.legend(ncol=10, edgecolor="white", framealpha=0.25)
+    # fig = bp_ax.get_figure()
+    # lgnd = bp_ax.legend(ncol=10, edgecolor="white", framealpha=0.25, )
+    # lgnd = plt.legend(frameon=False, fontsize=13)
+    ylabel=bp_ax.get_ylabel().replace('Means', 'Mean').replace('Medians', "Median").replace('Stds', 'Std. Dev')
+
+    bp_ax.set_xlabel(xlabel=bp_ax.get_xlabel(), fontweight='bold').set_fontsize('15')
+    bp_ax.set_ylabel(ylabel=ylabel, fontweight='bold').set_fontsize('15')
+
     fig.savefig(out_file, dpi=1200, bbox_inches="tight")
     plt.clf()
 
@@ -555,7 +562,8 @@ def plot_registration_error(results_dir, error_str="mean"):
     Args:
         jitters (_type_): _description_
     """
-    for sub_folder in ["all", "xy", "z"]:
+    # for sub_folder in ["all", "xy", "z"]:
+    for sub_folder in ["all"]:
         errors_dir = os.path.join(
             results_dir,
             "-".join(["hcp-errors", SOME_SUFFIX]).strip("-"),
@@ -621,8 +629,8 @@ def collect_images_into_pdf(results_dir):
 if __name__ == "__main__":
     PRJCT_DIR = "/space/calico/1/users/Harsha/SynthSeg/results"
 
-    FOLDER = "hcp-results-20220810-2"
-    # {options: hcp-results | hcp-results-2020527 | hcp-results-2020528}
+    FOLDER = "hcp-results-20220912-copy"
+    # {options: hcp-results | hcp-results-20220527 | hcp-results-20220528}
 
     # set this to a high value if you want to run all subjects
     # there are nearly 897 subjects in the dataset
@@ -633,8 +641,8 @@ if __name__ == "__main__":
     if not os.path.exists(full_results_path):
         raise Exception("Folder does not exist")
 
-    calculate_registration_error(full_results_path, M)
+    # calculate_registration_error(full_results_path, M)
     for stat_key in ["means", "stds", "medians", "mean-of-means"]:
         plot_registration_error(full_results_path, stat_key)
 
-    collect_images_into_pdf(full_results_path)
+    # collect_images_into_pdf(full_results_path)

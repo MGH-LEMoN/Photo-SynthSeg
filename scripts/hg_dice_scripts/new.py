@@ -16,7 +16,7 @@ from dice_mri_utils import (
 )
 from dice_plots import write_plots
 from dice_utils import run_make_target
-from dice_volumes import write_correlations_to_file, write_volumes_to_file
+from dice_volumes import write_correlations_to_file_plot, write_volumes_to_file
 from uw_config import (
     CORRELATIONS_LIST,
     DICE2D_LIST,
@@ -309,9 +309,9 @@ class Configuration:
         with open(config_file, "w") as outfile:
             outfile.write(json_object)
 
-    def __setattr__(self, key, value):
-        self.__dict__[key] = value
-        self._write_config()
+    # def __setattr__(self, key, value):
+    #     self.__dict__[key] = value
+    #     self._write_config()
 
     def _make_dirs(self):
         self.dice_dir = os.path.join(self.SYNTHSEG_RESULTS, "dice_files")
@@ -331,6 +331,14 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, dest="model_name", default=None)
     parser.add_argument("--part", type=int, dest="part", default=None)
     parser.add_argument("--skip", type=int, dest="skip", default=None)
+
+    import sys
+    sys.argv = ['/space/calico/1/users/Harsha/SynthSeg/scripts/hg_dice_scripts/new.py',
+    '--recon_flag', 'new',
+    '--out_dir_name', '/space/calico/1/users/Harsha/SynthSeg/results/20220411',
+    '--model_name', 'S04R01',
+    '--part', '2',
+    '--skip', '1']
 
     args = parser.parse_args()
     config = Configuration(PRJCT_DIR, args)
@@ -353,23 +361,24 @@ if __name__ == "__main__":
         # run_make_target(config, "scans")
 
     if args.part == 2:
-        SAMSEG_LIST = glob.glob(
-            os.path.join(
-                os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")), "samseg_output_*"
-            )
-        )
-        for src in SAMSEG_LIST:
-            basename = os.path.basename(src)
-            dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
-            try:
-                copytree(src, dst)
-            except:
-                pass
+        # SAMSEG_LIST = glob.glob(
+        #     os.path.join(
+        #         os.path.dirname(getattr(config, "SYNTHSEG_RESULTS")), "samseg_output_*"
+        #     )
+        # )
+        # for src in SAMSEG_LIST:
+        #     basename = os.path.basename(src)
+        #     dst = os.path.join(getattr(config, "SYNTHSEG_RESULTS"), basename)
+        #     try:
+        #         copytree(src, dst)
+        #     except:
+        #         pass
 
-        copy_relevant_files(config, SAMSEG_GATHER_DICT)
-        write_volumes_to_file(config, VOLUMES_LIST)
+        # copy_relevant_files(config, SAMSEG_GATHER_DICT)
+        # write_volumes_to_file(config, VOLUMES_LIST)
         for item in CORRELATIONS_LIST:
-            write_correlations_to_file(config, VOLUMES_LIST, *item)
+            # write_correlations_to_file(config, VOLUMES_LIST, *item)
+            write_correlations_to_file_plot(config, VOLUMES_LIST, *item)
 
         move_volumes_into_target_spaces(config, mri_convert_items)
         calculate_dice_for_dict(config, DICE2D_LIST)
