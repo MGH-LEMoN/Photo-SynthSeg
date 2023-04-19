@@ -1,12 +1,11 @@
 import numpy as np
-from SynthSeg.check_generation import check_generation
+from check_generation import check_generation
 
 # general parameters
-examples = 2
+examples = 10
+spacing = 4
 # result_folder = '/home/benjamin/data/SynthSeg/generated_examples'
-result_folder = (
-    "/space/calico/1/users/Harsha/SynthSeg/generated_examples_stack_d4t1_new"
-)
+result_folder = f"/space/calico/1/users/Harsha/SynthSeg/generated_examples_stack_D{spacing:02d}"
 
 # new outputs
 # tensor_names = [
@@ -85,17 +84,17 @@ shearing_bounds = 0.00001  # [0.0012, 0.0013]
 translation_bounds = False
 # nonlin_std = 2.5
 nonlin_std = (4, 0, 4)
-nonlin_shape_factor = (0.0625, 0.0625, 0.0625)
+nonlin_shape_factor = (0.0625, 1 / spacing, 0.0625)
 
 # blurring/ downsample
 randomise_res = False
 max_res_iso = 4.0
 max_res_aniso = 8.0
-data_res = (1, 4, 1)  # np.array([1., 1., 5.])
+data_res = (1, spacing, 1)  # np.array([1., 1., 5.])
 thickness = None  # '/home/benjamin/data/SynthSeg/PAMI/labels_classes_stats/data_res/thickness_411.npy'
 thickness = (
     1,
-    1,
+    0.01,
     1,
 )  # '/home/benjamin/data/SynthSeg/PAMI/labels_classes_stats/data_res/thickness_411.npy'
 downsample = True
@@ -105,7 +104,7 @@ blur_range = 1.03
 # bias field
 bias_field_std = 0.5
 
-bias_shape_factor = (0.025, 0.25, 0.025)
+bias_shape_factor = (0.025, 1 / spacing, 0.025)
 return_gradients = False
 
 check_generation(
