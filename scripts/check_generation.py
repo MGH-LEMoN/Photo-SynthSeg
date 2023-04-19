@@ -146,8 +146,10 @@ def check_generation(
                     tmp_output = generation_labels[tmp_output]
                     tmp_name = tmp_name.replace("_convert", "")
                 if "_save" in tmp_name:
+                    result_dir_example = os.path.join(result_dir, f"{i:02d}")
+                    os.makedirs(result_dir_example, exist_ok=True)
                     path = os.path.join(
-                        result_dir,
+                        result_dir_example,
                         tmp_name.replace("_save", "")
                         + "_%.{}d".format(n) % i
                         + ".nii.gz",
