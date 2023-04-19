@@ -1309,6 +1309,8 @@ class MimicAcquisition(Layer):
                 stddev=tf.random.uniform(sample_shape, maxval=self.noise_std),
             )
 
+        vol_stack = vol
+
         # upsample
         up_loc = tf.tile(
             self.up_grid,
@@ -1321,7 +1323,7 @@ class MimicAcquisition(Layer):
 
         # return upsampled volume
         if not self.build_dist_map:
-            return vol
+            return [vol, vol_stack]
 
         # return upsampled volumes with distance maps
         else:
@@ -1354,7 +1356,7 @@ class MimicAcquisition(Layer):
 
     def compute_output_shape(self, input_shape):
         output_shape = tuple([None] + self.resample_shape + [input_shape[0][-1]])
-        return [output_shape] * 2 if self.build_dist_map else output_shape
+        return [output_shape] * 2 if self.build_dist_map else [output_shape] * 2
 
 
 class BiasFieldCorruption(Layer):

@@ -237,6 +237,7 @@ def labels_to_image_model(
 
     # loop over channels
     channels = list()
+    channels_stack = list()
     split = (
         KL.Lambda(lambda x: tf.split(x, [1] * n_channels, axis=-1))(image)
         if (n_channels > 1)
@@ -261,10 +262,11 @@ def labels_to_image_model(
             channel = layers.DynamicGaussianBlur(
                 0.75 * max_res / np.array(atlas_res), blur_range
             )([channel, sigma])
-            channel = layers.MimicAcquisition(
+            [channel, channel_stack] = layers.MimicAcquisition(
                 atlas_res, atlas_res, output_shape, False
             )([channel, resolution])
             channels.append(channel)
+            channels_stack.append(channel_stack)
 
         else:
             sigma = l2i_et.blurring_sigma_for_downsampling(
@@ -275,12 +277,13 @@ def labels_to_image_model(
                 resolution = KL.Lambda(
                     lambda x: tf.convert_to_tensor(data_res[i], dtype="float32")
                 )([])
-                channel = layers.MimicAcquisition(atlas_res, data_res[i], output_shape)(
+                [channel, channel_stack]  = layers.MimicAcquisition(atlas_res, data_res[i], output_shape)(
                     [channel, resolution]
                 )
             elif output_shape != crop_shape:
                 channel = nrn_layers.Resize(size=output_shape)(channel)
             channels.append(channel)
+            channels_stack.append(channel_stack)
 
     # concatenate all channels back
     image = (
@@ -288,6 +291,13 @@ def labels_to_image_model(
         if len(channels) > 1
         else channels[0]
     )
+
+    # # concatenate all channels back
+    # image_stack = (
+    #     KL.Lambda(lambda x: tf.concat(x, -1))(channels_stack)
+    #     if len(channels_stack) > 1
+    #     else channels_stack[0]
+    # )
 
     # compute image gradient
     if return_gradients:
