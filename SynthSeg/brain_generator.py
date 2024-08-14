@@ -15,6 +15,7 @@ License.
 
 
 # python imports
+import gc
 import numpy as np
 
 # project imports
@@ -317,11 +318,13 @@ class BrainGenerator:
         while True:
             model_inputs = next(self.model_inputs_generator)
             [image, labels] = self.labels_to_image_model.predict(model_inputs)
+            _ = gc.collect()
             yield image, labels
 
     def generate_brain(self):
         """call this method when an object of this class has been instantiated to generate new brains"""
         (image, labels) = next(self.brain_generator)
+        _ = gc.collect()
         # put back images in native space
         list_images = list()
         list_labels = list()
