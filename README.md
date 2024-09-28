@@ -161,6 +161,22 @@ pip install tensorflow-gpu==2.2.0 keras==2.3.1 protobuf==3.20.3 numpy==1.23.5 ni
 4. If you wish to run on the GPU, you will also need to install Cuda (10.0 for Python 3.6, 10.1 for Python 3.8), and 
 CUDNN (7.6.5 for both). Note that if you used conda, these were already automatically installed.
 
+UPDATE:
+If you are interested in running SynthSeg using the most recent compatible version of tensorflow (<=2.15), you may want to run the following steps
+```
+conda create -n ss2.15 python=3.11 -y
+conda activate ss2.15
+pip install --extra-index-url https://pypi.nvidia.com tensorrt_libs
+pip install tensorflow[and-cuda]==2.15 nibabel scipy
+
+# or
+
+conda create -n ss2.15 python=3.11 -y
+conda activate ss2.15
+pip install -r requirements_python3.11.txt
+
+```
+
 That's it ! You're now ready to use SynthSeg ! :tada:
 
 

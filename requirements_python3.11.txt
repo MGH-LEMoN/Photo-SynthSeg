@@ -46,6 +46,7 @@ tensorboard-data-server==0.7.2
 tensorflow==2.15.0
 tensorflow-estimator==2.15.0
 tensorflow-io-gcs-filesystem==0.37.1
+--extra-index-url https://pypi.nvidia.com
 tensorrt==8.6.1.post1
 tensorrt-bindings==8.6.1
 tensorrt-libs==8.6.1
